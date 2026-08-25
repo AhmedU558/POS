@@ -62,3 +62,31 @@ Append-only. Do not edit existing entries.
 - source_spec: `spec-1-3-audit-foundation.md`
   summary: Non-transactional audit tests commit rows that immutability makes impossible to clean up.
   evidence: `AuditSchemaTests` and `AuditTransactionTests` leave probe rows in the shared container permanently, and `systemActionsAreRecordedWithNoActorAndNoUsersInTheDatabase` empties `users`, which will fail the first time any test commits a human-actor audit row. Needs a per-class database isolation strategy rather than a cleanup.
+
+- source_spec: none
+  summary: Rotation enforcement and self-service password change — POST /auth/change-password, the PASSWORD_CHANGE_REQUIRED error code, the enforcement filter, and tightening SecurityConfig so only login/forgot-password/reset-password stay public.
+  evidence: Split from Story 1.2 at the workflow's multi-goal checkpoint. Independently shippable, and tested with mock principals rather than container startup. MUST land before Story 1.4 — the is_password_change_required flag Story 1.2 sets is inert until this enforces it, so shipping login first would let the bootstrap administrator authenticate without rotating, which is the hole rotation exists to close. AMD-002 is already approved and specifies the whole surface.
+
+- source_spec: `spec-1-2-first-administrator-provisioning.md`
+  summary: The resolved bootstrap credential lives as a String in a long-lived singleton and is never cleared.
+  evidence: BootstrapProperties.password, the resolver return value and Files.readString all produce Strings that stay reachable in the heap for the process lifetime. Actuator exposes only /health so /actuator/env is closed, but a heap dump would still contain it. Clearing shared configuration state from a service is surprising enough to warrant a deliberate decision rather than a quiet patch.
+
+- source_spec: `spec-1-2-first-administrator-provisioning.md`
+  summary: Secret file permissions are not checked; a world-readable mount is accepted silently.
+  evidence: BootstrapCredentialResolver validates the file is regular, small, single-line and long enough, but not that it is unreadable by other users. A POSIX permission check would warn on a 0644 secret mount.
+
+- source_spec: `spec-1-2-first-administrator-provisioning.md`
+  summary: BootstrapRunner is an ApplicationRunner, so execution-time failures occur after the web server is already accepting connections.
+  evidence: Configuration fail-closed is covered — BootstrapProperties.validate() is @PostConstruct and aborts context refresh before the port opens. But credential resolution and provisioning run in the ApplicationRunner callback, after the server starts. Moving them earlier is a lifecycle change worth deciding deliberately.
+
+- source_spec: `spec-1-2-first-administrator-provisioning.md`
+  summary: Failed bootstrap attempts produce no audit record.
+  evidence: Only success is audited. A failure -- missing role, duplicate username, unreadable secret, losing the race -- leaves nothing in audit_logs, so repeated failed attempts have no forensic trail. Auditing a failure needs a record that survives the rollback, which contradicts the MANDATORY propagation Story 1.3 chose deliberately; resolving that is a design decision, not a patch.
+
+- source_spec: `spec-1-2-first-administrator-provisioning.md`
+  summary: V4 takes an ACCESS EXCLUSIVE lock on users with no lock_timeout.
+  evidence: ALTER TABLE users ADD COLUMN is fast in PostgreSQL 11+ because the default is not volatile, but the statement still queues behind long-running transactions and blocks all reads while waiting. A lock_timeout belongs in the deployment runbook alongside the migration policy.
+
+- source_spec: `spec-1-2-first-administrator-provisioning.md`
+  summary: BCrypt silently truncates input beyond 72 bytes.
+  evidence: A passphrase longer than 72 bytes contributes no entropy past that point. Verification truncates identically so nothing breaks, but an operator supplying a long passphrase gets less strength than they believe. Worth a documented note or an explicit guard when the password policy is next revisited.

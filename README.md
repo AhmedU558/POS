@@ -71,6 +71,37 @@ openssl rand -hex 32
 If any are missing, startup aborts with a message naming every offending variable at once, so a
 first-time setup takes one fix rather than four.
 
+## Provisioning the first administrator
+
+A new deployment has no users, and `POST /users` requires a permission nobody holds yet, so the
+first administrator is created at startup from credentials you supply.
+
+```bash
+APP_BOOTSTRAP_ENABLED=true
+APP_BOOTSTRAP_USERNAME=ada.lovelace
+APP_BOOTSTRAP_FIRST_NAME=Ada
+APP_BOOTSTRAP_LAST_NAME=Lovelace
+APP_BOOTSTRAP_PASSWORD_FILE=/run/secrets/admin-password
+```
+
+Prefer the `_FILE` form in production — an environment variable is readable through
+`docker inspect`, `/proc/<pid>/environ` and crash dumps. The plain `APP_BOOTSTRAP_PASSWORD` is
+there for local development. Minimum 12 characters, no composition rules.
+
+Three things worth knowing before you run it:
+
+- **It is permanently one-shot.** Completion is recorded in the database, not inferred from whether
+  an administrator exists. Deleting the account does **not** let a restart recreate it — that would
+  rebuild it with your original, by-then-circulated password.
+- **It fails closed.** Enabled with anything missing, and the application refuses to start rather
+  than quietly doing nothing.
+- **The password must be changed on first use.** The account is created flagged for rotation, so
+  the credential you supplied stops working once the holder replaces it.
+
+Afterwards, remove the `APP_BOOTSTRAP_*` values. Leaving them set is harmless to the data — the
+marker prevents a second run — but it leaves a plaintext administrator credential mounted in every
+replica's environment. The application logs a warning when it finds them still present.
+
 ## Start the local environment
 
 **1. Backing services**

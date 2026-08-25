@@ -64,6 +64,14 @@ public class User {
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 
+    /**
+     * True while the account holds a credential its owner did not choose — issued at bootstrap or
+     * reset by an administrator (AMD-001). Cleared only by a successful password change; there is
+     * deliberately no setter, so no generic update path can clear it.
+     */
+    @Column(name = "is_password_change_required", nullable = false)
+    private boolean passwordChangeRequired = false;
+
     @Column(name = "last_login_at")
     private Instant lastLoginAt;
 
@@ -122,10 +130,6 @@ public class User {
         return passwordHash;
     }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash");
-    }
-
     public String getFirstName() {
         return firstName;
     }
@@ -140,6 +144,26 @@ public class User {
 
     public void setActive(boolean active) {
         this.active = active;
+    }
+
+    public boolean isPasswordChangeRequired() {
+        return passwordChangeRequired;
+    }
+
+    /** Marks the account as holding a credential the holder must replace before using it. */
+    public void requirePasswordChange() {
+        this.passwordChangeRequired = true;
+    }
+
+    /**
+     * Replaces the credential and clears the rotation requirement together.
+     *
+     * <p>One operation, so the flag cannot be cleared without a new password actually being set —
+     * which a separate setter would have allowed.
+     */
+    public void changePassword(String newPasswordHash) {
+        this.passwordHash = Objects.requireNonNull(newPasswordHash, "newPasswordHash");
+        this.passwordChangeRequired = false;
     }
 
     public Instant getLastLoginAt() {
