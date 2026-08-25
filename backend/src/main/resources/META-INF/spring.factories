@@ -1,0 +1,4 @@
+# EnvironmentPostProcessor implementations are still registered through spring.factories in
+# Spring Boot 3.x; only auto-configurations moved to AutoConfiguration.imports.
+org.springframework.boot.env.EnvironmentPostProcessor=\
+com.pos.common.config.RequiredConfigurationValidator

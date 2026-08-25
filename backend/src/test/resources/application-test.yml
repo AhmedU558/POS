@@ -16,3 +16,10 @@ app:
   security:
     cors:
       allowed-origins: http://localhost:3000
+
+jwt:
+  # Non-production fixtures. Required because RequiredConfigurationValidator makes the signing
+  # secrets mandatory at startup. These are deliberately obvious placeholders, long enough only
+  # to clear the configuration-hygiene floor; nothing signs or verifies a token in Phase 0.
+  secret: test-fixture-not-a-real-secret-value-0001
+  refresh-secret: test-fixture-not-a-real-secret-value-0002

@@ -49,15 +49,27 @@ _bmad-output/ BMad artefacts (SPEC kernel and companions)
 cp .env.example .env
 ```
 
-Fill in `.env`. `POSTGRES_PASSWORD` and `DATABASE_PASSWORD` are required — the API refuses to
-start without a database password, because credentials must never be committed to source control
-(SAD section 15, Database Design section 28).
+Fill in `.env`. Credentials are never committed to source control (SAD section 15, Database
+Design section 28), so the application validates them at startup and refuses to run if any are
+missing. Four values are required:
 
-Generate the Phase 1 authentication secrets with a real generator, never by hand:
+| Variable | Notes |
+|---|---|
+| `POSTGRES_PASSWORD` | Used by docker-compose to provision the local database |
+| `DATABASE_PASSWORD` | Used by the API to connect to it |
+| `JWT_SECRET` | At least 32 characters |
+| `JWT_REFRESH_SECRET` | At least 32 characters, different from `JWT_SECRET` |
+
+Nothing signs a token until Phase 1, but the secrets are validated now so a weak or missing value
+cannot reach the authentication work. Generate each one separately with a real generator, never
+by hand:
 
 ```bash
 openssl rand -hex 32
 ```
+
+If any are missing, startup aborts with a message naming every offending variable at once, so a
+first-time setup takes one fix rather than four.
 
 ## Start the local environment
 
