@@ -4,27 +4,62 @@ spring:
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pos_db}
     username: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:postgres}
+    # No default. Database credentials must be managed outside source control
+    # (Database Design & ERD Specification section 28, SRS section 9).
+    password: ${DATABASE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
-    show-sql: true
+    show-sql: false
   flyway:
     enabled: true
-    baseline-on-migrate: true
-    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pos_db}
-    user: ${DATABASE_USERNAME:postgres}
-    password: ${DATABASE_PASSWORD:postgres}
+    # Never baseline automatically: on a non-empty database without a history table this
+    # silently skips pending migrations (Database Design & ERD Specification section 26).
+    baseline-on-migrate: false
+    # Inherits spring.datasource.* so migrations and the application can never diverge.
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
 
+app:
+  security:
+    cors:
+      # Browser origins permitted to call the API. Each environment declares its own
+      # (SAD section 2). Comma-separated.
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Infrastructure liveness only. See docs/adr/ADR-009-health-endpoints.md.
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  # Publish OpenAPI and Swagger UI only in appropriate environments
+  # (REST API Specification section 32). Set SPRINGDOC_ENABLED=false in production.
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:true}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:true}
+
+logging:
+  pattern:
+    # Correlation id published by CorrelationIdFilter (SAD section 21, API spec section 29).
+    level: "%5p [%X{requestId:-}]"
+
 jwt:
-  secret: ${JWT_SECRET:d29329240eb0f9ff433023fc6653df8a211eb4c69818abf5ff9841f3d82a1b18}
-  refresh-secret: ${JWT_REFRESH_SECRET:418abf5ff9841f3d82a1b18d29329240eb0f9ff433023fc6653df8a211eb4c69}
+  # Values are supplied by the environment only. Secrets must not be committed to source
+  # control (SAD section 15, SRS section 9). Binding and validation of these properties
+  # arrive with the authentication module in Phase 1.
+  secret: ${JWT_SECRET}
+  refresh-secret: ${JWT_REFRESH_SECRET}
   expiration-ms: 900000 # 15 minutes
   refresh-expiration-ms: 86400000 # 24 hours

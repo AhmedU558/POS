@@ -31,3 +31,9 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build/test output
+backend/target/
+frontend/.next/
+frontend/out/
+frontend/coverage/

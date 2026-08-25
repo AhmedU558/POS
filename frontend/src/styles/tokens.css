@@ -1,0 +1,161 @@
+/*
+ * Design tokens.
+ *
+ * Source of truth: UI/UX & Screen Architecture Specification
+ *   - section 7.1 Visual Principles
+ *   - section 7.2 Suggested Design Tokens
+ *   - section 7.3 Status Semantics
+ *   - section 29 Accessibility
+ *   - section 30 Responsive Strategy
+ *
+ * Values that the specification gives as a range are pinned to a single value here so the
+ * system stays consistent; the range is recorded in the comment beside each token.
+ */
+
+:root {
+  /* ---- Typography (spec 7.2) ------------------------------------------- */
+  --font-sans: var(--font-inter), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  --font-size-small: 0.8125rem; /* 13px  — spec range 12–13px */
+  --font-size-body: 0.9375rem; /* 15px  — spec range 14–16px */
+  --font-size-body-lg: 1rem; /* 16px */
+  --font-size-heading-sm: 1.25rem; /* 20px */
+  --font-size-heading: 1.75rem; /* 28px  — spec range 24–32px */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+
+  --line-height-tight: 1.25;
+  --line-height-body: 1.5;
+
+  /* Monetary values are read at a glance and must not be ambiguous (spec 7.1). */
+  --font-feature-numeric: "tnum" 1, "lnum" 1;
+
+  /* ---- Spacing: 4px base scale (spec 7.2) ------------------------------ */
+  --space-1: 0.25rem; /* 4px  */
+  --space-2: 0.5rem; /* 8px  */
+  --space-3: 0.75rem; /* 12px */
+  --space-4: 1rem; /* 16px */
+  --space-5: 1.25rem; /* 20px */
+  --space-6: 1.5rem; /* 24px */
+  --space-8: 2rem; /* 32px */
+  --space-10: 2.5rem; /* 40px */
+  --space-12: 3rem; /* 48px */
+
+  /* ---- Radius (spec 7.2: 6–10px) --------------------------------------- */
+  --radius-sm: 0.375rem; /* 6px  */
+  --radius-md: 0.5rem; /* 8px  */
+  --radius-lg: 0.625rem; /* 10px */
+
+  /* ---- Control and row sizing (spec 7.2) ------------------------------- */
+  --control-height: 2.625rem; /* 42px — spec range 40–44px             */
+  --control-height-sm: 2.25rem; /* 36px                                   */
+  --control-height-pos: 3.5rem; /* 56px — larger POS touch target         */
+  --table-row-height: 2.875rem; /* 46px — spec range 44–52px              */
+  --table-row-height-dense: 2.75rem; /* 44px                              */
+
+  /* Minimum touch target for POS/touchscreen use (spec 29). */
+  --touch-target-min: 2.75rem; /* 44px */
+
+  /* ---- Layout (spec 30) ------------------------------------------------ */
+  --breakpoint-tablet: 768px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-pos: 1280px; /* POS terminals target 1280px and above */
+  --layout-max-width: 90rem;
+
+  /* ---- Neutral surface palette (spec 7.1) ------------------------------ */
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #f7f8fa;
+  --color-surface-sunken: #eff1f5;
+  --color-border: #d8dce4;
+  --color-border-strong: #b6bdc9;
+
+  --color-foreground: #14181f;
+  --color-foreground-muted: #5a6474;
+  --color-foreground-subtle: #798394;
+
+  /* High contrast for monetary values (spec 7.1). */
+  --color-money: #0b0f16;
+
+  --color-primary: #1c5bd8;
+  --color-primary-hover: #1848ad;
+  --color-primary-foreground: #ffffff;
+
+  --color-focus-ring: #1c5bd8;
+
+  /* ---- Status semantics (spec 7.3) ------------------------------------- */
+  /* Colour is a secondary signal only: pair every status with an icon or label. */
+  --color-success: #15703c;
+  --color-success-surface: #e6f4ec;
+  --color-warning: #8a5300;
+  --color-warning-surface: #fdf1de;
+  --color-error: #b3251e;
+  --color-error-surface: #fdeceb;
+  --color-info: #1c5bd8;
+  --color-info-surface: #e9f0fd;
+  --color-pending: #5a6474;
+  --color-pending-surface: #f1f3f7;
+  --color-disabled-foreground: #8b94a3;
+  --color-disabled-surface: #f1f3f7;
+
+  /* ---- Elevation ------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgb(20 24 31 / 8%);
+  --shadow-md: 0 4px 12px rgb(20 24 31 / 10%);
+  --shadow-overlay: 0 16px 40px rgb(20 24 31 / 18%);
+
+  /* ---- Motion ---------------------------------------------------------- */
+  /* Restrained: never delay a transactional workflow for decoration (spec 7.1). */
+  --duration-instant: 80ms;
+  --duration-fast: 140ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0.2, 1);
+
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0e1116;
+    --color-surface: #151a21;
+    --color-surface-raised: #1c222b;
+    --color-surface-sunken: #0a0d12;
+    --color-border: #2b3441;
+    --color-border-strong: #3d4859;
+
+    --color-foreground: #e9edf3;
+    --color-foreground-muted: #9aa5b5;
+    --color-money: #ffffff;
+
+    --color-primary: #6f9bff;
+    --color-primary-hover: #8bb0ff;
+    --color-primary-foreground: #0e1116;
+    --color-focus-ring: #6f9bff;
+
+    --color-success: #58c07f;
+    --color-success-surface: #10281a;
+    --color-warning: #e0a944;
+    --color-warning-surface: #2a1f0b;
+    --color-error: #ef6f68;
+    --color-error-surface: #2d1312;
+    --color-info: #6f9bff;
+    --color-info-surface: #101a2e;
+    --color-pending: #9aa5b5;
+    --color-pending-surface: #1c222b;
+    --color-disabled-foreground: #6b7686;
+    --color-disabled-surface: #1c222b;
+  }
+}
+
+/* Respect the reduced-motion preference (spec 29). */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0ms;
+    --duration-fast: 0ms;
+  }
+}

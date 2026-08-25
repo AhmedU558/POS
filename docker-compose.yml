@@ -1,20 +1,30 @@
-version: '3.8'
+# Local development services.
+#
+# Provides the backing services the application runs against on a developer machine
+# (Implementation Plan section 7, "Local"). Integration tests do NOT use these containers:
+# they provision their own disposable PostgreSQL through Testcontainers, per System
+# Architecture Document section 29.
+#
+# Application images are built from backend/Dockerfile and frontend/Dockerfile and are
+# deployed by the pipeline; they are intentionally not started here so local development
+# keeps fast rebuild loops.
 
 services:
   postgres:
     image: postgres:15-alpine
     container_name: pos-postgres
     environment:
-      POSTGRES_DB: pos_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: ${POSTGRES_DB:-pos_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set; copy .env.example to .env}
     ports:
-      - "5432:5432"
+      # Bound to the loopback interface only: the database must not be reachable from
+      # outside the developer machine (Database Design & ERD Specification section 28).
+      - "127.0.0.1:5432:5432"
     volumes:
       - pos-postgres-data:/var/lib/postgresql/data
-      - ./infra/docker/postgres/init-test-db.sh:/docker-entrypoint-initdb.d/init-test-db.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pos_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-pos_db}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,7 +33,7 @@ services:
     image: redis:7-alpine
     container_name: pos-redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - pos-redis-data:/data
     healthcheck:
