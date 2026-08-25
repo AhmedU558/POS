@@ -1,0 +1,586 @@
+IMPLEMENTATION & DEVELOPMENT PLAN
+Integrated POS, Inventory & Business Management System
+Java 21 • Spring Boot 3.x • PostgreSQL • React/Next.js
+
+
+1. Purpose
+This document converts the approved product, requirements, architecture, database, API, and UI/UX specifications into an executable development roadmap. It defines project setup, engineering practices, implementation phases, dependencies, testing, deployment, milestones, and Definition of Done.
+2. Development Strategy
+Build the MVP as a modular Spring Boot monolith backed by PostgreSQL.
+Develop backend and frontend incrementally around vertical business workflows rather than isolated technical layers.
+Prioritize the complete POS transaction loop early: product → cart → payment → inventory → register → receipt.
+Use automated tests from the beginning.
+Keep every feature traceable to an SRS requirement and API/UI contract.
+Delay advanced integrations and microservice extraction until the core store workflow is stable.
+3. Target Technology Stack
+
+4. Project Repository Structure
+pos-system/
+├── backend/
+│   ├── src/main/java/com/pos/
+│   ├── src/main/resources/
+│   ├── src/test/
+│   ├── pom.xml
+│   └── Dockerfile
+├── frontend/
+│   ├── src/
+│   ├── public/
+│   ├── package.json
+│   └── Dockerfile
+├── database/
+│   └── migrations/
+├── infra/
+│   ├── docker/
+│   ├── nginx/
+│   └── compose/
+├── docs/
+└── .github/
+    └── workflows/
+
+5. Git & Branching Strategy
+main
+  │
+  ├── develop
+  │    ├── feature/auth
+  │    ├── feature/products
+  │    ├── feature/inventory
+  │    └── feature/pos
+  │
+  └── release/*
+       └── hotfix/*
+
+main contains production-ready code.
+develop contains integrated development work if a team workflow requires it.
+Feature branches should be short-lived and focused on one capability.
+Pull requests require review and automated CI checks.
+Production hotfixes must be merged back into development branches.
+Commit messages should be concise and meaningful.
+6. Coding Standards
+
+7. Development Environments
+
+Each environment must have separate configuration and secrets.
+Production data must never be used in development without approved anonymization.
+Database migrations must be applied consistently across environments.
+8. Initial Project Setup
+Create Git repository and protected main branch.
+Initialize Spring Boot backend with Java 21 and Maven.
+Initialize React/Next.js TypeScript frontend.
+Configure PostgreSQL and Flyway.
+Configure Docker Compose for local services.
+Configure environment variables and secret templates.
+Configure global logging, error handling, validation, and API response conventions.
+Configure OpenAPI documentation.
+Configure CI pipeline.
+Create baseline README and development documentation.
+9. Development Phases
+
+*Estimates assume focused development and are planning ranges, not guaranteed delivery dates. Parallel work by multiple developers can reduce calendar time.
+10. Phase 0 — Foundation
+Repository and branching strategy.
+Spring Boot project structure.
+Frontend project structure.
+PostgreSQL/Flyway baseline.
+Docker Compose.
+Common API response/error format.
+Global exception handling.
+Logging and correlation IDs.
+OpenAPI setup.
+CI pipeline.
+Base design system and frontend routing.
+Definition of Done
+Backend builds successfully.
+Frontend builds successfully.
+Database migrations run cleanly.
+CI passes.
+Local environment can be started using documented commands.
+11. Phase 1 — Authentication, RBAC & Organization
+Users, roles, permissions.
+Login, refresh, logout.
+Store access scope.
+Stores, terminals, registers.
+Register session foundation.
+Admin user screens.
+
+12. Phase 2 — Products & Catalog
+Categories, brands, units.
+Products and SKUs.
+Barcodes.
+Prices and pricing history.
+Product activation/deactivation.
+Catalog search APIs.
+The product catalog should be stable before POS development begins because product identity and pricing are foundational to inventory and sales.
+13. Phase 3 — Inventory
+Inventory balances.
+Inventory transaction ledger.
+Stock receiving.
+Adjustments.
+Transfers.
+Batch/lot tracking.
+Expiration tracking.
+Low-stock alerts.
+Inventory reports.
+Critical Test Scenarios
+Concurrent sales cannot corrupt stock.
+Adjustment requires reason and permission.
+Receiving increases stock correctly.
+Expiry filters return correct batches.
+Negative stock behavior follows configuration.
+14. Phase 4 — Customers & Suppliers
+Customer profiles and history.
+Store credit ledger.
+Supplier profiles.
+Supplier-product associations.
+Search and filtering.
+15. Phase 5 — Purchasing & Accounts Payable
+Purchase order lifecycle.
+Goods receiving.
+Supplier invoices.
+Outstanding/overdue payables.
+Partial supplier payments.
+Supplier statements.
+Purchase Order → Goods Receipt → Supplier Invoice → Accounts Payable → Supplier Payment
+16. Phase 6 — POS Sales & Payments
+This is the primary MVP business milestone.
+POS layout implementation.
+Product/barcode lookup.
+Cart operations.
+Customer selection.
+Discount calculation.
+Tax calculation.
+Payment methods.
+Split payments if enabled.
+Sale completion.
+Inventory deduction.
+Receipt generation.
+Idempotency and duplicate-submit protection.
+Critical Transaction
+Sale + Sale Items + Payments + Inventory Movement + Register Transaction + Audit = ONE controlled business transaction
+17. Phase 7 — Cash Register & Day-End
+Open register session.
+Opening cash.
+Cash-in/cash-out.
+Session summary.
+Expected cash calculation.
+Actual cash count.
+Variance.
+Z report.
+Session locking after close.
+18. Phase 8 — Returns, Quotations & Promotions
+Return/refund workflow.
+Refund eligibility.
+Quotation lifecycle.
+Quotation-to-sale conversion.
+Percentage/fixed discounts.
+Promotion rules.
+Promotion dates.
+Stacking/priority rules.
+Discount permission controls.
+19. Phase 9 — Online Orders
+External order ingestion.
+Idempotency.
+Order queue.
+Order status transitions.
+Inventory reservation strategy.
+Cancellation.
+Refund integration.
+Fulfillment workflow.
+The external channel adapter must be isolated from core POS domain logic.
+20. Phase 10 — Budgets & Reporting
+Budget creation and approval.
+Expense recording.
+Budget vs actual.
+Sales reports.
+Inventory reports.
+Cash register reports.
+Accounts payable reports.
+Profit/financial reports where supported.
+Export functionality.
+21. Phase 11 — Security & Performance Hardening
+Dependency vulnerability scan.
+Authentication security tests.
+Authorization/privilege escalation tests.
+Input validation/security tests.
+SQL injection and API abuse tests.
+Rate limiting.
+Load testing.
+POS transaction concurrency testing.
+Database query optimization.
+Logging/monitoring verification.
+22. Phase 12 — Staging, UAT & Production
+Deploy release candidate to staging.
+Run database migrations.
+Run automated test suite.
+Run UAT scenarios.
+Validate POS hardware integrations.
+Validate receipt/label printing.
+Validate register closing.
+Validate backup and restore.
+Resolve release-blocking defects.
+Create production release.
+Deploy with rollback plan.
+Perform smoke tests.
+Begin monitored production operation.
+23. MVP Scope
+
+24. Suggested Sprint Structure
+
+A sprint can be 1–2 weeks depending on team size and working agreement.
+25. Backend Development Workflow
+Requirement
+   ↓
+API Contract
+   ↓
+DTO + Validation
+   ↓
+Service / Business Logic
+   ↓
+Repository
+   ↓
+Migration
+   ↓
+Unit Tests
+   ↓
+Integration Tests
+   ↓
+API Tests
+   ↓
+Pull Request
+   ↓
+CI
+   ↓
+Review
+
+26. Frontend Development Workflow
+UI/UX Specification
+       ↓
+Reusable Components
+       ↓
+Page / Feature
+       ↓
+API Client
+       ↓
+Loading / Error / Empty States
+       ↓
+Permission Handling
+       ↓
+Component Tests
+       ↓
+E2E Workflow Tests
+       ↓
+Review / CI
+
+27. Testing Strategy
+
+28. Critical End-to-End Test Cases
+Login as cashier → open register → scan product → cash payment → receipt.
+Cashier → sell multiple products → verify inventory deduction.
+Cashier → apply authorized discount → verify totals.
+Cashier → process return → verify refund and stock.
+Inventory manager → receive purchase → verify inventory.
+Inventory manager → adjust damaged stock → verify ledger and audit.
+Accountant → create supplier invoice → partial payment → verify remaining payable.
+Cashier → cash-in/cash-out → close register → verify variance.
+Manager → create promotion → checkout eligible product → verify promotion.
+Online order → ingest twice with same external ID → verify one order.
+Unauthorized cashier → attempt privileged refund/adjustment → verify 403.
+29. CI/CD Pipeline
+Pull Request
+   ↓
+Checkout
+   ↓
+Dependency Install
+   ↓
+Compile / Build
+   ↓
+Unit Tests
+   ↓
+Integration Tests
+   ↓
+Static Analysis
+   ↓
+Security Scan
+   ↓
+Docker Build
+   ↓
+Artifact/Image
+   ↓
+Staging Deploy
+   ↓
+Smoke Tests
+
+Production deployment should require an approved release.
+Database migrations should be part of controlled deployment.
+Production deployment must have a rollback strategy.
+30. Deployment Plan
+
+31. Production Readiness Checklist
+Security review complete.
+All critical tests passing.
+No critical/high unresolved defects.
+Database backup verified.
+Restore procedure tested.
+TLS configured.
+Secrets managed securely.
+Production configuration reviewed.
+Monitoring and alerting active.
+Receipt/label hardware validated.
+Register/day-end workflow validated.
+Rollback plan documented.
+User roles and store permissions verified.
+Support/runbook documentation prepared.
+32. Definition of Ready
+Requirement has an approved SRS reference.
+API contract is defined.
+UI/UX behavior is defined.
+Database impact is understood.
+Acceptance criteria are testable.
+Dependencies are identified.
+Security implications are understood.
+33. Definition of Done
+Implementation matches approved requirement.
+Code reviewed and merged.
+Database migration included if required.
+Unit tests pass.
+Integration/API tests pass.
+Frontend states are implemented.
+Authorization is verified.
+Audit requirements are implemented.
+API documentation is updated.
+Acceptance criteria pass.
+No critical/high defect remains for release scope.
+34. Team Responsibilities
+
+35. Risk Management
+
+36. Project Milestones
+
+37. Estimated MVP Timeline
+For a small focused team, a realistic initial production MVP is approximately **12–18 weeks**, depending on team size, hardware/payment integrations, business-rule complexity, testing depth, and whether online ordering/budgets are included in the first release.
+
+These are planning estimates only. The POS, inventory, accounting, and hardware workflows should be validated before committing to a fixed launch date.
+38. Phase 2 & Phase 3 Roadmap
+
+39. First Development Sprint — Detailed Tasks
+
+40. Next Steps
+Approve this implementation plan.
+Create the Git repository.
+Create backend and frontend projects.
+Set up PostgreSQL/Flyway and Docker.
+Implement authentication and RBAC foundation.
+Begin Sprint 1 and maintain requirement/API/UI traceability.
+PRD → SRS → SAD → Database → REST API → UI/UX → Implementation Plan → DEVELOPMENT
+END OF IMPLEMENTATION & DEVELOPMENT PLAN
+
+--- TABLE ---
+Document Information | Value
+Document Type | Implementation & Development Plan
+Version | 1.0
+Status | Development Baseline
+Backend | Java 21 LTS + Spring Boot 3.x
+Database | PostgreSQL + Flyway
+Frontend | React / Next.js + TypeScript
+Infrastructure | Docker + Nginx + CI/CD
+Source Documents | PRD • SRS • SAD • Database • REST API • UI/UX
+Date | 25 August 2026
+--- END TABLE ---
+
+--- TABLE ---
+Area | Technology
+Language | Java 21 LTS
+Backend | Spring Boot 3.x
+Security | Spring Security + JWT
+Persistence | Spring Data JPA / Hibernate
+Database | PostgreSQL
+Migration | Flyway
+Cache | Redis
+API | REST + JSON
+API Documentation | OpenAPI / Swagger
+Build | Maven
+Backend Testing | JUnit 5, Mockito, Spring Boot Test, Testcontainers
+Frontend | React / Next.js + TypeScript
+Frontend Testing | Vitest/Jest + Testing Library + Playwright
+Containerization | Docker / Docker Compose
+Reverse Proxy | Nginx
+CI/CD | GitHub Actions or equivalent
+Source Control | Git + GitHub
+--- END TABLE ---
+
+--- TABLE ---
+Area | Standard
+Java | Google Java Format or agreed Spring/Java style; clear naming and small methods.
+Spring | Constructor injection; avoid field injection.
+DTOs | Never expose JPA entities directly through REST.
+Transactions | Place @Transactional boundaries in application services.
+Errors | Use centralized exception handling with @RestControllerAdvice.
+Validation | Use Jakarta Bean Validation and domain validation.
+Money | Use BigDecimal.
+Database | Use Flyway migrations; avoid uncontrolled schema changes.
+Frontend | TypeScript strict mode; reusable components.
+API | Follow the REST API Specification exactly.
+Tests | Test business rules and critical workflows, not only controllers.
+--- END TABLE ---
+
+--- TABLE ---
+Environment | Purpose
+Local | Developer implementation and unit/integration testing.
+CI | Automated compile, test, lint/static analysis, security checks.
+Development | Shared integrated feature testing.
+Staging | Production-like acceptance and release validation.
+Production | Live store/business operation.
+--- END TABLE ---
+
+--- TABLE ---
+Phase | Focus | Estimated Duration*
+Phase 0 | Project foundation & tooling | 1 week
+Phase 1 | Authentication, RBAC & organization | 1–2 weeks
+Phase 2 | Products & catalog | 1–2 weeks
+Phase 3 | Inventory & stock control | 2 weeks
+Phase 4 | Customers & suppliers | 1–2 weeks
+Phase 5 | Purchasing & accounts payable | 2 weeks
+Phase 6 | POS sales & payments | 2–3 weeks
+Phase 7 | Cash register & day-end | 1 week
+Phase 8 | Returns, quotations & promotions | 2 weeks
+Phase 9 | Online orders | 1–2 weeks
+Phase 10 | Budgets & reporting | 2 weeks
+Phase 11 | Hardening, security & performance | 2 weeks
+Phase 12 | Staging, UAT & production launch | 1–2 weeks
+--- END TABLE ---
+
+--- TABLE ---
+Backend Deliverables | Frontend Deliverables
+Auth endpoints | Login screen
+JWT/security filters | Protected routes
+User/role repositories/services | User management
+Store/terminal/register APIs | Store/terminal administration
+Authorization tests | Permission-aware navigation
+--- END TABLE ---
+
+--- TABLE ---
+Module | MVP
+Authentication/RBAC | ✓
+Stores/Terminals/Registers | ✓
+Products/Catalog | ✓
+Inventory | ✓
+Stock Alerts | ✓
+Customers | ✓
+Suppliers | ✓
+Purchasing | ✓
+Accounts Payable | ✓
+POS Sales | ✓
+Payments | ✓
+Returns/Refunds | ✓
+Cash Register | ✓
+Day-End Closing | ✓
+Receipts | ✓
+Basic Reports | ✓
+Audit Logs | ✓
+Quotations | Recommended
+Promotions | Recommended
+Online Orders | Phase 2 if schedule is constrained
+Budgets | Phase 2
+--- END TABLE ---
+
+--- TABLE ---
+Sprint | Primary Goal
+Sprint 1 | Foundation, repositories, CI/CD, Docker, database baseline.
+Sprint 2 | Authentication, users, roles, permissions, stores.
+Sprint 3 | Terminals, registers, product catalog.
+Sprint 4 | Inventory balances, movements, adjustments.
+Sprint 5 | Receiving, batches, expiry, stock alerts.
+Sprint 6 | Customers, store credits, suppliers.
+Sprint 7 | Purchasing and AP.
+Sprint 8 | POS checkout, payments, receipts.
+Sprint 9 | Returns, register closing, day-end.
+Sprint 10 | Quotations, promotions.
+Sprint 11 | Online orders, budgets.
+Sprint 12 | Reports, hardening, UAT preparation.
+Sprint 13 | UAT fixes, production readiness.
+--- END TABLE ---
+
+--- TABLE ---
+Test Level | Coverage
+Unit | Business calculations, validation, promotion rules, register calculations.
+Repository | Database mappings, constraints, query behavior.
+Integration | Transactional workflows across modules.
+API | HTTP contracts, authorization, validation, error responses.
+Frontend | Components, forms, state, accessibility.
+E2E | Complete POS, receiving, AP, register closing workflows.
+Concurrency | Inventory and transaction conflict scenarios.
+Performance | Checkout, product search, reporting, concurrent users.
+Security | Authentication, authorization, injection, abuse, secrets.
+--- END TABLE ---
+
+--- TABLE ---
+Component | Deployment
+Frontend | Static/Node deployment behind Nginx or managed hosting.
+Spring Boot | Docker container(s) behind Nginx/load balancer.
+PostgreSQL | Managed PostgreSQL or dedicated secured database server.
+Redis | Managed Redis or secured container/service.
+Backups | Automated PostgreSQL backup with separate storage.
+Monitoring | Application metrics, logs, health checks, alerting.
+--- END TABLE ---
+
+--- TABLE ---
+Role | Responsibilities
+Product Owner | Requirements, priorities, acceptance, business decisions.
+Project Manager | Planning, risks, schedule, coordination.
+Tech Lead | Architecture, code standards, technical decisions, reviews.
+Backend Developer | Spring Boot modules, APIs, database integration, tests.
+Frontend Developer | POS/admin UI, API integration, UX implementation, tests.
+QA Engineer | Test strategy, test cases, regression, UAT support.
+UI/UX Designer | Design system, screens, workflows, usability.
+DevOps Engineer | CI/CD, Docker, environments, monitoring, deployment.
+--- END TABLE ---
+
+--- TABLE ---
+Risk | Mitigation
+Scope expansion | Freeze MVP scope and use change-control process.
+Inventory inconsistency | Strict transactions, concurrency tests, inventory ledger.
+Financial calculation errors | BigDecimal, centralized calculation rules, extensive tests.
+Hardware compatibility | Hardware abstraction and early device testing.
+Security vulnerabilities | Security review, automated scans, least privilege.
+Slow reports | Dedicated reporting queries, indexes, async generation if needed.
+Premature microservices | Keep modular monolith until measurable need.
+Data loss | Automated backups and restore tests.
+Poor cashier adoption | Usability testing with realistic POS workflows.
+--- END TABLE ---
+
+--- TABLE ---
+Milestone | Outcome
+M1 Foundation Complete | Repositories, environments, CI, database, base frontend.
+M2 Identity & Catalog | Users, RBAC, stores, terminals, products.
+M3 Inventory Ready | Stock, receiving, expiry, alerts.
+M4 Financial Operations | Purchasing, AP, customers, credits.
+M5 POS MVP | Checkout, payments, inventory deduction, receipts.
+M6 Store Operations | Returns, registers, day-end.
+M7 Business Features | Promotions, quotations, orders, budgets.
+M8 Reporting & Hardening | Reports, security, performance.
+M9 Production Ready | UAT, hardware validation, backups, deployment.
+--- END TABLE ---
+
+--- TABLE ---
+Team Profile | Indicative Calendar
+1 full-stack developer | Longer; approximately 5–8 months for a robust MVP.
+2 developers + QA part-time | Approximately 3–5 months.
+Backend + frontend + QA + DevOps | Approximately 12–18 weeks.
+Larger parallel team | Potentially shorter, but coordination and integration effort increase.
+--- END TABLE ---
+
+--- TABLE ---
+Phase | Potential Features
+Phase 2 | Advanced online orders, advanced promotions, budgets, richer reports, loyalty, multi-store transfers, mobile management.
+Phase 3 | Full accounting/GL, advanced analytics, demand forecasting, warehouse management, advanced integrations, service-oriented extraction where justified.
+--- END TABLE ---
+
+--- TABLE ---
+Area | Tasks
+Backend | Create Spring Boot app, packages, configuration, health endpoint, exception framework.
+Database | PostgreSQL connection, Flyway baseline, identity/store tables.
+Security | Spring Security, JWT flow, password hashing.
+Frontend | Next.js/React app, routing, layout, design tokens.
+DevOps | Docker Compose, local PostgreSQL/Redis, CI workflow.
+Testing | JUnit setup, Testcontainers setup, frontend test setup.
+Documentation | README, environment setup, contribution guide.
+--- END TABLE ---

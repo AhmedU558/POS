@@ -1,0 +1,466 @@
+SOFTWARE REQUIREMENTS SPECIFICATION
+Integrated POS, Inventory & Business Management System
+SRS • Version 1.0 • Baseline
+
+
+1. Introduction
+1.1 Purpose
+This SRS defines the functional, non-functional, security, data, workflow, validation, and acceptance requirements for the Integrated POS, Inventory & Business Management System. It is intended to provide a common implementation baseline for product owners, developers, designers, testers, database engineers, and deployment teams.
+1.2 Scope
+The system covers point-of-sale transactions, inventory and stock control, products, customers, suppliers, purchasing, accounts payable, cash registers, day-end closing, online orders, quotations, discounts and promotions, budgets, financial reporting, labels, receipts, authentication, authorization, notifications, and audit logging.
+1.3 Intended Audience
+Product owners and business stakeholders
+Software architects and backend/frontend developers
+Database engineers
+UI/UX designers
+QA and test engineers
+System administrators and DevOps engineers
+1.4 Definitions
+
+2. Overall System Description
+2.1 Product Perspective
+The application will operate as a centralized business platform with a transactional POS interface, management dashboard, inventory services, financial modules, and optional online-order integration. All channels should use a common source of truth for products, customers, orders, inventory, and financial transactions.
+POS Terminals ─┐
+Online Orders ──┼──> Application/API Layer ──> Database
+Admin Dashboard ┘             │
+                              ├── Inventory
+                              ├── Sales/POS
+                              ├── Accounting/AP
+                              └── Reporting
+2.2 Deployment Scope
+Single-store deployment must be supported.
+Multiple terminals per store must be supported.
+Architecture must allow future multi-store operation.
+The application must support centralized administration and controlled access.
+2.3 Assumptions
+Products have unique internal identifiers.
+Users are assigned roles and permissions.
+Inventory-changing operations are recorded as transactions.
+Financially significant operations are auditable.
+Business tax and currency rules are configurable rather than hard-coded.
+3. User Roles & Access Control
+
+The authorization layer shall use least-privilege access. Sensitive operations must be controlled by explicit permissions rather than role names alone.
+4. Functional Requirements
+Requirement priority: MUST = mandatory for the defined scope; SHOULD = expected where practical; MAY = optional/future capability.
+4.1 Authentication & User Management
+
+4.2 Product Management
+
+4.3 POS & Sales
+
+4.4 Inventory & Stock Control
+
+4.5 Expiration Control
+
+4.6 Customers & Store Credit
+
+4.7 Suppliers & Purchasing
+
+4.8 Accounts Payable
+
+4.9 Cash Register & Day-End
+
+4.10 Multiple Terminals & Stores
+
+4.11 Online Orders
+
+4.12 Quotations
+
+4.13 Discounts & Promotions
+
+4.14 Budgets
+
+4.15 Reporting
+
+4.16 Labels & Receipts
+
+4.17 Audit Logging
+
+5. Business Rules
+
+6. Validation Requirements
+Required fields must be validated before persistence.
+Numeric quantities must be greater than zero unless a specific adjustment workflow permits negative values.
+Prices and monetary amounts must use validated numeric precision.
+SKU/barcode uniqueness must be enforced according to configuration.
+Dates must use valid calendar values.
+Due dates and expiration dates must satisfy applicable business rules.
+User permissions must be checked server-side for every protected operation.
+Duplicate transaction submissions must be detected or made idempotent where applicable.
+Inventory operations must prevent invalid negative stock where negative stock is disabled.
+7. Error Handling Requirements
+
+8. Non-Functional Requirements
+
+9. Security Requirements
+Use secure authentication and password hashing.
+Use role/permission authorization on all protected endpoints.
+Validate and sanitize all external input.
+Use parameterized database queries/ORM protections.
+Use HTTPS in production.
+Apply rate limiting to authentication and sensitive endpoints.
+Protect secrets using environment/secret-management mechanisms.
+Record privileged and financial operations in audit logs.
+Restrict administrative functions by permission.
+Implement secure session/token expiration and revocation strategy.
+10. Data Requirements
+10.1 Core Entities
+Users, Roles, Permissions
+Stores, Terminals, Register Sessions
+Products, Categories, Brands, Units, Product Prices, Barcodes, Batches
+Customers, Store Credits, Customer Transactions
+Suppliers, Purchase Orders, Purchase Items, Supplier Invoices, Supplier Payments
+Sales, Sale Items, Sale Payments, Returns/Refunds
+Inventory, Inventory Transactions, Stock Transfers
+Quotations, Quotation Items
+Discounts, Promotions, Promotion Rules
+Budgets, Expenses
+Cash Transactions
+Receipts and Invoices
+Notifications and Audit Logs
+10.2 Data Integrity
+Primary and foreign-key relationships shall enforce referential integrity.
+Unique identifiers shall be enforced where required.
+Financial and inventory operations shall use database transactions where atomicity is required.
+Deleted business records should generally use controlled deactivation/voiding rather than destructive deletion when historical reporting depends on them.
+11. Integration Requirements
+
+12. Acceptance Criteria
+
+13. MVP Requirements
+The MVP shall prioritize the minimum capabilities required to operate a retail store reliably.
+Authentication and RBAC
+Products and categories
+Customers
+Suppliers
+Inventory and stock alerts
+POS sales and payments
+Receipts
+Returns/refunds
+Cash register sessions
+Day-end closing
+Basic sales and inventory reports
+Audit logging for critical operations
+14. Traceability to PRD
+The SRS requirements are derived from the approved PRD modules. Requirement IDs are intentionally grouped by module so future architecture, API, database, UI, and test specifications can trace back to a stable requirement.
+
+15. Requirements Sign-Off
+
+16. Next Engineering Deliverables
+System Architecture Document
+Database Design & ERD
+API Specification
+UI/UX Specification
+Security Architecture
+Test Strategy & Test Cases
+Deployment & DevOps Specification
+PRD → SRS → Architecture → ERD → API → UI/UX → Development → Testing → Security → Deployment
+END OF SOFTWARE REQUIREMENTS SPECIFICATION
+
+--- TABLE ---
+Document Information | Value
+Document Type | Software Requirements Specification (SRS)
+Version | 1.0
+Status | Baseline / Initial Specification
+Product | Integrated POS, Inventory & Business Management System
+Source Document | Product Requirements Document (PRD)
+Date | 25 August 2026
+--- END TABLE ---
+
+--- TABLE ---
+Term | Definition
+POS | Point-of-Sale workstation used to process retail transactions.
+Register | Cash-handling unit associated with a POS terminal.
+Session | A cashier's open period on a register from opening to closing.
+SKU | Stock Keeping Unit identifying a product variant.
+AP | Accounts Payable; amounts owed to suppliers.
+Z Report | Final register/day-end closing report.
+Store Credit | Credit balance issued to a customer for future purchases.
+Batch/Lot | Group of products sharing production/receipt characteristics, often used for expiry tracking.
+--- END TABLE ---
+
+--- TABLE ---
+Role | Core Access
+Super Administrator | Full system, organization, stores, users, roles, configuration, and reports.
+Store Manager | Store operations, inventory, suppliers, reports, discounts, registers, and approvals.
+Cashier | POS sales, customer registration, authorized discounts, returns, receipts, and register closing.
+Inventory Manager | Products, receiving, adjustments, transfers, batches, expiry, and stock reports.
+Accountant | Purchasing/AP, supplier payments, budgets, expenses, and financial reports.
+Online Order Staff | Online order review, fulfillment, cancellation, and refund workflows.
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+AUTH-001 | System shall allow authorized users to log in using configured credentials. | MUST
+AUTH-002 | System shall securely hash and store passwords. | MUST
+AUTH-003 | System shall enforce role- and permission-based authorization. | MUST
+AUTH-004 | System shall support logout and session/token invalidation. | MUST
+AUTH-005 | System shall allow administrators to activate/deactivate user accounts. | MUST
+AUTH-006 | System shall support password reset/recovery. | SHOULD
+AUTH-007 | System shall record significant authentication events in audit logs. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+PROD-001 | System shall create, view, update, and deactivate products. | MUST
+PROD-002 | Each product shall have a unique internal identifier. | MUST
+PROD-003 | System shall support SKU and barcode values. | MUST
+PROD-004 | System shall support category, brand, unit, and description data. | MUST
+PROD-005 | System shall support purchase, selling, and optional wholesale prices. | MUST
+PROD-006 | System shall support configurable tax information. | MUST
+PROD-007 | System shall support minimum and maximum stock thresholds. | MUST
+PROD-008 | System shall support optional batch and expiration attributes. | SHOULD
+PROD-009 | Price changes shall be auditable. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+POS-001 | Cashier shall open a register session before processing cash sales. | MUST
+POS-002 | Cashier shall search products by name, SKU, or barcode. | MUST
+POS-003 | System shall add, remove, and modify cart items. | MUST
+POS-004 | System shall calculate subtotal, discount, tax, and total. | MUST
+POS-005 | System shall support configured payment methods. | MUST
+POS-006 | System shall associate a sale with store, terminal, register, cashier, and session. | MUST
+POS-007 | System shall support held/suspended transactions. | SHOULD
+POS-008 | System shall generate a unique transaction/receipt number. | MUST
+POS-009 | System shall update inventory atomically when a sale is completed. | MUST
+POS-010 | System shall support authorized returns/refunds and exchanges. | MUST
+POS-011 | System shall prevent completion when required validation fails. | MUST
+POS-012 | System shall support receipt reprinting according to permissions. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+INV-001 | System shall maintain current stock quantities by product and applicable location. | MUST
+INV-002 | Every stock-changing operation shall create an inventory transaction. | MUST
+INV-003 | System shall support stock receiving. | MUST
+INV-004 | System shall support manual stock adjustments with reasons. | MUST
+INV-005 | System shall support stock transfers where multiple locations are enabled. | SHOULD
+INV-006 | System shall support damaged and expired stock handling. | MUST
+INV-007 | System shall provide stock movement history. | MUST
+INV-008 | System shall generate low-stock alerts using configurable thresholds. | MUST
+INV-009 | System shall support batch/lot tracking where enabled. | SHOULD
+INV-010 | System shall support expiration-date tracking where enabled. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+EXP-001 | System shall store expiration dates for products/batches where applicable. | SHOULD
+EXP-002 | System shall identify expired stock. | MUST
+EXP-003 | System shall identify stock approaching expiration using configurable windows. | MUST
+EXP-004 | System shall support configurable behavior for attempting to sell expired stock. | SHOULD
+EXP-005 | Expiry-related alerts shall identify product, batch, expiry date, and quantity. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+CUS-001 | System shall create and manage customer profiles. | MUST
+CUS-002 | System shall maintain customer purchase history. | MUST
+CUS-003 | System shall support customer-specific pricing/discount rules where enabled. | SHOULD
+CUS-004 | System shall issue and redeem store credit. | MUST
+CUS-005 | Store-credit changes shall be recorded in a ledger. | MUST
+CUS-006 | System shall provide customer statements where balances are enabled. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+SUP-001 | System shall create and manage supplier profiles. | MUST
+SUP-002 | System shall associate products with suppliers. | SHOULD
+PUR-001 | System shall create and manage purchase orders. | MUST
+PUR-002 | System shall record received quantities against purchases. | MUST
+PUR-003 | Receiving shall support batch/expiry information where enabled. | SHOULD
+PUR-004 | Receiving shall update inventory according to configured rules. | MUST
+PUR-005 | System shall record supplier invoices. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+AP-001 | System shall create payable records from supplier invoices. | MUST
+AP-002 | System shall track invoice date, due date, total, paid amount, and remaining balance. | MUST
+AP-003 | System shall support full and partial supplier payments. | MUST
+AP-004 | System shall identify overdue payables. | MUST
+AP-005 | System shall provide supplier statements and payment history. | SHOULD
+AP-006 | Supplier payment transactions shall be auditable. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+REG-001 | System shall allow authorized cashiers to open a register session with opening cash. | MUST
+REG-002 | System shall record cash-in and cash-out transactions. | MUST
+REG-003 | System shall calculate expected closing cash. | MUST
+REG-004 | Cashier shall enter actual counted cash at closing. | MUST
+REG-005 | System shall calculate cash variance. | MUST
+REG-006 | System shall generate a day-end/Z report. | MUST
+REG-007 | Closed sessions shall be protected from unauthorized modification. | MUST
+REG-008 | Register activity shall identify cashier, terminal, register, and session. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+TERM-001 | System shall support multiple POS terminals per store. | MUST
+TERM-002 | Each terminal/register shall have a unique identifier. | MUST
+TERM-003 | Transactions shall retain terminal and register identity. | MUST
+TERM-004 | Architecture shall support future multi-store operation. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+ORD-001 | System shall receive and store online orders through an approved integration. | MUST
+ORD-002 | Online orders shall use the same product/inventory source as POS where configured. | MUST
+ORD-003 | System shall support order status transitions. | MUST
+ORD-004 | System shall support cancellation and refund workflows subject to permissions. | MUST
+ORD-005 | Order fulfillment events shall be auditable. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+QUO-001 | Authorized users shall create and edit quotations. | MUST
+QUO-002 | Quotation shall contain customer, items, quantities, prices, discounts, taxes, and total. | MUST
+QUO-003 | Quotation shall support an expiration date. | MUST
+QUO-004 | System shall support quotation statuses. | MUST
+QUO-005 | Accepted quotations shall be convertible into sales/orders according to business rules. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+PROMO-001 | System shall support percentage discounts. | MUST
+PROMO-002 | System shall support fixed-amount discounts. | MUST
+PROMO-003 | System shall support product/category promotions. | MUST
+PROMO-004 | System should support Buy-X-Get-Y promotions. | SHOULD
+PROMO-005 | System shall support promotion start/end dates. | MUST
+PROMO-006 | System shall enforce promotion eligibility and stacking rules. | MUST
+PROMO-007 | Sensitive discounts shall require appropriate permission. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+BUD-001 | Authorized users shall create budgets by configured business dimensions. | SHOULD
+BUD-002 | System shall support monthly, quarterly, and annual budget periods. | SHOULD
+BUD-003 | System shall compare budgeted and actual values. | SHOULD
+BUD-004 | System shall calculate budget variance. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+RPT-001 | System shall provide daily, weekly, monthly, and annual sales reports. | MUST
+RPT-002 | System shall report sales by product/category/cashier/terminal/payment method. | MUST
+RPT-003 | System shall provide inventory and stock movement reports. | MUST
+RPT-004 | System shall provide low-stock and expiry reports. | MUST
+RPT-005 | System shall provide payable and supplier payment reports. | SHOULD
+RPT-006 | System shall provide cash-register and variance reports. | MUST
+RPT-007 | System should provide profit, expense, cash-flow, and budget reports in the financial scope. | SHOULD
+RPT-008 | Reports should support export to common formats where implemented. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+DOC-001 | System shall generate receipts for completed sales. | MUST
+DOC-002 | Receipts shall include transaction, store, cashier, item, payment, and total information. | MUST
+DOC-003 | System shall support configurable receipt templates. | SHOULD
+DOC-004 | System shall generate product labels containing configured product identifiers and price. | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement | Priority
+AUD-001 | System shall log security-sensitive and financially significant actions. | MUST
+AUD-002 | Audit records shall include actor, action, target, timestamp, and relevant before/after values where applicable. | MUST
+AUD-003 | Normal users shall not be able to alter or delete audit records. | MUST
+--- END TABLE ---
+
+--- TABLE ---
+Rule ID | Business Rule
+BR-001 | A sale cannot be completed without required product, quantity, pricing, tax, and payment data.
+BR-002 | A completed sale must create corresponding payment and inventory records according to configured transaction rules.
+BR-003 | A cashier must have an open register session to perform cash-register operations.
+BR-004 | Register closing must calculate expected cash from recorded register activity.
+BR-005 | Actual closing cash must be entered before a session can be finalized.
+BR-006 | Refunds must reference an original transaction where the business process requires it.
+BR-007 | Discounts and promotions must respect eligibility, date, priority, and stacking rules.
+BR-008 | Stock adjustments must include an authorized reason.
+BR-009 | Expired-stock behavior must follow the configured store/product policy.
+BR-010 | Supplier payments cannot exceed the payable balance unless an authorized overpayment workflow exists.
+BR-011 | Closed register sessions must be protected from normal cashier edits.
+BR-012 | All financial totals must use a consistent currency and configured precision.
+--- END TABLE ---
+
+--- TABLE ---
+ID | Requirement
+ERR-001 | API responses shall use consistent error structures.
+ERR-002 | User-facing messages shall be understandable and actionable.
+ERR-003 | Sensitive internal error details shall not be exposed to end users.
+ERR-004 | Failed transactional operations shall not leave partial financial/inventory updates.
+ERR-005 | System shall log unexpected server-side errors with correlation information where appropriate.
+--- END TABLE ---
+
+--- TABLE ---
+ID | Category | Requirement
+NFR-001 | Performance | Common POS interactions should respond within an acceptable operational target under normal load.
+NFR-002 | Availability | Production deployment should support high availability appropriate to business needs.
+NFR-003 | Security | All sensitive communication shall use secure transport.
+NFR-004 | Security | Passwords shall never be stored in plaintext.
+NFR-005 | Security | Authorization must be enforced on the server/API layer.
+NFR-006 | Scalability | Architecture should support growth in stores, terminals, users, products, and transactions.
+NFR-007 | Reliability | Critical transactions must be atomic and recoverable.
+NFR-008 | Maintainability | Codebase shall use modular components and documented interfaces.
+NFR-009 | Usability | Cashier workflows should minimize unnecessary navigation and data entry.
+NFR-010 | Auditability | Financial and privileged operations must be traceable.
+NFR-011 | Backup | Production data shall be backed up according to an approved retention policy.
+NFR-012 | Monitoring | Production services should provide logs, health checks, and operational monitoring.
+--- END TABLE ---
+
+--- TABLE ---
+Integration | Requirement
+Barcode Scanner | POS should accept scanner input through supported hardware/browser mechanisms.
+Receipt Printer | System should support configured receipt printing through the chosen deployment approach.
+Label Printer | System should support configured label printing where required.
+Online Store | System shall provide an integration/API mechanism for online orders.
+Payment Provider | Payment integrations should be modular so providers can be added without redesigning POS.
+Email/SMS/WhatsApp | Notification providers should be abstracted behind configurable services where implemented.
+--- END TABLE ---
+
+--- TABLE ---
+Area | Acceptance Criteria
+POS | Cashier can open a register, sell products, receive payment, complete a sale, and issue a receipt.
+Inventory | Completed sales and receiving operations correctly update stock and create movement history.
+Returns | Authorized users can process supported returns/refunds and the system records the financial and inventory impact.
+Register Closing | System calculates expected cash, accepts actual cash, calculates variance, generates a closing report, and closes the session.
+Customers | Customer can be registered, associated with a sale, and viewed with purchase history.
+Suppliers/AP | Supplier invoice can be recorded, partially/fully paid, and reflected in the remaining payable balance.
+Expiry | System identifies expired and approaching-expiry stock according to configured rules.
+Promotions | Valid promotions apply correctly and invalid/unauthorized stacking is prevented.
+Online Orders | An approved online order can be received, tracked, and reflected in inventory according to configured workflow.
+Security | Unauthorized users cannot access protected operations or modify privileged records.
+Audit | Required privileged and financial actions produce traceable audit records.
+Reports | Authorized users can generate required operational reports with consistent totals.
+--- END TABLE ---
+
+--- TABLE ---
+PRD Area | SRS Requirement Prefix
+Authentication & Users | AUTH
+Products | PROD
+POS & Sales | POS
+Inventory | INV
+Expiration | EXP
+Customers / Store Credit | CUS
+Suppliers / Purchasing | SUP / PUR
+Accounts Payable | AP
+Cash Register | REG
+Terminals / Stores | TERM
+Online Orders | ORD
+Quotations | QUO
+Promotions | PROMO
+Budgets | BUD
+Reports | RPT
+Receipts / Labels | DOC
+Audit Logs | AUD
+Non-Functional | NFR
+--- END TABLE ---
+
+--- TABLE ---
+Role | Name | Signature | Date
+Product Owner |  |  | 
+Project Manager |  |  | 
+Technical Lead |  |  | 
+QA Lead |  |  | 
+--- END TABLE ---

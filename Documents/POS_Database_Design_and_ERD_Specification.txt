@@ -1,0 +1,573 @@
+DATABASE DESIGN & ERD SPECIFICATION
+Integrated POS, Inventory & Business Management System
+PostgreSQL • Version 1.0 • Architecture Baseline
+
+
+1. Purpose
+This document defines the logical and physical database design for the POS Management System. It translates the approved product, requirements, and system architecture into a PostgreSQL relational model suitable for implementation with Spring Data JPA/Hibernate.
+1.1 Objectives
+Maintain strong transactional consistency for sales, payments, inventory, registers, and payables.
+Provide traceable historical records for operational and financial activity.
+Support multiple stores, terminals, and register sessions.
+Support batch and expiration tracking.
+Provide a scalable foundation for reporting and online orders.
+Prevent invalid relationships through database constraints.
+2. Database Architecture
+Application
+    │
+    ▼
+Spring Data JPA / Hibernate
+    │
+    ▼
+PostgreSQL
+    ├── Master Data
+    ├── Transactional Data
+    ├── Inventory Ledger
+    ├── Financial Records
+    ├── Security / Identity
+    └── Audit / Operational Records
+
+PostgreSQL is the authoritative system of record. Redis, if used, is non-authoritative and must never be the source of truth for financial or inventory balances.
+3. Database Design Principles
+Use UUID primary keys for major business entities to reduce predictable identifiers and support distributed integration.
+Use BIGINT identity keys where high-volume append-only tables benefit from compact numeric indexes, if approved during implementation.
+Use DECIMAL/NUMERIC for monetary values; never use floating-point types for financial amounts.
+Use UTC timestamps at persistence level and convert to store/user timezone for display.
+Use foreign keys for referential integrity.
+Use unique constraints for business identifiers such as SKU, barcode, invoice number, and external order ID where appropriate.
+Prefer status changes, voiding, or deactivation over destructive deletion of historical financial transactions.
+Use database migrations for every schema change.
+Use transaction boundaries aligned with business operations.
+4. Naming Conventions
+
+5. Core Entity Map
+
+6. Identity & Access Tables
+
+6.1 users
+
+7. Organization, Stores & Terminals
+
+7.1 Relationships
+stores 1 ──── N terminals
+stores 1 ──── N registers
+terminals 1 ──── N registers
+registers 1 ──── N register_sessions
+users 1 ──── N register_sessions  (cashier)
+
+8. Product Catalog
+
+8.1 products
+
+9. Inventory Schema
+
+9.1 Inventory relationships
+products 1 ──── N inventory_balances
+products 1 ──── N inventory_batches
+products 1 ──── N inventory_transactions
+stores   1 ──── N inventory_balances
+stores   1 ──── N inventory_batches
+stock_transfers 1 ──── N stock_transfer_items
+products 1 ──── N stock_transfer_items
+
+9.2 inventory_transactions
+
+10. Customer & Store Credit Schema
+
+Store credit must be ledger-driven. The balance may be cached on customer_credits for efficient access but must be reconciliable against the transaction ledger.
+11. Supplier & Purchasing Schema
+
+11.1 Key relationships
+suppliers 1 ──── N purchase_orders
+purchase_orders 1 ──── N purchase_order_items
+purchase_orders 1 ──── N goods_receipts
+goods_receipts 1 ──── N goods_receipt_items
+suppliers 1 ──── N supplier_invoices
+supplier_invoices 1 ──── N supplier_payments
+
+12. Sales & POS Schema
+
+12.1 sales
+
+12.2 sale_items
+
+13. Payment Schema
+
+Payment-provider-specific secrets or raw card information must not be stored in the core POS database. Store only provider references and permitted metadata.
+14. Cash Register Schema
+
+14.1 cash_transactions
+
+15. Quotations
+
+Quotation status values should include Draft, Sent, Accepted, Rejected, Expired, and Converted.
+16. Promotions & Discounts
+
+Promotion rules should be stored in a normalized structure where practical.
+Complex rule evaluation should remain in the application domain layer.
+Database constraints should protect dates, amounts, and basic eligibility data.
+17. Online Orders
+
+17.1 Idempotency
+online_orders should enforce uniqueness on the combination of channel/provider and external_order_id. This prevents duplicate order creation when external systems retry requests.
+18. Budgets & Expenses
+
+Budget actuals should be calculated from authoritative financial transactions rather than manually entered totals where feasible.
+19. Accounts Payable
+
+Supplier Invoice
+      │
+      ├── invoice amount
+      ├── paid amount
+      └── remaining balance
+              │
+              ▼
+       Supplier Payments
+
+20. Audit & Notifications
+
+20.1 audit_logs
+
+21. ERD — High-Level Logical Model
+                         ┌────────────┐
+                         │   STORES   │
+                         └─────┬──────┘
+                               │
+             ┌─────────────────┼─────────────────┐
+             ▼                 ▼                 ▼
+        TERMINALS          REGISTERS        INVENTORY
+             │                 │                 │
+             │            REGISTER_SESSIONS       │
+             │                 │                 │
+             └────────────┐    │    ┌────────────┘
+                          ▼    ▼    ▼
+                           SALES
+                             │
+                ┌────────────┼────────────┐
+                ▼            ▼            ▼
+           SALE_ITEMS   SALE_PAYMENTS   RETURNS
+                │
+                ▼
+             PRODUCTS
+                │
+        ┌───────┴────────┐
+        ▼                ▼
+   CATEGORIES         BATCHES
+        │                │
+        └───────┬────────┘
+                ▼
+            INVENTORY
+
+CUSTOMERS ───── SALES
+CUSTOMERS ───── STORE_CREDITS
+SUPPLIERS ───── PURCHASE_ORDERS ───── GOODS_RECEIPTS ───── INVENTORY
+SUPPLIERS ───── SUPPLIER_INVOICES ───── PAYMENTS
+QUOTATIONS ───── QUOTATION_ITEMS ───── PRODUCTS
+ONLINE_ORDERS ───── ONLINE_ORDER_ITEMS ───── PRODUCTS
+PROMOTIONS ───── PROMOTION_RULES
+BUDGETS ───── BUDGET_LINES
+ALL PRIVILEGED OPERATIONS ───── AUDIT_LOGS
+
+22. Relationship & Cardinality Summary
+
+23. Indexing Strategy
+
+24. Constraints & Data Integrity
+Foreign keys must prevent orphaned records.
+Monetary values must be non-negative where business rules require.
+Quantities must be positive for sale/purchase lines.
+Inventory adjustment transactions may permit signed quantities but require a transaction type and reason.
+SKU and barcode uniqueness must be enforced according to business scope.
+Register sessions must prevent invalid overlapping active sessions.
+Closed sales, payments, and register sessions must not be physically deleted through normal application operations.
+Status transitions should be validated by application business rules and, where practical, database checks.
+25. Transaction Boundaries
+
+26. Migration Strategy
+Use versioned database migrations, preferably Flyway or Liquibase.
+Every schema change must be represented by a migration script.
+Migrations must be applied automatically in development/test and controlled in production.
+Destructive migrations require explicit review and backup/recovery planning.
+Seed data should be separated from schema migrations where practical.
+27. Backup & Recovery Considerations
+Perform automated PostgreSQL backups.
+Use point-in-time recovery where production requirements justify it.
+Store backups separately from the primary database host.
+Test restore procedures periodically.
+Define retention, RPO, and RTO before production launch.
+28. Security Considerations
+Database credentials must be managed outside source control.
+Application database user should have only required privileges.
+Production database should not be directly accessible from the public internet.
+Audit tables should have restricted modification rights.
+Sensitive personal/customer information should be protected according to applicable requirements.
+Payment-card data should not be stored unless specifically required and compliant with the chosen payment architecture.
+29. Database Performance Considerations
+Use connection pooling through the Spring Boot datasource configuration.
+Keep POS transaction queries small and indexed.
+Avoid loading entire product catalogs for normal POS operations.
+Use pagination for large customer, supplier, inventory, and report datasets.
+Monitor slow queries.
+Review execution plans for high-volume queries.
+Consider partitioning only after measured data volume justifies it.
+30. Future Database Extensions
+Full accounting/general-ledger tables.
+Employee attendance and payroll.
+Loyalty program and reward points.
+Multi-currency accounting.
+Advanced tax engines.
+Warehouse management.
+Serial-number tracking.
+Advanced demand forecasting data models.
+Data warehouse/analytics platform for large-scale reporting.
+31. Implementation Checklist
+Finalize exact PostgreSQL version and migration tool.
+Create database naming and coding standards.
+Create baseline migration.
+Implement identity/security tables.
+Implement stores, terminals, registers, and sessions.
+Implement product/catalog tables.
+Implement inventory ledger and balances.
+Implement customer and supplier domains.
+Implement purchasing and payables.
+Implement sales and payments.
+Implement cash register and closing.
+Implement quotations/promotions/orders.
+Implement budgets/reports.
+Implement audit and notification tables.
+Create indexes and constraints.
+Create seed/reference data.
+Run integration and concurrency tests.
+32. Next Deliverable
+The next engineering document is the REST API Specification. It will map API endpoints to the database model and SRS requirements, defining HTTP methods, URLs, request/response DTOs, validation, authorization, error codes, pagination, filtering, and transactional behavior.
+PRD → SRS → SAD → Database Design & ERD → REST API Specification → UI/UX → Development → Testing → Deployment
+END OF DATABASE DESIGN & ERD SPECIFICATION
+
+--- TABLE ---
+Document Information | Value
+Document Type | Database Design & ERD Specification
+Version | 1.0
+Status | Database Architecture Baseline
+Database | PostgreSQL
+ORM | Spring Data JPA / Hibernate
+Backend | Java 21 + Spring Boot 3.x
+Source Documents | PRD • SRS • SAD
+Date | 25 August 2026
+--- END TABLE ---
+
+--- TABLE ---
+Object | Convention | Example
+Tables | snake_case, plural | products, sales, sale_items
+Columns | snake_case | created_at, unit_price
+Primary Key | id | id UUID
+Foreign Key | <entity>_id | customer_id
+Boolean | is_/has_ prefix | is_active
+Indexes | idx_<table>_<columns> | idx_products_sku
+Unique Constraint | uk_<table>_<columns> | uk_products_sku
+Check Constraint | ck_<table>_<rule> | ck_sale_items_quantity_positive
+Enum/Status | application-managed or PostgreSQL enum after review | sale_status
+--- END TABLE ---
+
+--- TABLE ---
+Domain | Primary Entities
+Identity | users, roles, permissions, user_roles, role_permissions
+Organization | stores, terminals, registers, register_sessions
+Catalog | categories, brands, units, products, product_barcodes, product_prices
+Inventory | inventory_balances, inventory_batches, inventory_transactions, stock_transfers, stock_transfer_items, stock_alerts
+CRM | customers, customer_credits, customer_credit_transactions
+Suppliers | suppliers, supplier_products
+Purchasing | purchase_orders, purchase_order_items, goods_receipts, goods_receipt_items, supplier_invoices, supplier_payments
+Sales | sales, sale_items, sale_payments, sale_returns, sale_return_items
+Cash | cash_transactions, register_closings
+Commerce | quotations, quotation_items, online_orders, online_order_items
+Promotions | promotions, promotion_rules, discount_assignments
+Finance | budgets, budget_lines, expenses
+Documents | receipts, invoices, product_labels
+Control | notifications, audit_logs
+--- END TABLE ---
+
+--- TABLE ---
+Table | Key Columns | Purpose
+users | id, username, email, password_hash, is_active | Application users.
+roles | id, name, description | Security roles.
+permissions | id, code, description | Atomic permissions.
+user_roles | user_id, role_id | Many-to-many user/role relationship.
+role_permissions | role_id, permission_id | Many-to-many role/permission relationship.
+--- END TABLE ---
+
+--- TABLE ---
+Column | Type | Constraints
+id | UUID | PK, default generated UUID
+username | VARCHAR(100) | NOT NULL, UNIQUE
+email | VARCHAR(255) | NULL/UNIQUE if used
+password_hash | VARCHAR(255) | NOT NULL
+first_name | VARCHAR(100) | NOT NULL
+last_name | VARCHAR(100) | NOT NULL
+is_active | BOOLEAN | NOT NULL, default true
+last_login_at | TIMESTAMPTZ | NULL
+created_at | TIMESTAMPTZ | NOT NULL
+updated_at | TIMESTAMPTZ | NOT NULL
+--- END TABLE ---
+
+--- TABLE ---
+Table | Key Columns | Purpose
+stores | id, code, name, currency_code, timezone, is_active | Business/store location.
+terminals | id, store_id, code, name, status | POS workstation/terminal.
+registers | id, store_id, terminal_id, code, name, status | Cash register attached to a terminal.
+register_sessions | id, register_id, cashier_id, opened_at, closed_at, opening_cash, expected_cash, actual_cash, variance, status | Cashier session and day-end state.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Key Columns | Purpose
+categories | id, parent_id, name, is_active | Hierarchical product categories.
+brands | id, name, is_active | Product brands.
+units | id, code, name | Measurement/selling unit.
+products | id, sku, name, category_id, brand_id, unit_id, purchase_price, selling_price, wholesale_price, tax_rate, min_stock, max_stock, track_batch, track_expiry, is_active | Core product master.
+product_barcodes | id, product_id, barcode, is_primary | One or more product barcodes.
+product_prices | id, product_id, price_type, amount, effective_from, effective_to | Historical/configurable pricing.
+--- END TABLE ---
+
+--- TABLE ---
+Column | Type | Constraints
+id | UUID | PK
+sku | VARCHAR(100) | NOT NULL, UNIQUE
+name | VARCHAR(255) | NOT NULL
+description | TEXT | NULL
+category_id | UUID | FK categories.id
+brand_id | UUID | FK brands.id
+unit_id | UUID | FK units.id
+purchase_price | NUMERIC(19,4) | NOT NULL, >= 0
+selling_price | NUMERIC(19,4) | NOT NULL, >= 0
+wholesale_price | NUMERIC(19,4) | NULL, >= 0
+tax_rate | NUMERIC(7,4) | NOT NULL, >= 0
+min_stock | NUMERIC(19,4) | NOT NULL, >= 0
+max_stock | NUMERIC(19,4) | NULL, >= 0
+track_batch | BOOLEAN | NOT NULL
+track_expiry | BOOLEAN | NOT NULL
+is_active | BOOLEAN | NOT NULL
+created_at | TIMESTAMPTZ | NOT NULL
+updated_at | TIMESTAMPTZ | NOT NULL
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+inventory_balances | Current quantity by product/store.
+inventory_batches | Batch/lot quantity and expiration information.
+inventory_transactions | Immutable/append-oriented stock movement ledger.
+stock_transfers | Transfer header between stores/locations.
+stock_transfer_items | Products and quantities in transfers.
+stock_alerts | Low-stock and expiry alert records.
+--- END TABLE ---
+
+--- TABLE ---
+Column | Type | Constraints
+id | UUID | PK
+product_id | UUID | FK products.id, NOT NULL
+store_id | UUID | FK stores.id, NOT NULL
+batch_id | UUID | FK inventory_batches.id, NULL
+transaction_type | VARCHAR(40) | NOT NULL
+quantity | NUMERIC(19,4) | NOT NULL, non-zero
+reference_type | VARCHAR(50) | NULL
+reference_id | UUID | NULL
+unit_cost | NUMERIC(19,4) | NULL
+reason | VARCHAR(255) | NULL
+created_by | UUID | FK users.id
+created_at | TIMESTAMPTZ | NOT NULL
+--- END TABLE ---
+
+--- TABLE ---
+Table | Key Columns | Purpose
+customers | id, customer_code, name, phone, email, address, credit_limit, is_active | Customer master.
+customer_credits | id, customer_id, balance, currency_code, status | Current store-credit account.
+customer_credit_transactions | id, customer_credit_id, transaction_type, amount, reference_type, reference_id, balance_after | Credit ledger.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+suppliers | Supplier master and contact data.
+supplier_products | Supplier/product relationship and supplier-specific information.
+purchase_orders | Purchase order header.
+purchase_order_items | Products and ordered quantities.
+goods_receipts | Received shipment header.
+goods_receipt_items | Received products, quantities, batches, and expiry.
+supplier_invoices | Supplier invoice/payable source.
+supplier_payments | Payments made against supplier invoices.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+sales | Sale transaction header.
+sale_items | Products, quantities, prices, discounts, taxes.
+sale_payments | One or more payment records per sale.
+sale_returns | Return/refund header.
+sale_return_items | Returned products and quantities.
+receipts | Receipt metadata/document reference.
+--- END TABLE ---
+
+--- TABLE ---
+Column | Type | Constraints
+id | UUID | PK
+receipt_number | VARCHAR(50) | NOT NULL, unique within defined scope
+store_id | UUID | FK stores.id, NOT NULL
+terminal_id | UUID | FK terminals.id, NOT NULL
+register_id | UUID | FK registers.id, NOT NULL
+register_session_id | UUID | FK register_sessions.id, NOT NULL
+cashier_id | UUID | FK users.id, NOT NULL
+customer_id | UUID | FK customers.id, NULL
+status | VARCHAR(30) | NOT NULL
+subtotal | NUMERIC(19,4) | NOT NULL
+discount_total | NUMERIC(19,4) | NOT NULL
+tax_total | NUMERIC(19,4) | NOT NULL
+grand_total | NUMERIC(19,4) | NOT NULL
+currency_code | CHAR(3) | NOT NULL
+created_at | TIMESTAMPTZ | NOT NULL
+--- END TABLE ---
+
+--- TABLE ---
+Column | Type | Constraints
+id | UUID | PK
+sale_id | UUID | FK sales.id, NOT NULL
+product_id | UUID | FK products.id, NOT NULL
+quantity | NUMERIC(19,4) | NOT NULL, > 0
+unit_price | NUMERIC(19,4) | NOT NULL, >= 0
+discount_amount | NUMERIC(19,4) | NOT NULL, >= 0
+tax_amount | NUMERIC(19,4) | NOT NULL, >= 0
+line_total | NUMERIC(19,4) | NOT NULL, >= 0
+batch_id | UUID | FK inventory_batches.id, NULL
+--- END TABLE ---
+
+--- TABLE ---
+Table | Key Columns | Purpose
+payment_methods | id, code, name, type, is_active | Configured payment types.
+sale_payments | id, sale_id, payment_method_id, amount, reference_number, status | Payment against sale.
+refund_payments | id, return_id, payment_method_id, amount, reference_number, status | Refund settlement record.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+cash_transactions | Cash-in, cash-out, and other register cash movements.
+register_closings | Final closing reconciliation and Z-report metadata.
+--- END TABLE ---
+
+--- TABLE ---
+Column | Type | Constraints
+id | UUID | PK
+register_session_id | UUID | FK register_sessions.id, NOT NULL
+transaction_type | VARCHAR(30) | NOT NULL
+amount | NUMERIC(19,4) | NOT NULL
+reason | VARCHAR(255) | NULL
+reference_type | VARCHAR(50) | NULL
+reference_id | UUID | NULL
+created_by | UUID | FK users.id
+created_at | TIMESTAMPTZ | NOT NULL
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+quotations | Quotation header, customer, totals, status, dates.
+quotation_items | Products, quantities, prices, discounts, taxes.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+promotions | Promotion header, dates, status, priority, stacking configuration.
+promotion_rules | Eligibility/condition rules.
+discount_assignments | Optional explicit product/category/customer assignments.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+online_orders | External order header, customer, channel, status, totals, external identifier.
+online_order_items | Ordered products, quantities, prices, discounts, taxes.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+budgets | Budget header, period, store/dimension, status.
+budget_lines | Budget allocations by category/account/dimension.
+expenses | Recorded business expenses and related classifications.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+supplier_invoices | Invoice and payable header.
+supplier_invoice_allocations | Optional allocation of invoice amounts to purchases/receipts.
+supplier_payments | Payments against supplier invoices.
+--- END TABLE ---
+
+--- TABLE ---
+Table | Purpose
+audit_logs | Security, administrative, inventory, sales, financial, and privileged activity.
+notifications | In-app and notification-provider events.
+--- END TABLE ---
+
+--- TABLE ---
+Column | Type | Purpose
+id | UUID | Audit identifier.
+actor_user_id | UUID | User performing action.
+action | VARCHAR(100) | Action code.
+entity_type | VARCHAR(100) | Target entity type.
+entity_id | UUID | Target record.
+old_values | JSONB | Previous values when applicable.
+new_values | JSONB | New values when applicable.
+ip_address | INET | Request source when available.
+user_agent | TEXT | Client information when available.
+created_at | TIMESTAMPTZ | Event timestamp.
+--- END TABLE ---
+
+--- TABLE ---
+Parent | Child | Relationship
+stores | terminals | 1:N
+stores | registers | 1:N
+terminals | registers | 1:N
+registers | register_sessions | 1:N
+users | register_sessions | 1:N
+categories | products | 1:N
+products | product_barcodes | 1:N
+products | product_prices | 1:N
+products | inventory_balances | 1:N
+products | inventory_batches | 1:N
+products | inventory_transactions | 1:N
+customers | sales | 1:N
+customers | customer_credits | 1:0..1
+customer_credits | customer_credit_transactions | 1:N
+suppliers | purchase_orders | 1:N
+purchase_orders | purchase_order_items | 1:N
+suppliers | supplier_invoices | 1:N
+supplier_invoices | supplier_payments | 1:N
+sales | sale_items | 1:N
+sales | sale_payments | 1:N
+sales | sale_returns | 1:N
+sale_returns | sale_return_items | 1:N
+quotations | quotation_items | 1:N
+online_orders | online_order_items | 1:N
+promotions | promotion_rules | 1:N
+budgets | budget_lines | 1:N
+--- END TABLE ---
+
+--- TABLE ---
+Table | Recommended Index | Reason
+products | UNIQUE(sku) | Fast unique product lookup.
+product_barcodes | UNIQUE(barcode) | Fast barcode scanning.
+products | INDEX(category_id, is_active) | Catalog filtering.
+sales | INDEX(store_id, created_at) | Store sales reports.
+sales | INDEX(register_id, register_session_id) | Register/session queries.
+sale_items | INDEX(product_id, sale_id) | Product sales analysis.
+inventory_transactions | INDEX(product_id, store_id, created_at) | Stock history and reporting.
+inventory_batches | INDEX(product_id, expiration_date) | Expiry queries.
+register_sessions | INDEX(register_id, status) | Active session lookup.
+supplier_invoices | INDEX(supplier_id, status, due_date) | Payable reporting.
+online_orders | UNIQUE(channel, external_order_id) | Idempotent order ingestion.
+audit_logs | INDEX(entity_type, entity_id, created_at) | Entity audit history.
+audit_logs | INDEX(actor_user_id, created_at) | User activity auditing.
+--- END TABLE ---
+
+--- TABLE ---
+Operation | Primary Tables | Transaction Scope
+Complete Sale | sales, sale_items, sale_payments, inventory_transactions, inventory_balances, cash_transactions, audit_logs | Single business transaction.
+Receive Purchase | goods_receipts, goods_receipt_items, inventory_transactions, inventory_balances | Single business transaction.
+Supplier Payment | supplier_payments, payable balance data, audit_logs | Single business transaction.
+Store Credit Redemption | customer_credit_transactions, sale_payments, sales | Single business transaction.
+Register Closing | register_closings, register_sessions, audit_logs | Single business transaction.
+Refund | sale_returns, sale_return_items, refund_payments, inventory_transactions, audit_logs | Single business transaction where applicable.
+--- END TABLE ---

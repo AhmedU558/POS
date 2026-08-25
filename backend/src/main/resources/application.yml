@@ -1,0 +1,30 @@
+spring:
+  application:
+    name: pos-backend
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pos_db}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/pos_db}
+    user: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+jwt:
+  secret: ${JWT_SECRET:d29329240eb0f9ff433023fc6653df8a211eb4c69818abf5ff9841f3d82a1b18}
+  refresh-secret: ${JWT_REFRESH_SECRET:418abf5ff9841f3d82a1b18d29329240eb0f9ff433023fc6653df8a211eb4c69}
+  expiration-ms: 900000 # 15 minutes
+  refresh-expiration-ms: 86400000 # 24 hours

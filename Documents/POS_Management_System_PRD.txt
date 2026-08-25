@@ -1,0 +1,444 @@
+PRODUCT REQUIREMENTS DOCUMENT
+Integrated POS, Inventory & Business Management System
+PRD • Version 1.0
+
+
+
+Document Structure
+Product Overview
+Problem Statement
+Product Goals
+Target Users & Roles
+System Modules
+POS & Sales Management
+Inventory & Stock Management
+Expiration Date & Stock Alerts
+Customer & Store Credit Management
+Supplier & Purchasing Management
+Accounts Payable
+Cash Register & Day-End Closing
+Multiple Service Terminals
+Online Orders
+Quotations
+Discounts & Promotions
+Budgets
+Financial Reports
+Labels & Receipts
+Authentication & Authorization
+Audit Logging
+Non-Functional Requirements
+MVP Scope
+Phase 2 Scope
+Phase 3 Scope
+Future Enhancements
+High-Level System Flow
+Development Roadmap
+1. Product Overview
+The Integrated POS, Inventory & Business Management System is a centralized retail platform designed to manage point-of-sale operations, inventory, customers, suppliers, purchasing, cash registers, online orders, quotations, promotions, budgets, accounts payable, and financial reporting from a single system.
+The platform is intended to support individual stores as well as future multi-store and multi-terminal deployments. Real-time synchronization between sales, inventory, online orders, and business reporting is a core design objective.
+2. Problem Statement
+Many small and medium-sized businesses rely on separate systems or manual processes for sales, inventory, accounting, suppliers, and online orders. This creates operational inefficiencies and makes it difficult to maintain accurate business records.
+Incorrect or delayed inventory quantities.
+Duplicate or inconsistent data entry.
+Limited visibility into sales performance.
+Difficult supplier and payable management.
+Cash-register discrepancies.
+Manual end-of-day calculations.
+Poor tracking of expired or near-expiration products.
+Limited financial and management reporting.
+Difficulty coordinating physical and online sales channels.
+3. Product Goals
+Provide a fast, reliable, and user-friendly POS experience.
+Maintain accurate and near-real-time inventory quantities.
+Support multiple POS terminals and registers.
+Centralize customer and supplier management.
+Track accounts payable and supplier payments.
+Provide controlled cash-register opening and closing workflows.
+Support online orders using the same inventory system as physical POS sales.
+Provide quotations, invoices, receipts, and printable labels.
+Support flexible discounts and promotional rules.
+Track product batches and expiration dates where applicable.
+Provide operational and financial reporting.
+Implement role-based access control and audit logging.
+Provide a scalable foundation for multi-store expansion.
+4. Target Users & Roles
+
+5. System Modules
+POS & Sales Management
+Inventory & Stock Control
+Product Management
+Customer Management
+Supplier Management
+Purchasing
+Accounts Payable
+Cash Register Management
+Online Order Management
+Quotations
+Discounts & Promotions
+Store Credits
+Budgets
+Financial & Operational Reports
+Labels & Receipts
+Authentication, Roles & Permissions
+Notifications
+Audit Logs
+6. POS & Sales Management
+The POS module is the core transactional component of the system.
+Start and manage POS sessions.
+Select a register and terminal.
+Search products by name, SKU, or barcode.
+Scan product barcodes.
+Add, remove, and modify cart items.
+Apply authorized discounts and promotions.
+Associate sales with customers.
+Calculate taxes and totals.
+Accept multiple payment methods.
+Support suspended/held transactions and later resumption.
+Complete sales and generate receipts.
+Reprint receipts where authorized.
+Process returns, refunds, and exchanges.
+Illustrative POS workflow:
+Cashier Login → Select Register → Scan/Search Products → Cart → Discount/Promotion → Tax → Payment → Complete Sale → Receipt → Inventory Update
+7. Inventory & Stock Management
+The inventory engine shall maintain a reliable transaction history for every stock movement.
+Stock receiving.
+Stock adjustment.
+Stock transfer between locations/registers where applicable.
+Stock deduction from completed sales.
+Stock returns.
+Damaged and expired stock processing.
+Inventory reconciliation.
+Stock movement history.
+Inventory valuation.
+Minimum and maximum stock thresholds.
+Illustrative stock calculation:
+Opening Stock      100
+Purchase           +50
+POS Sale           -20
+Online Sale         -5
+Damaged             -2
+Adjustment          +3
+----------------------
+Current Stock      126
+8. Expiration Date & Stock Alerts
+Products that require expiry management may be tracked by batch/lot, manufacturing date, and expiration date.
+Identify expired products.
+Identify products expiring today.
+Identify products expiring within configurable periods such as 7 or 30 days.
+Generate inventory alerts.
+Prevent or warn against sale of expired stock according to business rules.
+Support batch-level inventory tracking.
+Low-stock alerts shall be generated when current stock reaches or falls below the configured minimum stock level.
+9. Customer & Store Credit Management
+Customer registration and profile management.
+Phone, email, address, and customer-type information.
+Customer purchase history.
+Customer statements and outstanding balances.
+Customer-specific pricing and discounts.
+Store-credit issuance and redemption.
+Credit transaction ledger.
+Example store-credit scenario:
+Original Purchase:  $100
+Returned Product:   $30
+Customer Choice:    Store Credit
+Credit Issued:      $30
+10. Supplier & Purchasing Management
+Supplier registration and contact management.
+Supplier product associations.
+Purchase orders.
+Goods receiving.
+Quantity verification.
+Batch and expiration verification.
+Supplier invoices.
+Supplier payment history.
+Supplier statements and balances.
+Purchasing workflow:
+Purchase Order → Supplier → Goods Received → Quantity/Batch Verification → Inventory Update → Supplier Invoice → Accounts Payable
+11. Accounts Payable
+The accounts payable module will track amounts owed to suppliers and the settlement of those obligations.
+Supplier invoice recording.
+Invoice number and dates.
+Payment due dates.
+Full and partial payments.
+Remaining payable balance.
+Overdue payable tracking.
+Supplier payment history.
+Supplier account statements.
+
+12. Cash Register & Day-End Closing
+Each physical register shall operate through an independent cash session.
+Opening workflow:
+Cashier → Select Register → Enter Opening Cash → Start Session
+Closing workflow:
+Close Register → Calculate Expected Cash → Enter Actual Cash → Calculate Variance → Generate Z Report → Close Session
+The day-end report should include:
+Register and terminal.
+Cashier.
+Opening cash.
+Cash sales.
+Card and other payment totals.
+Refunds.
+Discounts.
+Cash-in and cash-out transactions.
+Expected closing cash.
+Actual closing cash.
+Cash variance.
+Transaction count.
+Opening and closing timestamps.
+Example reconciliation:
+Opening Cash        $200
+Cash Sales        $1,500
+Cash Refunds        -$50
+Cash Added          +$100
+Cash Removed         -$20
+-------------------------
+Expected Cash      $1,730
+Actual Cash        $1,720
+Variance             -$10
+13. Multiple Service Terminals
+The system shall support multiple service terminals/registers operating concurrently within a store while maintaining separate sessions and complete transaction attribution.
+Store #1
+  ├── Register 01 → Cashier A
+  ├── Register 02 → Cashier B
+  └── Register 03 → Cashier C
+Each transaction should identify the store, terminal, register, cashier, and register session.
+14. Online Orders
+Online orders shall use the same product and inventory data as physical POS transactions to reduce inventory inconsistencies.
+Customer → Online Store → Order → Inventory Verification → Confirmation → Preparation → Dispatch → Delivery/Completion
+Pending
+Confirmed
+Preparing
+Ready
+Dispatched
+Delivered
+Cancelled
+Refunded
+15. Quotations
+Create and edit quotations.
+Assign quotations to customers.
+Add products, quantities, prices, discounts, and taxes.
+Set expiration dates.
+Define terms and conditions.
+Generate printable/exportable quotation documents.
+Convert accepted quotations into sales/orders.
+Draft
+Sent
+Accepted
+Rejected
+Expired
+Converted
+16. Discounts & Promotions
+Percentage discounts.
+Fixed-amount discounts.
+Product-level discounts.
+Category-level discounts.
+Buy-X-Get-Y promotions.
+Time-based promotions such as happy hours.
+Customer/VIP promotions.
+Promotion start and end dates.
+Promotion eligibility rules.
+Priority and anti-stacking rules.
+Examples: 10% off, $10 off, Buy 2 Get 1 Free, Electronics 15% off, VIP 10% off, or Happy Hour 5 PM–7 PM.
+17. Budgets
+Authorized users shall be able to define and monitor business budgets.
+Store-level budgets.
+Department-level budgets.
+Category-level budgets.
+Monthly, quarterly, and annual budgets.
+Actual-versus-budget comparison.
+Variance calculations.
+Budget utilization reporting.
+18. Financial Reports
+
+19. Labels & Receipts
+Product labels may contain:
+Product name
+SKU
+Barcode
+Price
+Batch
+Expiration date
+Receipts should contain:
+Store name, address, and contact information.
+Receipt number and date/time.
+Cashier and terminal.
+Products, quantities, unit prices, discounts, and taxes.
+Total amount.
+Payment method.
+Amount received and change.
+Return policy or other configured footer information.
+20. Authentication & Authorization
+Secure login and logout.
+Password hashing.
+Authenticated session/token management.
+Role-based access control.
+Permission-based authorization.
+Session expiration.
+Password reset.
+Account activation/deactivation.
+Elevated authorization for sensitive actions.
+Sensitive actions may include refunds, price overrides, large discounts, stock adjustments, transaction deletion/voiding, and register overrides.
+21. Audit Logging
+Important operational and financial actions shall be recorded in an immutable or access-controlled audit trail.
+Login and logout events.
+Product and price changes.
+Stock adjustments.
+Refunds and returns.
+Discount and promotion changes.
+Register operations.
+Supplier payments.
+User and permission changes.
+Administrative configuration changes.
+Example:
+User: Ahmed
+Action: PRICE_UPDATED
+Product: Product A
+Old Price: $20
+New Price: $18
+Timestamp: 25-Aug-2026 10:30
+22. Non-Functional Requirements
+
+23. MVP Scope
+The Minimum Viable Product should focus on the operational capabilities required to run a retail store.
+Authentication and role management.
+Users and permissions.
+Products and categories.
+Customers.
+Suppliers.
+Inventory and stock management.
+Stock alerts.
+POS sales.
+Payments.
+Receipts.
+Returns.
+Cash register.
+Day-end closing.
+Basic operational reports.
+24. Phase 2 Scope
+Online orders.
+Quotations.
+Store credits.
+Advanced promotions.
+Expiration and batch management.
+Purchase orders.
+Accounts payable.
+Supplier payments.
+Advanced inventory features.
+Multiple terminals and multi-store readiness.
+25. Phase 3 Scope
+Budgets.
+Advanced financial reports.
+Cash-flow reporting.
+Profit and loss reporting.
+Advanced analytics.
+Advanced permissions.
+Automated notifications and alerts.
+Management dashboards.
+Advanced audit and compliance features.
+26. Future Enhancements
+Customer loyalty program.
+Mobile POS.
+Customer mobile application.
+Supplier portal.
+Employee attendance.
+Payroll integration.
+Accounting software integration.
+E-commerce platform integrations.
+WhatsApp, SMS, and email notifications.
+AI-based sales forecasting.
+AI inventory forecasting.
+Demand prediction.
+Automated purchase recommendations.
+27. High-Level System Flow
+                    ┌──────────────┐
+                    │    ADMIN     │
+                    └──────┬───────┘
+                           │
+                    ┌──────▼───────┐
+                    │   BACKEND    │
+                    └──────┬───────┘
+                           │
+       ┌───────────────────┼───────────────────┐
+       │                   │                   │
+   ┌───▼────┐         ┌────▼─────┐       ┌────▼─────┐
+   │   POS  │         │ INVENTORY │       │ ACCOUNTING│
+   └───┬────┘         └────┬─────┘       └────┬─────┘
+       │                   │                   │
+       └───────────────────┼───────────────────┘
+                           │
+                    ┌──────▼───────┐
+                    │   DATABASE   │
+                    └──────────────┘
+28. Development Roadmap
+
+29. Recommended Next Document
+The next deliverable should be the Software Requirements Specification (SRS). The SRS will expand this PRD into implementation-ready requirements, including unique requirement IDs, detailed workflows, business rules, validations, permissions, inputs, outputs, error conditions, and acceptance criteria.
+Planned sequence:
+PRD → SRS → System Architecture → Database ERD → API Specification → UI/UX → Development → Testing → Security → Deployment → Production
+
+END OF PRODUCT REQUIREMENTS DOCUMENT
+
+--- TABLE ---
+Document Information | Value
+Document Type | Product Requirements Document (PRD)
+Version | 1.0
+Status | Baseline / Initial Product Definition
+Product Category | Retail POS & Business Management
+Prepared For | POS Application Development
+Date | 25 August 2026
+--- END TABLE ---
+
+--- TABLE ---
+Role | Primary Responsibilities
+Super Administrator | System configuration, stores, users, roles, permissions, global reporting, and full access.
+Store Manager | Store operations, inventory, employees, suppliers, discounts, reports, registers, and refund approvals.
+Cashier | Register sessions, sales, payments, customers, authorized discounts, returns, receipts, and closing.
+Inventory Manager | Products, stock receiving, adjustments, transfers, batches, expiration, and inventory reports.
+Accountant | Accounts payable, supplier payments, budgets, expenses, cash flow, and financial reporting.
+Online Order Staff | Online order review, confirmation, preparation, dispatch, cancellation, and refund workflows.
+--- END TABLE ---
+
+--- TABLE ---
+Status | Meaning
+Unpaid | No payment has been recorded against the invoice.
+Partially Paid | One or more payments have reduced but not cleared the balance.
+Paid | The payable balance has been fully settled.
+Overdue | The invoice has passed its due date and remains outstanding.
+Cancelled | The payable record has been cancelled according to authorized business rules.
+--- END TABLE ---
+
+--- TABLE ---
+Report Group | Examples
+Sales | Daily, weekly, monthly, annual, product, category, cashier, terminal, customer, payment method.
+Inventory | Current stock, stock movement, valuation, low stock, expired stock, expiring products, damaged stock.
+Financial | Revenue, expenses, gross profit, net profit, accounts payable, cash flow, budget variance.
+Cash Register | Opening/closing, cash variance, cashier performance, cash movements.
+--- END TABLE ---
+
+--- TABLE ---
+Area | Requirement
+Performance | POS operations should feel near-instantaneous under normal network conditions.
+Availability | The platform should be designed for high availability and controlled recovery.
+Security | HTTPS, secure authentication, authorization, input validation, rate limiting, and audit logging.
+Scalability | Architecture should support growth from one store to many stores and hundreds/thousands of terminals.
+Reliability | Financial and inventory transactions must be atomic and consistent.
+Maintainability | Modular architecture, documented APIs, automated tests, and clear separation of responsibilities.
+Usability | POS workflows should minimize cashier clicks and support fast product entry.
+Data Integrity | Completed sales, payments, inventory movements, and financial records must remain consistent.
+--- END TABLE ---
+
+--- TABLE ---
+Step | Phase | Primary Deliverable
+01 | PRD | Product requirements and business scope.
+02 | SRS | Detailed software requirements, rules, validations, and acceptance criteria.
+03 | System Architecture | Application architecture, services, security, integrations, and deployment model.
+04 | Database Design | ERD, entities, relationships, indexes, constraints, and transaction strategy.
+05 | API Specification | REST API contracts, authentication, request/response models, errors, and permissions.
+06 | UI/UX Design | POS, dashboard, inventory, reports, registers, customers, suppliers, and administrative interfaces.
+07 | Project Setup | Repository, environments, CI/CD, coding standards, testing framework, and infrastructure.
+08 | Core Development | Authentication, RBAC, products, inventory, POS, payments, registers, and customers.
+09 | Business Modules | Suppliers, purchasing, accounts payable, quotations, promotions, and online orders.
+10 | Reporting & Analytics | Operational, inventory, cash, financial, and management reports.
+11 | Testing & Security | Unit, integration, API, UI, performance, security, and user acceptance testing.
+12 | Deployment | Docker, server/cloud deployment, monitoring, backups, logging, and production release.
+--- END TABLE ---

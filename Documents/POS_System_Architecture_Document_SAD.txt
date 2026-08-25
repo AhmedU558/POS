@@ -1,0 +1,531 @@
+SYSTEM ARCHITECTURE DOCUMENT
+Integrated POS, Inventory & Business Management System
+SAD • Version 1.0 • Java/Spring Boot Architecture
+
+
+1. Architecture Overview
+The system will use a modular monolithic architecture for the initial production release. The backend will be implemented in Java 21 LTS using Spring Boot 3.x. The architecture separates presentation, application/business logic, data access, infrastructure integrations, and cross-cutting concerns while keeping deployment simple.
+                    ┌───────────────────────────────┐
+                    │       Web / POS Clients        │
+                    │ React / Next.js / TypeScript    │
+                    └───────────────┬───────────────┘
+                                    │ HTTPS / REST
+                                    ▼
+                    ┌───────────────────────────────┐
+                    │        Spring Boot API        │
+                    │     Java 21 / Spring Boot     │
+                    ├───────────────────────────────┤
+                    │ Controllers / DTOs / Security │
+                    │ Application Services          │
+                    │ Domain & Business Rules       │
+                    │ Repositories / Transactions   │
+                    └───────────────┬───────────────┘
+                                    │
+             ┌──────────────────────┼──────────────────────┐
+             ▼                      ▼                      ▼
+       PostgreSQL                 Redis              External APIs
+       Primary DB                Cache              Payments / Orders
+
+2. Architecture Principles
+Modular design with clear ownership of business capabilities.
+API-first backend design.
+Strong transaction boundaries for financial and inventory operations.
+Least-privilege security.
+Auditability of privileged and financially significant actions.
+Database consistency over premature distributed architecture.
+Stateless HTTP application services where possible.
+Configuration through environment-specific configuration rather than hard-coded values.
+Testability through dependency injection and separation of concerns.
+Scalability without requiring an initial microservices deployment.
+3. Technology Stack
+
+4. Architectural Style
+4.1 Modular Monolith
+The initial backend will be one deployable Spring Boot application organized into business modules. Modules should have clear boundaries and avoid direct coupling to unrelated internal implementation details.
+com.pos
+├── auth
+├── users
+├── roles
+├── stores
+├── terminals
+├── products
+├── inventory
+├── customers
+├── suppliers
+├── purchases
+├── sales
+├── payments
+├── cashregister
+├── quotations
+├── promotions
+├── onlineorders
+├── accounts
+├── budgets
+├── reports
+├── notifications
+├── audit
+└── common
+4.2 Why Not Microservices Initially?
+Lower operational complexity.
+Single database transaction boundaries are easier to maintain.
+Simpler local development and testing.
+Lower infrastructure cost.
+Faster MVP delivery.
+Modules can later be extracted if scale or organizational boundaries justify it.
+5. Application Layer Architecture
+HTTP Request
+    ↓
+Controller
+    ↓
+DTO Validation
+    ↓
+Application Service
+    ↓
+Domain / Business Rules
+    ↓
+Repository / Data Access
+    ↓
+PostgreSQL
+    ↓
+Response DTO
+    ↓
+HTTP Response
+Controllers should remain thin. Business decisions belong in application/domain services, while persistence details remain behind repositories.
+6. Backend Module Architecture
+
+7. POS Architecture
+Cashier
+  ↓
+POS UI
+  ↓
+Sales API
+  ↓
+Validate Product / Price / Promotion / Stock
+  ↓
+Create Sale + Sale Items
+  ↓
+Create Payment
+  ↓
+Deduct Inventory
+  ↓
+Update Register Totals
+  ↓
+Audit Event
+  ↓
+Receipt
+
+The complete sale workflow must execute within a controlled database transaction where the business operation requires atomicity.
+8. Inventory Architecture
+Inventory should be ledger-oriented: current stock is maintained for efficient reads, while inventory transactions provide an auditable history of changes.
+Purchase Received     +50
+POS Sale              -20
+Online Order           -5
+Damage                 -2
+Adjustment             +3
+                         ↓
+                  Inventory Ledger
+                         ↓
+                  Current Stock
+
+Stock changes must have a source/reference.
+Adjustments require authorized reasons.
+Inventory and sale updates must be transactionally consistent.
+Batch/expiry information is optional per product/category configuration.
+Low-stock and expiry alerts should be generated from inventory rules.
+9. Sales & Payment Architecture
+Sale creation must be separate from payment processing at the domain level while remaining transactionally coordinated.
+Multiple payment methods may be represented as multiple payment records for a single sale.
+Payment status must be tracked independently.
+Refunds must reference the original transaction where required.
+Payment-provider integration must be abstracted to allow multiple providers.
+Monetary calculations should use Java BigDecimal and database numeric/decimal types rather than floating-point values.
+10. Cash Register Architecture
+Register
+   ↓
+Register Session
+   ├── Opening Cash
+   ├── Cash Sales
+   ├── Cash Refunds
+   ├── Cash In
+   ├── Cash Out
+   └── Closing Count
+            ↓
+     Expected vs Actual
+            ↓
+         Variance
+            ↓
+        Z Report
+
+Only one active session should exist per register unless explicitly configured otherwise.
+Session opening and closing must be permission-controlled.
+Closed sessions must be immutable to normal users.
+Register calculations must derive from recorded transactions rather than manual totals.
+11. Online Order Architecture
+Online Store / External Channel
+            ↓
+      Order Integration API
+            ↓
+      Validate / Normalize
+            ↓
+        Order Module
+            ↓
+      Inventory Reservation
+            ↓
+      Fulfillment Workflow
+            ↓
+       Status Updates
+
+External order identifiers must be stored to support idempotency.
+Order ingestion should not create duplicate sales if the same external event is delivered twice.
+Inventory reservation strategy must be explicitly defined before implementation.
+Cancellation and refund events must be traceable.
+12. Accounting & Accounts Payable Architecture
+Purchase Order
+      ↓
+Goods Receipt
+      ↓
+Supplier Invoice
+      ↓
+Accounts Payable
+      ↓
+Supplier Payment
+      ↓
+Payable Balance
+      ↓
+Financial Reports
+
+Payables must track original amount, paid amount, remaining amount, due date, and status.
+Payments must be auditable.
+Financial reporting should derive from controlled transactional records.
+Accounting complexity should remain modular so a full general ledger can be introduced later if required.
+13. Database Architecture
+PostgreSQL will be the system of record for transactional and master data.
+Use normalized relational structures for core business data.
+Use foreign keys and unique constraints to enforce integrity.
+Use indexes for common POS, inventory, customer, supplier, and reporting queries.
+Use database transactions for sale, payment, inventory, and register operations.
+Use migrations for controlled schema evolution.
+Use soft-delete/deactivation selectively for master data and avoid destructive deletion of historical financial transactions.
+Primary data domains:
+Identity → Users / Roles / Permissions
+Organization → Stores / Terminals / Registers
+Catalog → Products / Categories / Prices / Barcodes
+Inventory → Stock / Batches / Movements
+Sales → Sales / Items / Payments / Returns
+CRM → Customers / Credits
+Procurement → Suppliers / Purchases / Invoices
+Finance → Payables / Payments / Budgets / Expenses
+Operations → Quotations / Promotions / Orders
+Control → Audit / Notifications
+
+14. Transaction & Consistency Strategy
+Critical business workflows will use Spring transaction management with PostgreSQL transactions.
+
+15. Authentication & Security Architecture
+Client
+  ↓ HTTPS
+Spring Security Filter Chain
+  ↓
+JWT / Refresh Token Validation
+  ↓
+Authentication Principal
+  ↓
+Permission Check
+  ↓
+Controller
+  ↓
+Service
+
+Passwords must be hashed with a strong adaptive password encoder.
+Access tokens should be short-lived.
+Refresh-token strategy must support revocation.
+Authorization must be enforced server-side.
+Sensitive operations may require elevated permissions or re-authentication.
+Secrets must not be committed to source control.
+Production APIs must use HTTPS.
+Rate limiting should protect login and sensitive endpoints.
+16. API Architecture
+The backend will expose versioned REST APIs.
+/api/v1/auth
+/api/v1/users
+/api/v1/products
+/api/v1/inventory
+/api/v1/customers
+/api/v1/suppliers
+/api/v1/purchases
+/api/v1/sales
+/api/v1/payments
+/api/v1/registers
+/api/v1/quotations
+/api/v1/promotions
+/api/v1/orders
+/api/v1/accounts-payable
+/api/v1/budgets
+/api/v1/reports
+/api/v1/audit
+Use DTOs instead of exposing persistence entities directly.
+Use consistent HTTP status codes.
+Use standardized error responses.
+Validate request payloads with Jakarta Bean Validation.
+Document endpoints with OpenAPI.
+Implement idempotency for externally retried financial/order operations where needed.
+17. Caching & Redis Architecture
+Cache low-volatility reference data such as categories and selected product metadata where beneficial.
+Use Redis for short-lived rate-limit counters.
+Use Redis for distributed coordination only where required.
+Do not treat cache as the authoritative source for financial or inventory data.
+Cache invalidation must be defined for mutable product/pricing data.
+18. Real-Time Communication
+WebSocket or Server-Sent Events may be introduced for events that benefit from real-time updates.
+New online order notifications.
+Low-stock alerts.
+Register/session status.
+Administrative notifications.
+Order status updates.
+Core financial transactions should not depend on a real-time channel; REST/database transactions remain authoritative.
+19. Hardware Integration
+
+Hardware integration should be isolated from core business services so the POS remains testable without physical devices.
+20. Reporting Architecture
+Operational reports should use optimized read queries or reporting views where appropriate.
+Large reports should support pagination or asynchronous generation.
+Financial totals must use authoritative transactional data.
+Reports should be scoped by user permissions and store access.
+Exports should run through a dedicated reporting/export service layer.
+21. Logging, Monitoring & Observability
+Application logs should use structured logging.
+Every request should have a correlation/request ID.
+Health endpoints should expose application and dependency status appropriately.
+Monitor database connectivity, API errors, latency, JVM health, and resource utilization.
+Audit logs are distinct from technical application logs and must follow stronger retention/access rules.
+22. Backup & Disaster Recovery
+PostgreSQL backups must be automated in production.
+Backup retention must be configurable.
+Recovery procedures must be tested periodically.
+Critical configuration and secrets must have controlled recovery procedures.
+Recovery Point Objective (RPO) and Recovery Time Objective (RTO) must be finalized before production.
+23. Deployment Architecture
+                    Internet / LAN
+                          │
+                       Nginx
+                          │
+                 ┌────────▼────────┐
+                 │ Spring Boot API │
+                 │   Java 21       │
+                 └────────┬────────┘
+                          │
+              ┌───────────┼───────────┐
+              ▼           ▼           ▼
+         PostgreSQL     Redis      File Storage
+              │
+          Backups
+
+Development, staging, and production environments must be separated.
+Docker should provide consistent application packaging.
+Nginx may terminate TLS and route traffic.
+Database should not be publicly exposed.
+Secrets should be supplied through secure environment/configuration management.
+24. Docker & CI/CD
+Developer
+   ↓
+Git Repository
+   ↓
+CI Pipeline
+   ├── Compile
+   ├── Unit Tests
+   ├── Integration Tests
+   ├── Static Analysis
+   └── Build Docker Image
+             ↓
+        Staging Deploy
+             ↓
+        Acceptance Tests
+             ↓
+       Production Deploy
+
+Every pull request should execute automated checks.
+Production images should be versioned.
+Database migrations must be reviewed and applied in a controlled pipeline.
+Rollback strategy must be documented.
+25. Scalability Strategy
+Keep the Spring Boot application stateless where possible.
+Scale application instances horizontally behind a reverse proxy/load balancer.
+Use PostgreSQL connection pooling.
+Use Redis for shared cache/rate limiting when multiple application instances exist.
+Optimize indexes and high-volume queries.
+Introduce read replicas only when measured reporting/read load requires them.
+Extract individual modules into services only when there is a demonstrated operational or scaling need.
+26. Performance Strategy
+
+27. Project Package Structure
+src/main/java/com/pos
+├── common
+│   ├── config
+│   ├── exception
+│   ├── security
+│   ├── validation
+│   └── response
+├── auth
+├── users
+├── stores
+├── terminals
+├── products
+├── inventory
+├── customers
+├── suppliers
+├── purchases
+├── sales
+├── payments
+├── cashregister
+├── quotations
+├── promotions
+├── onlineorders
+├── accounts
+├── budgets
+├── reports
+├── notifications
+└── audit
+Each business module should contain its controller/API layer, DTOs, service/application layer, domain logic, persistence components, and tests as appropriate.
+28. Architecture Decision Records
+
+29. Testing Architecture
+Unit tests for business rules and calculations.
+Repository/integration tests against PostgreSQL-compatible test infrastructure.
+Spring Boot integration tests for module workflows.
+API tests for authentication, authorization, validation, and response contracts.
+End-to-end tests for critical POS and register workflows.
+Concurrency tests for stock and register-sensitive operations.
+Performance tests for high-volume product lookup, checkout, and reporting.
+Security tests for privilege escalation and unauthorized access.
+30. Security & Compliance Considerations
+Protect customer and employee data.
+Restrict financial data by role/store scope.
+Maintain audit trails for privileged actions.
+Apply secure password/token practices.
+Do not log sensitive credentials or payment secrets.
+Payment-card data handling must follow the requirements of the selected payment provider and applicable standards; avoid storing raw card data in the POS database.
+31. Architecture Risks & Mitigations
+
+32. Implementation Sequence
+Create Spring Boot project and establish Java 21/Maven standards.
+Implement common error handling, validation, configuration, logging, and security foundations.
+Implement users, roles, permissions, stores, terminals, and registers.
+Implement products, categories, pricing, and barcodes.
+Implement inventory and stock transactions.
+Implement customers and store credits.
+Implement suppliers and purchasing.
+Implement POS sales and payments.
+Implement cash-register sessions and day-end closing.
+Implement returns/refunds and receipts.
+Implement promotions and quotations.
+Implement accounts payable and supplier payments.
+Implement online orders.
+Implement budgets and advanced reporting.
+Complete integration, security, performance, and production testing.
+33. Next Architecture Deliverable
+The next document should be the Database Design & ERD Specification. It will translate this architecture into a concrete PostgreSQL design, including tables, columns, data types, primary keys, foreign keys, indexes, unique constraints, relationships, audit structures, and transaction boundaries.
+PRD → SRS → SAD → Database Design & ERD → API Specification → UI/UX → Development → Testing → Deployment
+END OF SYSTEM ARCHITECTURE DOCUMENT
+
+--- TABLE ---
+Document Information | Value
+Document Type | System Architecture Document (SAD)
+Version | 1.0
+Status | Architecture Baseline
+Backend | Java 21 LTS + Spring Boot 3.x
+Database | PostgreSQL
+Frontend | React / Next.js + TypeScript
+Date | 25 August 2026
+--- END TABLE ---
+
+--- TABLE ---
+Layer | Technology | Purpose
+Backend Language | Java 21 LTS | Core application language.
+Backend Framework | Spring Boot 3.x | Application framework and dependency management.
+Web/API | Spring Web / REST | HTTP API layer.
+Security | Spring Security + JWT | Authentication and authorization.
+Validation | Jakarta Bean Validation | Request and domain validation.
+Persistence | Spring Data JPA + Hibernate | ORM and database access.
+Database | PostgreSQL | Primary transactional database.
+Cache | Redis | Caching, short-lived state, rate limiting, and optional sessions.
+Build | Maven | Build and dependency management.
+API Docs | OpenAPI / Swagger | API documentation and testing.
+Testing | JUnit 5 + Mockito + Spring Test | Unit, integration, and API testing.
+Frontend | React / Next.js + TypeScript | POS and management interfaces.
+Containers | Docker | Consistent deployment environments.
+Reverse Proxy | Nginx | TLS termination and routing.
+CI/CD | GitHub Actions or equivalent | Automated build, test, and deployment.
+--- END TABLE ---
+
+--- TABLE ---
+Module | Responsibilities
+Auth & Users | Login, credentials, tokens, users, roles, permissions.
+Stores & Terminals | Stores, registers, terminal configuration and status.
+Products | Products, categories, brands, units, SKUs, barcodes, pricing.
+Inventory | Stock quantities, batches, expiry, adjustments, transfers, movements, alerts.
+Sales / POS | Carts, sales, sale items, returns, refunds, receipts.
+Payments | Payment methods, payment transactions, reconciliation integration.
+Customers | Profiles, history, balances, store credit.
+Suppliers | Supplier profiles, supplier-product relationships.
+Purchasing | Purchase orders, receiving, purchase items.
+Accounts | Payables, supplier invoices, payments, expenses, financial records.
+Cash Register | Sessions, opening/closing, cash-in/out, variance, Z reports.
+Quotations | Quotation lifecycle and conversion.
+Promotions | Discounts, campaigns, eligibility, stacking rules.
+Online Orders | Order ingestion, status, fulfillment, cancellation, refund integration.
+Budgets | Budget periods, allocations, actuals, variance.
+Reports | Operational, inventory, cash, and financial reporting.
+Notifications | In-app/email/SMS/other provider abstractions.
+Audit | Immutable/access-controlled audit trail.
+--- END TABLE ---
+
+--- TABLE ---
+Workflow | Atomicity Requirement
+Complete POS Sale | Sale, payment records, inventory deduction, register update, and required audit records must remain consistent.
+Purchase Receiving | Receipt confirmation and inventory increase must remain consistent.
+Supplier Payment | Payment record and payable balance update must remain consistent.
+Register Closing | Closing count, session status, and closing report data must remain consistent.
+Store Credit | Credit issuance/redemption and customer credit ledger must remain consistent.
+Refund | Refund record, payment impact, inventory impact, and audit record must remain consistent where applicable.
+--- END TABLE ---
+
+--- TABLE ---
+Hardware | Architecture Approach
+Barcode Scanner | Treat scanner input as keyboard-like input where supported; provide configuration for scanner-specific behavior.
+Receipt Printer | Use a printer abstraction/service layer so printer vendors can be changed without changing sales logic.
+Label Printer | Use configurable label templates and a printer abstraction.
+Cash Drawer | Trigger through supported receipt-printer/peripheral integration where applicable.
+Customer Display | Optional integration through a terminal-specific adapter.
+--- END TABLE ---
+
+--- TABLE ---
+Area | Approach
+POS | Optimize product lookup, barcode lookup, cart operations, and transaction paths.
+Database | Indexes, connection pooling, query optimization, and proper transaction scope.
+Reports | Pagination, optimized queries, pre-aggregation/materialized views where justified.
+Caching | Cache stable reference data and high-frequency reads.
+Frontend | Minimize round trips and use efficient data fetching.
+Concurrency | Use appropriate database isolation/locking for stock and financial conflicts.
+--- END TABLE ---
+
+--- TABLE ---
+ADR | Decision | Reason
+ADR-001 | Java 21 LTS | Long-term supported enterprise backend platform.
+ADR-002 | Spring Boot 3.x | Mature ecosystem for REST APIs, security, transactions, persistence, and testing.
+ADR-003 | Modular monolith first | Reduces operational complexity while preserving module boundaries.
+ADR-004 | PostgreSQL | Strong relational consistency suitable for transactional retail and financial workloads.
+ADR-005 | Redis optional/secondary | Useful for caching and shared ephemeral state without becoming the system of record.
+ADR-006 | REST API | Simple, widely supported integration contract for POS, web, and external channels.
+ADR-007 | Docker | Consistent packaging and deployment.
+--- END TABLE ---
+
+--- TABLE ---
+Risk | Impact | Mitigation
+Inventory race conditions | Incorrect stock | Transactional updates, appropriate locking/isolation, and concurrency tests.
+Cashier privilege misuse | Financial loss | RBAC, sensitive-action permissions, audit logging.
+Large reports slow POS | Poor cashier experience | Separate reporting queries, pagination, optimized indexes, optional async reports.
+Online order duplication | Duplicate sales/stock deduction | External IDs, idempotency keys, transaction safeguards.
+Database growth | Performance degradation | Indexes, archiving/retention strategy, query optimization, partitioning if justified.
+Hardware differences | POS integration issues | Hardware adapter/abstraction layer.
+Premature microservices | Operational complexity | Modular monolith until measured requirements justify extraction.
+--- END TABLE ---

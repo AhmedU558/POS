@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: pos-backend-test
+  datasource:
+    url: jdbc:tc:postgresql:15-alpine:///pos_db_test?user=postgres&password=postgrespassword
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+    username: postgres
+    password: postgrespassword
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    user: postgres
+    password: postgrespassword
+    url: jdbc:tc:postgresql:15-alpine:///pos_db_test?user=postgres&password=postgrespassword
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+jwt:
+  secret: test_secret_key_needs_to_be_long_enough_for_hs256_algorithm
+  refresh-secret: test_refresh_secret_key_needs_to_be_long_enough
+  expiration-ms: 900000
+  refresh-expiration-ms: 86400000

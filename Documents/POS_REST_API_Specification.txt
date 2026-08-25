@@ -1,0 +1,632 @@
+REST API SPECIFICATION
+Integrated POS, Inventory & Business Management System
+Java 21 • Spring Boot 3.x • REST • Version 1.0
+
+
+1. Purpose & Scope
+This document defines the HTTP API contract for the POS Management System. It specifies endpoint conventions, authentication, authorization, request and response structures, validation, error handling, pagination, idempotency, and module-level endpoints.
+The API is intended to serve POS terminals, administrative web interfaces, online-order integrations, reporting interfaces, and future mobile clients.
+2. API Architecture
+Client
+  │
+  │ HTTPS + JSON
+  ▼
+Nginx / Load Balancer
+  │
+  ▼
+Spring Boot REST API
+  ├── Spring Security
+  ├── Controllers
+  ├── Application Services
+  ├── Domain Rules
+  └── Repositories
+          │
+          ▼
+      PostgreSQL
+          │
+       Redis (optional cache)
+2.1 Base URL
+https://<host>/api/v1
+2.2 Content Type
+Content-Type: application/json
+Accept: application/json
+2.3 Versioning
+Major API version is included in the URL: /api/v1.
+Breaking changes require a new API version.
+Backward-compatible additions may be introduced within the current major version.
+3. HTTP Conventions
+
+
+4. Authentication & Authorization
+4.1 Authentication Flow
+POST /api/v1/auth/login
+        ↓
+Access Token + Refresh Token
+        ↓
+Authorization: Bearer <access-token>
+        ↓
+Spring Security
+        ↓
+Role / Permission Check
+4.2 Authentication Endpoints
+
+4.3 Authorization
+Every protected endpoint must enforce authorization server-side. Permissions should use stable codes such as PRODUCT_READ, PRODUCT_WRITE, SALE_CREATE, SALE_REFUND, INVENTORY_ADJUST, REGISTER_CLOSE, AP_PAYMENT_CREATE, and REPORT_VIEW.
+5. Standard Request/Response Models
+5.1 Standard Success Response
+{
+  "data": { },
+  "meta": {
+    "requestId": "uuid",
+    "timestamp": "2026-08-25T10:30:00Z"
+  }
+}
+5.2 Standard Error Response
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "One or more fields are invalid.",
+    "details": [
+      {
+        "field": "quantity",
+        "message": "Must be greater than zero."
+      }
+    ]
+  },
+  "meta": {
+    "requestId": "uuid",
+    "timestamp": "2026-08-25T10:30:00Z"
+  }
+}
+5.3 Pagination
+GET /api/v1/products?page=0&size=25&sort=name,asc
+{
+  "data": [ ... ],
+  "meta": {
+    "page": 0,
+    "size": 25,
+    "totalElements": 250,
+    "totalPages": 10
+  }
+}
+5.4 Filtering
+Resources should expose documented query parameters for status, store, category, date range, customer, supplier, and other relevant business filters. Unknown filters should be rejected rather than silently ignored when practical.
+6. Idempotency
+Financial and integration endpoints that may be retried must support idempotency. Clients may provide:
+Idempotency-Key: <unique-client-generated-key>
+POST /sales for externally retried checkout operations.
+POST /payments where payment provider retry behavior exists.
+POST /online-orders for external order ingestion.
+POST /supplier-payments for financial settlement.
+Repeated requests with the same key must not create duplicate business transactions.
+7. User, Role & Permission APIs
+
+8. Stores, Terminals & Registers APIs
+
+9. Product Catalog APIs
+
+10. Inventory APIs
+
+11. Inventory Adjustment Example
+POST /api/v1/inventory/adjustments
+
+{
+  "storeId": "uuid",
+  "productId": "uuid",
+  "quantity": -2,
+  "reason": "DAMAGED",
+  "batchId": "uuid"
+}
+The service must validate permissions, product/store relationship, batch validity, quantity rules, and create the inventory ledger entry atomically with the balance update.
+12. Customer APIs
+
+13. Supplier APIs
+
+14. Purchasing APIs
+
+15. Accounts Payable APIs
+
+16. POS Sales APIs
+
+16.1 Complete Sale Request
+POST /api/v1/sales
+Idempotency-Key: 8f2c...
+
+{
+  "storeId": "uuid",
+  "terminalId": "uuid",
+  "registerId": "uuid",
+  "registerSessionId": "uuid",
+  "customerId": "uuid",
+  "items": [
+    {
+      "productId": "uuid",
+      "quantity": 2
+    }
+  ],
+  "payments": [
+    {
+      "paymentMethodId": "uuid",
+      "amount": 25.00
+    }
+  ]
+}
+16.2 Sale Response
+{
+  "data": {
+    "id": "uuid",
+    "receiptNumber": "R-2026-000123",
+    "status": "COMPLETED",
+    "subtotal": 25.00,
+    "discountTotal": 0.00,
+    "taxTotal": 0.00,
+    "grandTotal": 25.00,
+    "payments": [
+      {
+        "paymentMethod": "CASH",
+        "amount": 25.00
+      }
+    ]
+  }
+}
+The complete-sale application service must coordinate sale creation, payment recording, inventory deduction, register totals, store-credit effects where applicable, and audit logging inside the required transaction boundary.
+17. Payment APIs
+
+18. Cash Register APIs
+
+18.1 Closing Request
+POST /api/v1/register-sessions/{id}/close
+
+{
+  "actualCash": 1720.00,
+  "notes": "Count verified by cashier"
+}
+The backend calculates expected cash from recorded transactions. The client must not be trusted to supply expected cash or variance.
+19. Quotations APIs
+
+20. Promotions & Discounts APIs
+
+21. Online Order APIs
+
+External integration requests should require an Idempotency-Key and/or unique external order identifier.
+22. Budgets & Expenses APIs
+
+23. Reports APIs
+
+24. Notifications APIs
+
+25. Audit APIs
+
+Audit logs must be read-only through the normal API. No endpoint should permit ordinary users to update or delete audit records.
+26. Validation Rules
+All required IDs must be valid UUIDs where UUIDs are used.
+Quantities on sale and purchase items must be greater than zero.
+Prices and monetary amounts must satisfy configured precision and non-negative constraints where applicable.
+Referenced products, stores, terminals, registers, customers, and payment methods must exist and be active.
+Cash-register operations require an active register session.
+Refund amounts cannot exceed eligible refundable amounts.
+Supplier payments cannot exceed outstanding payable amounts unless an approved overpayment workflow exists.
+Promotion dates and eligibility must be valid.
+Closed register sessions and finalized financial transactions must not be modified by normal update endpoints.
+Server-side validation is authoritative; frontend validation is only a usability layer.
+27. Date, Time & Currency
+API timestamps should use ISO-8601 format.
+Backend persistence should use UTC timestamps.
+Store timezone should be used for business-day/reporting calculations.
+Money should use decimal representations and Java BigDecimal.
+Currency code should use ISO-style three-letter codes where applicable.
+Currency conversion must not be assumed unless explicitly implemented.
+28. Error Codes
+
+29. API Security Requirements
+All production traffic must use HTTPS.
+JWT access tokens must be validated by Spring Security.
+Refresh tokens must be protected and revocable.
+Sensitive endpoints require explicit permissions.
+Rate-limit authentication and externally exposed integration endpoints.
+Never return password hashes or sensitive secrets.
+Do not log access tokens, passwords, or payment secrets.
+Use request correlation IDs for tracing.
+Validate resource ownership/store scope before returning data.
+30. Store & Data Scoping
+Every store-scoped resource must be checked against the authenticated user's permitted stores. A user with access to Store A must not retrieve or modify Store B data by changing an ID in the URL.
+Authenticated User
+      ↓
+Permission Check
+      ↓
+Store Scope Check
+      ↓
+Resource Access
+      ↓
+Business Operation
+
+31. Transactional API Rules
+
+32. API Documentation & OpenAPI
+Generate OpenAPI documentation from Spring controllers and DTOs.
+Document authentication schemes.
+Document every request/response model.
+Document required permissions.
+Document validation errors.
+Document example requests/responses.
+Publish Swagger UI only in appropriate environments or protect it in production.
+33. Testing Strategy
+Unit-test service-level business rules.
+Integration-test repositories and transactional workflows.
+API-test authentication and authorization.
+Test invalid and malicious input.
+Test duplicate/idempotent requests.
+Test concurrent inventory sales.
+Test register closing under realistic transaction loads.
+Test refund limits and payment failures.
+Maintain regression tests for critical POS workflows.
+34. API-to-SRS Traceability
+
+35. Implementation Guidelines for Spring Boot
+Controller
+  ↓
+Request DTO + @Valid
+  ↓
+Application Service
+  ↓
+@Transactional business operation
+  ↓
+Domain validation
+  ↓
+Repository
+  ↓
+PostgreSQL
+
+Recommended packages:
+com.pos.<module>.controller
+com.pos.<module>.dto
+com.pos.<module>.service
+com.pos.<module>.domain
+com.pos.<module>.repository
+com.pos.<module>.mapper
+com.pos.<module>.exception
+
+Do not expose JPA entities directly from REST endpoints.
+Use DTOs for input and output contracts.
+Keep transaction boundaries in application services.
+Use global exception handling with @RestControllerAdvice.
+Use Spring Security method/endpoint authorization.
+Use Bean Validation annotations for request validation.
+Use BigDecimal for all monetary calculations.
+36. API Implementation Sequence
+Create Spring Boot API project and OpenAPI configuration.
+Implement authentication, JWT, users, roles, and permissions.
+Implement stores, terminals, registers, and session APIs.
+Implement product/catalog APIs.
+Implement inventory and stock APIs.
+Implement customers and store credit.
+Implement suppliers and purchasing.
+Implement POS sales and payment APIs.
+Implement returns/refunds and receipt APIs.
+Implement cash-register and day-end APIs.
+Implement quotations and promotions.
+Implement accounts payable.
+Implement online orders.
+Implement budgets and reporting.
+Complete integration, security, performance, and end-to-end testing.
+37. Next Engineering Deliverable
+The next document should define the UI/UX and screen architecture. It will map the API capabilities into cashier screens, inventory screens, customer/supplier screens, management dashboards, register workflows, reports, and administrative interfaces.
+PRD → SRS → SAD → Database Design & ERD → REST API Specification → UI/UX Specification → Development → Testing → Deployment
+END OF REST API SPECIFICATION
+
+--- TABLE ---
+Document Information | Value
+Document Type | REST API Specification
+Version | 1.0
+Status | API Contract Baseline
+Backend | Java 21 LTS + Spring Boot 3.x
+Database | PostgreSQL
+API Style | REST / JSON
+API Base Path | /api/v1
+Source Documents | PRD • SRS • SAD • Database Design & ERD
+Date | 25 August 2026
+--- END TABLE ---
+
+--- TABLE ---
+Method | Typical Use
+GET | Retrieve resource(s).
+POST | Create resource or execute a business operation.
+PUT | Replace a resource where full replacement is appropriate.
+PATCH | Partially update a resource.
+DELETE | Deactivate/remove a resource only where business rules permit.
+--- END TABLE ---
+
+--- TABLE ---
+Status | Meaning
+200 | Successful retrieval/update/action.
+201 | Resource created.
+202 | Accepted for asynchronous processing.
+204 | Successful operation with no response body.
+400 | Invalid request or validation failure.
+401 | Authentication required/invalid.
+403 | Authenticated but not authorized.
+404 | Resource not found.
+409 | Conflict/business state conflict.
+422 | Semantically invalid business request where used.
+429 | Rate limit exceeded.
+500 | Unexpected server error.
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+POST | /auth/login | Authenticate user. | Public
+POST | /auth/refresh | Issue a new access token. | Authenticated refresh token
+POST | /auth/logout | Invalidate current session/refresh token. | Authenticated
+POST | /auth/forgot-password | Start password recovery. | Public
+POST | /auth/reset-password | Set new password using recovery token. | Recovery token
+GET | /auth/me | Return current authenticated user. | Authenticated
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /users | List users. | USER_READ
+POST | /users | Create user. | USER_WRITE
+GET | /users/{id} | Get user. | USER_READ
+PATCH | /users/{id} | Update user. | USER_WRITE
+PATCH | /users/{id}/status | Activate/deactivate user. | USER_ADMIN
+GET | /roles | List roles. | ROLE_READ
+POST | /roles | Create role. | ROLE_WRITE
+GET | /permissions | List permissions. | ROLE_READ
+PUT | /roles/{id}/permissions | Replace role permissions. | ROLE_WRITE
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /stores | List stores. | STORE_READ
+POST | /stores | Create store. | STORE_WRITE
+GET | /stores/{id} | Get store. | STORE_READ
+PATCH | /stores/{id} | Update store. | STORE_WRITE
+GET | /stores/{storeId}/terminals | List terminals. | TERMINAL_READ
+POST | /stores/{storeId}/terminals | Create terminal. | TERMINAL_WRITE
+GET | /terminals/{id} | Get terminal. | TERMINAL_READ
+PATCH | /terminals/{id} | Update terminal. | TERMINAL_WRITE
+GET | /stores/{storeId}/registers | List registers. | REGISTER_READ
+POST | /stores/{storeId}/registers | Create register. | REGISTER_WRITE
+GET | /registers/{id} | Get register. | REGISTER_READ
+PATCH | /registers/{id} | Update register. | REGISTER_WRITE
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /products | Search/list products. | PRODUCT_READ
+POST | /products | Create product. | PRODUCT_WRITE
+GET | /products/{id} | Get product. | PRODUCT_READ
+PATCH | /products/{id} | Update product. | PRODUCT_WRITE
+PATCH | /products/{id}/status | Activate/deactivate product. | PRODUCT_WRITE
+GET | /products/{id}/barcodes | List barcodes. | PRODUCT_READ
+POST | /products/{id}/barcodes | Add barcode. | PRODUCT_WRITE
+DELETE | /products/{id}/barcodes/{barcodeId} | Remove barcode if permitted. | PRODUCT_WRITE
+GET | /products/{id}/prices | Get price history/configuration. | PRODUCT_READ
+POST | /products/{id}/prices | Create price record. | PRODUCT_PRICE_WRITE
+GET | /categories | List categories. | PRODUCT_READ
+POST | /categories | Create category. | PRODUCT_WRITE
+PATCH | /categories/{id} | Update category. | PRODUCT_WRITE
+GET | /brands | List brands. | PRODUCT_READ
+POST | /brands | Create brand. | PRODUCT_WRITE
+GET | /units | List units. | PRODUCT_READ
+POST | /units | Create unit. | PRODUCT_WRITE
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /inventory | List inventory balances. | INVENTORY_READ
+GET | /inventory/{productId} | Get product stock. | INVENTORY_READ
+GET | /inventory/{productId}/movements | Get stock ledger. | INVENTORY_READ
+POST | /inventory/adjustments | Create stock adjustment. | INVENTORY_ADJUST
+POST | /inventory/receipts | Receive stock. | INVENTORY_RECEIVE
+POST | /inventory/transfers | Create stock transfer. | INVENTORY_TRANSFER
+POST | /inventory/transfers/{id}/receive | Receive transfer. | INVENTORY_TRANSFER
+GET | /inventory/batches | List batches. | INVENTORY_READ
+GET | /inventory/expiry | List expiring/expired stock. | INVENTORY_READ
+GET | /inventory/alerts | List stock alerts. | INVENTORY_READ
+PATCH | /inventory/alerts/{id}/acknowledge | Acknowledge alert. | INVENTORY_READ
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /customers | Search customers. | CUSTOMER_READ
+POST | /customers | Create customer. | CUSTOMER_WRITE
+GET | /customers/{id} | Get customer. | CUSTOMER_READ
+PATCH | /customers/{id} | Update customer. | CUSTOMER_WRITE
+GET | /customers/{id}/sales | Customer purchase history. | CUSTOMER_READ
+GET | /customers/{id}/statement | Customer statement. | CUSTOMER_READ
+GET | /customers/{id}/credit | Get store credit. | CREDIT_READ
+POST | /customers/{id}/credit/transactions | Issue/redeem/adjust credit. | CREDIT_WRITE
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /suppliers | List/search suppliers. | SUPPLIER_READ
+POST | /suppliers | Create supplier. | SUPPLIER_WRITE
+GET | /suppliers/{id} | Get supplier. | SUPPLIER_READ
+PATCH | /suppliers/{id} | Update supplier. | SUPPLIER_WRITE
+GET | /suppliers/{id}/products | List supplier products. | SUPPLIER_READ
+PUT | /suppliers/{id}/products | Set supplier-product associations. | SUPPLIER_WRITE
+GET | /suppliers/{id}/statement | Supplier statement. | AP_READ
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /purchase-orders | List purchase orders. | PURCHASE_READ
+POST | /purchase-orders | Create purchase order. | PURCHASE_WRITE
+GET | /purchase-orders/{id} | Get purchase order. | PURCHASE_READ
+PATCH | /purchase-orders/{id} | Update draft purchase order. | PURCHASE_WRITE
+POST | /purchase-orders/{id}/submit | Submit purchase order. | PURCHASE_APPROVE
+POST | /purchase-orders/{id}/cancel | Cancel purchase order. | PURCHASE_APPROVE
+POST | /goods-receipts | Record goods receipt. | INVENTORY_RECEIVE
+GET | /goods-receipts/{id} | Get receipt. | INVENTORY_READ
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /accounts-payable/invoices | List supplier invoices. | AP_READ
+POST | /accounts-payable/invoices | Create supplier invoice. | AP_WRITE
+GET | /accounts-payable/invoices/{id} | Get invoice. | AP_READ
+PATCH | /accounts-payable/invoices/{id} | Update invoice where allowed. | AP_WRITE
+POST | /accounts-payable/payments | Record supplier payment. | AP_PAYMENT_CREATE
+GET | /accounts-payable/payments | List supplier payments. | AP_READ
+GET | /accounts-payable/overdue | List overdue payables. | AP_READ
+GET | /accounts-payable/summary | Payables summary. | AP_READ
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+POST | /sales | Complete/create a sale. | SALE_CREATE
+GET | /sales | Search sales. | SALE_READ
+GET | /sales/{id} | Get sale. | SALE_READ
+POST | /sales/{id}/hold | Hold/suspend sale. | SALE_CREATE
+POST | /sales/{id}/resume | Resume held sale. | SALE_CREATE
+POST | /sales/{id}/return | Create return/refund. | SALE_REFUND
+GET | /sales/{id}/receipt | Retrieve receipt data/document. | RECEIPT_READ
+POST | /sales/{id}/receipt/reprint | Reprint receipt. | RECEIPT_REPRINT
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /payment-methods | List enabled payment methods. | PAYMENT_READ
+POST | /payments/authorize | Authorize external payment if integration is used. | PAYMENT_CREATE
+POST | /payments/capture | Capture authorized payment. | PAYMENT_CREATE
+POST | /payments/refund | Refund payment. | PAYMENT_REFUND
+GET | /payments/{id} | Get payment status. | PAYMENT_READ
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+POST | /registers/{id}/sessions/open | Open register session. | REGISTER_OPEN
+GET | /register-sessions/{id} | Get session. | REGISTER_READ
+POST | /register-sessions/{id}/cash-in | Record cash in. | REGISTER_CASH
+POST | /register-sessions/{id}/cash-out | Record cash out. | REGISTER_CASH
+GET | /register-sessions/{id}/summary | Get live session summary. | REGISTER_READ
+POST | /register-sessions/{id}/close | Close register and generate Z report. | REGISTER_CLOSE
+GET | /register-sessions/{id}/closing-report | Retrieve closing report. | REGISTER_READ
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /quotations | List quotations. | QUOTATION_READ
+POST | /quotations | Create quotation. | QUOTATION_WRITE
+GET | /quotations/{id} | Get quotation. | QUOTATION_READ
+PATCH | /quotations/{id} | Update draft quotation. | QUOTATION_WRITE
+POST | /quotations/{id}/send | Mark/send quotation. | QUOTATION_SEND
+POST | /quotations/{id}/accept | Accept quotation. | QUOTATION_APPROVE
+POST | /quotations/{id}/reject | Reject quotation. | QUOTATION_APPROVE
+POST | /quotations/{id}/convert | Convert to sale/order. | QUOTATION_CONVERT
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /promotions | List promotions. | PROMOTION_READ
+POST | /promotions | Create promotion. | PROMOTION_WRITE
+GET | /promotions/{id} | Get promotion. | PROMOTION_READ
+PATCH | /promotions/{id} | Update promotion. | PROMOTION_WRITE
+POST | /promotions/{id}/activate | Activate promotion. | PROMOTION_APPROVE
+POST | /promotions/{id}/deactivate | Deactivate promotion. | PROMOTION_APPROVE
+POST | /promotions/validate | Evaluate promotion eligibility for a cart. | SALE_CREATE
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+POST | /online-orders | Create/integrate an online order. | ORDER_CREATE
+GET | /online-orders | List orders. | ORDER_READ
+GET | /online-orders/{id} | Get order. | ORDER_READ
+PATCH | /online-orders/{id}/status | Update order status. | ORDER_FULFILL
+POST | /online-orders/{id}/confirm | Confirm order. | ORDER_FULFILL
+POST | /online-orders/{id}/cancel | Cancel order. | ORDER_CANCEL
+POST | /online-orders/{id}/refund | Start refund. | ORDER_REFUND
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /budgets | List budgets. | BUDGET_READ
+POST | /budgets | Create budget. | BUDGET_WRITE
+GET | /budgets/{id} | Get budget. | BUDGET_READ
+PATCH | /budgets/{id} | Update budget. | BUDGET_WRITE
+POST | /budgets/{id}/approve | Approve budget. | BUDGET_APPROVE
+GET | /expenses | List expenses. | EXPENSE_READ
+POST | /expenses | Record expense. | EXPENSE_WRITE
+PATCH | /expenses/{id} | Update expense if permitted. | EXPENSE_WRITE
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /reports/sales | Sales report. | REPORT_SALES
+GET | /reports/sales/by-product | Sales by product. | REPORT_SALES
+GET | /reports/sales/by-category | Sales by category. | REPORT_SALES
+GET | /reports/sales/by-cashier | Sales by cashier. | REPORT_SALES
+GET | /reports/inventory | Inventory report. | REPORT_INVENTORY
+GET | /reports/inventory/movements | Stock movement report. | REPORT_INVENTORY
+GET | /reports/inventory/expiry | Expiry report. | REPORT_INVENTORY
+GET | /reports/payables | Accounts payable report. | REPORT_FINANCE
+GET | /reports/cash-registers | Register report. | REPORT_CASH
+GET | /reports/profit-loss | Profit/loss report where supported. | REPORT_FINANCE
+GET | /reports/cash-flow | Cash-flow report where supported. | REPORT_FINANCE
+GET | /reports/budget-variance | Budget variance report. | REPORT_FINANCE
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /notifications | List current user's notifications. | AUTHENTICATED
+PATCH | /notifications/{id}/read | Mark notification as read. | AUTHENTICATED
+POST | /notifications/test | Test configured provider. | NOTIFICATION_ADMIN
+--- END TABLE ---
+
+--- TABLE ---
+Method | Endpoint | Purpose | Permission
+GET | /audit-logs | Search audit logs. | AUDIT_READ
+GET | /audit-logs/{id} | Get audit record. | AUDIT_READ
+GET | /audit-logs/entity/{type}/{id} | Get entity history. | AUDIT_READ
+--- END TABLE ---
+
+--- TABLE ---
+Code | Meaning
+AUTHENTICATION_REQUIRED | No valid authentication.
+ACCESS_DENIED | User lacks required permission.
+VALIDATION_ERROR | Request field validation failed.
+RESOURCE_NOT_FOUND | Requested record does not exist.
+RESOURCE_INACTIVE | Requested business resource is inactive.
+BUSINESS_RULE_VIOLATION | Request violates a business rule.
+INSUFFICIENT_STOCK | Required stock is unavailable.
+REGISTER_SESSION_REQUIRED | Operation requires an open register session.
+REGISTER_ALREADY_OPEN | Register already has an active session.
+DUPLICATE_REQUEST | Idempotency/external identifier conflict.
+PAYMENT_FAILED | Payment operation failed.
+REFUND_NOT_ALLOWED | Refund cannot be performed.
+CONFLICT | Resource state conflicts with requested operation.
+RATE_LIMITED | Too many requests.
+INTERNAL_ERROR | Unexpected server error.
+--- END TABLE ---
+
+--- TABLE ---
+Endpoint | Transaction Requirement
+POST /sales | Single business transaction for sale/payment/inventory/register effects.
+POST /inventory/adjustments | Inventory balance + ledger + audit.
+POST /goods-receipts | Receipt + inventory update.
+POST /accounts-payable/payments | Payment + payable update + audit.
+POST /register-sessions/{id}/close | Closing + session status + report metadata + audit.
+POST /sales/{id}/return | Return + refund + inventory + audit where applicable.
+POST /online-orders | Order persistence + idempotency handling + configured reservation effects.
+--- END TABLE ---
+
+--- TABLE ---
+SRS Area | API Groups
+AUTH | /auth, /users, /roles, /permissions
+Products | /products, /categories, /brands, /units
+Inventory | /inventory
+Customers | /customers
+Suppliers/Purchasing | /suppliers, /purchase-orders, /goods-receipts
+Accounts Payable | /accounts-payable
+POS/Sales | /sales, /payments
+Cash Register | /registers, /register-sessions
+Quotations | /quotations
+Promotions | /promotions
+Online Orders | /online-orders
+Budgets | /budgets, /expenses
+Reports | /reports
+Audit | /audit-logs
+Notifications | /notifications
+--- END TABLE ---

@@ -1,0 +1,621 @@
+UI/UX & SCREEN ARCHITECTURE SPECIFICATION
+Integrated POS, Inventory & Business Management System
+Web Admin + Retail POS • Version 1.0
+
+
+1. Purpose & Scope
+This document defines the user-interface architecture, navigation, screen inventory, interaction patterns, workflows, role-based access, and UX standards for the POS Management System. It provides the implementation baseline for the frontend team and establishes a consistent experience across cashier and administrative workflows.
+2. UX Goals
+Make checkout fast, predictable, and keyboard/scanner friendly.
+Reduce cashier errors through clear totals, payment states, and confirmation rules.
+Make inventory and financial information easy to find and filter.
+Separate high-frequency operational actions from administrative configuration.
+Provide consistent navigation and terminology across all modules.
+Clearly distinguish warnings, errors, approvals, and irreversible actions.
+Support desktop POS screens first while keeping management screens responsive.
+Keep critical workflows usable with minimal mouse interaction.
+3. User Personas
+
+4. Application Architecture
+                    POS MANAGEMENT SYSTEM
+                             │
+              ┌──────────────┴──────────────┐
+              │                             │
+        RETAIL POS APP                 ADMIN WEB APP
+              │                             │
+              └──────────────┬──────────────┘
+                             │
+                     Shared Design System
+                             │
+                     REST API / Auth
+
+The POS experience and management experience may share the same frontend codebase but should have distinct layouts and navigation optimized for their different workflows.
+5. Navigation Architecture
+Login
+ └── Application
+      ├── Dashboard
+      ├── POS
+      │    ├── New Sale
+      │    ├── Held Sales
+      │    ├── Returns
+      │    └── Register
+      ├── Sales
+      ├── Products
+      ├── Inventory
+      ├── Customers
+      ├── Suppliers
+      ├── Purchasing
+      ├── Accounts Payable
+      ├── Quotations
+      ├── Promotions
+      ├── Online Orders
+      ├── Budgets
+      ├── Reports
+      ├── Notifications
+      └── Administration
+           ├── Users
+           ├── Roles & Permissions
+           ├── Stores
+           ├── Terminals
+           └── Audit Logs
+
+6. Global Layout
+
+6.1 POS Layout
+┌────────────────────────────────────────────────────────────────┐
+│ Store | Terminal | Register | Cashier | Time | Notifications   │
+├───────────────────────────────┬────────────────────────────────┤
+│ Product Search / Barcode      │ Current Cart                   │
+│                               │                                │
+│ Product Grid / Search Results │ Item 1      Qty   Price        │
+│                               │ Item 2      Qty   Price        │
+│                               │ ...                            │
+│                               ├────────────────────────────────┤
+│                               │ Subtotal                       │
+│                               │ Discount                       │
+│                               │ Tax                            │
+│                               │ TOTAL                          │
+│                               │ [Hold] [Customer] [Pay]        │
+└───────────────────────────────┴────────────────────────────────┘
+
+7. Design System
+7.1 Visual Principles
+Professional, clean retail/enterprise visual language.
+High contrast for important monetary values and status states.
+Consistent spacing, typography, border radius, and component behavior.
+Use color as a secondary signal; pair colors with icons/text for accessibility.
+Use restrained animation; never delay transactional workflows for decoration.
+7.2 Suggested Design Tokens
+
+7.3 Status Semantics
+
+8. Screen Inventory
+
+9. Authentication Screens
+9.1 Login — SCR-001
+Username/email field.
+Password field.
+Show/hide password control.
+Remember-device behavior only if approved by security design.
+Login button.
+Forgot-password link.
+Clear error message for invalid credentials.
+Loading state during authentication.
+9.2 Security UX
+Do not reveal whether a username exists during password recovery.
+Do not display sensitive authentication errors.
+Auto-logout/reauthentication should be communicated clearly.
+Unauthorized navigation should show an access-denied state rather than a blank page.
+10. Dashboard — SCR-002
+
+Dashboard widgets must respect role and store scope. Users should not see financial or operational metrics they are not authorized to access.
+11. POS Checkout — SCR-003
+11.1 Core Layout
+Persistent product/barcode search input.
+Cart with item name, SKU, quantity, unit price, discount, tax, and line total.
+Customer selector.
+Promotion/discount indicator.
+Subtotal, discount, tax, and grand total.
+Payment action.
+Hold/cancel controls.
+Register/session indicator.
+11.2 POS Interaction Rules
+
+11.3 Payment Modal
+┌────────────────────────────────────────────┐
+│ PAYMENT                                    │
+│                                            │
+│ Amount Due:          125.00                │
+│                                            │
+│ [Cash] [Card] [Store Credit] [Other]      │
+│                                            │
+│ Tendered:            150.00                │
+│ Change:               25.00                │
+│                                            │
+│             [Cancel] [Complete Sale]       │
+└────────────────────────────────────────────┘
+
+Do not show Complete Sale as successful until backend confirmation is received.
+Display payment failures inline with recovery actions.
+Support split payments if enabled by backend/business rules.
+12. Sales History — SCR-005
+Date/time range filter.
+Receipt number search.
+Customer filter.
+Cashier filter.
+Terminal/register filter.
+Payment method filter.
+Status filter.
+Sale detail drawer/page.
+Receipt view/reprint.
+Return/refund action based on permission and eligibility.
+13. Returns & Refunds — SCR-006
+Search original receipt/transaction.
+Display original items and refundable quantities.
+Select return items and quantities.
+Show refund amount before confirmation.
+Require appropriate permission.
+Display refund method and resulting inventory impact.
+Show final confirmation with refund reference.
+14. Register & Day-End — SCR-007
+
+The frontend must never calculate the authoritative expected cash or variance. It displays values returned by the backend.
+15. Product Management — SCR-008 / SCR-009
+
+Form validation should mirror API validation for fast feedback.
+Show server-side errors if values conflict with existing records.
+Price changes should display effective-date/history information where supported.
+16. Inventory Screens
+16.1 Inventory Overview — SCR-010
+Search by SKU/name/barcode.
+Filter by category/store/status.
+Display on-hand quantity, available quantity if reservations exist, min/max thresholds.
+Quick access to movement history.
+Quick access to adjustment and receiving workflows.
+16.2 Stock Adjustment — SCR-011
+Product selection.
+Store selection within authorized scope.
+Quantity adjustment.
+Reason.
+Batch selection where applicable.
+Confirmation showing before/after quantity.
+Audit/reference information.
+16.3 Receiving — SCR-012
+Select purchase order or supplier.
+Enter received quantities.
+Capture batch/lot and expiry where required.
+Show discrepancies.
+Confirm receipt.
+Display resulting stock changes.
+17. Expiration & Stock Alerts
+
+Expired items should use a visually strong but accessible warning state.
+Approaching-expiry items should clearly show days remaining.
+Users should be able to filter and acknowledge alerts where permitted.
+18. Customer Management
+Customer list with search and filters.
+Customer profile with contact details and status.
+Purchase history.
+Store-credit balance and ledger.
+Customer statement.
+Quick customer creation from POS without leaving checkout.
+19. Supplier & Purchasing Screens
+
+20. Quotations — SCR-022
+Quotation number and status.
+Customer.
+Validity/expiration date.
+Product line items.
+Discounts/taxes.
+Totals.
+Send/print/export actions.
+Convert-to-sale/order action when accepted.
+21. Promotions — SCR-023
+Promotion name and description.
+Promotion type.
+Eligibility conditions.
+Products/categories/customers.
+Start/end dates.
+Priority.
+Stacking behavior.
+Preview/test eligibility action.
+Activate/deactivate controls with permission.
+22. Online Orders — SCR-024
+┌────────────┬────────────┬────────────┬────────────┐
+│ NEW        │ CONFIRMED  │ PREPARING  │ READY      │
+│ 12 orders  │ 5 orders   │ 3 orders   │ 4 orders   │
+└────────────┴────────────┴────────────┴────────────┘
+        → click order → detail → action/status
+
+Use queue/board view for operational efficiency.
+Show external order number, customer, items, total, time, and status.
+Prevent invalid status transitions.
+Show cancellation/refund controls only when eligible.
+23. Budgets & Expenses — SCR-025
+Budget period selector.
+Budget category/account.
+Allocated amount.
+Actual amount.
+Variance.
+Percentage used.
+Expense entry and approval workflow where required.
+24. Reports — SCR-026
+
+Reports should support consistent filter controls, visible applied filters, loading states, empty states, pagination, and export where supported.
+25. Administration Screens
+
+26. Component Architecture
+Design System
+├── Buttons
+├── Inputs
+├── Selects / Combobox
+├── Date / Date Range Picker
+├── Data Table
+├── Modal / Drawer
+├── Tabs
+├── Cards
+├── Status Badge
+├── Toast / Notification
+├── Confirm Dialog
+├── Form Field
+├── Empty State
+├── Loading Skeleton
+├── Error State
+├── Pagination
+├── Money Display
+└── Barcode/Product Search
+
+Components should be reusable and accessible.
+Business-specific components should compose design-system primitives.
+Tables should support consistent sorting, filtering, pagination, and row actions.
+Forms should share validation and error-display patterns.
+27. State Management
+Server state should be managed through a dedicated data-fetching/query layer.
+POS cart state should be isolated from general server state.
+Authentication state should be centralized.
+Register/session context should be available to POS workflows.
+Do not duplicate authoritative backend state unnecessarily in client stores.
+28. Loading, Empty & Error States
+
+29. Accessibility
+Keyboard navigation must work across management screens.
+POS must support keyboard/scanner-first operation.
+Focus states must be visible.
+Form controls require accessible labels.
+Color must not be the only indicator of status.
+Touch targets should be sufficiently large for POS/touchscreen use.
+Tables and dialogs should be usable with assistive technologies.
+30. Responsive Strategy
+
+31. Keyboard Shortcuts
+
+Shortcut mappings must be configurable and must not conflict with browser/operating-system accessibility behavior.
+32. Core User Workflows
+32.1 Sale Workflow
+Login → Select Store/Terminal/Register → Open Register → POS → Scan/Search → Cart → Customer (optional) → Discount/Promotion → Payment → Complete → Receipt
+32.2 Return Workflow
+Sales History → Search Receipt → Select Items → Validate Eligibility → Confirm Refund → Process Refund → Inventory Update → Receipt/Confirmation
+32.3 Stock Receiving
+Purchasing → Purchase Order → Receive → Enter Quantities/Batch/Expiry → Validate → Confirm → Inventory Updated
+32.4 Day-End Closing
+Register → Session Summary → Count Cash → Submit Actual Cash → Backend Calculates Variance → Confirm Close → Z Report
+32.5 Supplier Payment
+Accounts Payable → Invoice → Pay → Enter Amount/Method → Confirm → Balance Updated → Receipt/Reference
+32.6 Online Order
+Online Orders → New → Open Order → Confirm → Prepare → Ready/Fulfilled → Status Update
+33. Role-Based Screen Access
+
+34. API-to-Screen Mapping
+
+35. Frontend Project Structure
+src/
+├── app/
+├── components/
+│   ├── ui/
+│   ├── forms/
+│   ├── tables/
+│   ├── pos/
+│   └── charts/
+├── features/
+│   ├── auth/
+│   ├── pos/
+│   ├── products/
+│   ├── inventory/
+│   ├── customers/
+│   ├── suppliers/
+│   ├── purchasing/
+│   ├── payables/
+│   ├── quotations/
+│   ├── promotions/
+│   ├── online-orders/
+│   ├── budgets/
+│   ├── reports/
+│   └── administration/
+├── lib/
+├── hooks/
+├── services/
+├── types/
+└── styles/
+
+36. UX Security Considerations
+Hide navigation items for unavailable permissions but still enforce authorization through the API.
+Do not rely on disabled UI controls as a security mechanism.
+Mask sensitive information where required.
+Confirm high-risk actions such as large refunds, register closing, and destructive configuration changes.
+Never display access tokens or secrets.
+Handle session expiration gracefully without losing unsubmitted user work where feasible.
+37. UX Performance Requirements
+POS product lookup should feel immediate under normal network conditions.
+Do not block the full application while a secondary dashboard widget loads.
+Use pagination/virtualization for large tables.
+Debounce search inputs where appropriate.
+Prefetch high-frequency reference data where safe.
+Prevent duplicate submit actions on transactional buttons.
+38. UX Acceptance Criteria
+
+39. Implementation Sequence
+Establish frontend project, routing, authentication, and design system.
+Build global layout and permission-aware navigation.
+Build POS checkout and register workflows first.
+Build products and inventory screens.
+Build customers, suppliers, and purchasing screens.
+Build AP, quotations, promotions, and online-order screens.
+Build dashboards, budgets, and reports.
+Build administration and audit screens.
+Connect API contracts and handle loading/error states.
+Perform accessibility, usability, POS hardware, and end-to-end testing.
+40. Next Deliverable
+The next phase should move from documentation into implementation planning: establish the Java/Spring Boot project, PostgreSQL migrations, frontend project, shared API models, development environments, Git workflow, coding standards, and the first MVP sprint.
+PRD → SRS → SAD → Database → REST API → UI/UX → Implementation Plan → Development → Testing → Deployment
+END OF UI/UX & SCREEN ARCHITECTURE SPECIFICATION
+
+--- TABLE ---
+Document Information | Value
+Document Type | UI/UX & Screen Architecture Specification
+Version | 1.0
+Status | UX Architecture Baseline
+Frontend | React / Next.js + TypeScript
+Backend Contract | Java 21 + Spring Boot REST API
+Primary Users | Cashier, Manager, Inventory, Accountant, Administrator
+Source Documents | PRD • SRS • SAD • Database • REST API
+Date | 25 August 2026
+--- END TABLE ---
+
+--- TABLE ---
+Persona | Primary Tasks | UX Priority
+Cashier | Checkout, returns, customer lookup, register open/close, receipts. | Speed and simplicity.
+Store Manager | Dashboard, approvals, inventory, promotions, reports, register oversight. | Visibility and control.
+Inventory Manager | Products, receiving, adjustments, batches, expiry, stock alerts. | Accuracy and traceability.
+Accountant | Payables, supplier payments, budgets, expenses, financial reports. | Precision and auditability.
+Online Order Staff | Review, confirm, fulfill, cancel, refund online orders. | Queue management and status clarity.
+Administrator | Users, roles, stores, terminals, configuration, audit logs. | Control and security.
+--- END TABLE ---
+
+--- TABLE ---
+Area | Behavior
+Top Bar | Store selector (if permitted), terminal/register status, notifications, user menu.
+Side Navigation | Module navigation filtered by permissions.
+Page Header | Page title, breadcrumb, contextual actions.
+Main Content | Tables, cards, forms, dashboards, or workflows.
+Action Area | Primary action placed consistently, typically top-right or workflow footer.
+Status/Toast Area | Success, warning, and error feedback.
+--- END TABLE ---
+
+--- TABLE ---
+Token | Recommended Baseline
+Font | Inter or system sans-serif
+Body Size | 14–16 px
+Small Text | 12–13 px
+Page Heading | 24–32 px
+Spacing | 4 px base scale
+Control Height | 40–44 px standard; larger for POS touch targets
+Border Radius | 6–10 px
+Table Row | 44–52 px depending density
+POS Primary Action | Large, highly visible, keyboard accessible
+--- END TABLE ---
+
+--- TABLE ---
+Status Type | UI Treatment
+Success | Icon + positive label + confirmation message.
+Warning | Icon + concise warning + recommended action.
+Error | Icon + clear problem + recovery guidance.
+Info | Neutral contextual message.
+Pending | Progress/status indicator; do not imply completion.
+Disabled | Reduced emphasis with explanation where necessary.
+--- END TABLE ---
+
+--- TABLE ---
+ID | Screen | Primary Role(s) | Priority
+SCR-001 | Login | All | MUST
+SCR-002 | Dashboard | Manager, Accountant, Admin | MUST
+SCR-003 | POS Checkout | Cashier | MUST
+SCR-004 | Held Sales | Cashier | SHOULD
+SCR-005 | Sales History | Cashier, Manager | MUST
+SCR-006 | Return / Refund | Cashier, Manager | MUST
+SCR-007 | Register Open/Close | Cashier, Manager | MUST
+SCR-008 | Products | Inventory, Manager, Admin | MUST
+SCR-009 | Product Form | Inventory, Manager | MUST
+SCR-010 | Inventory Overview | Inventory, Manager | MUST
+SCR-011 | Stock Adjustment | Inventory, Manager | MUST
+SCR-012 | Stock Receiving | Inventory | MUST
+SCR-013 | Batches & Expiry | Inventory | SHOULD
+SCR-014 | Stock Alerts | Inventory, Manager | MUST
+SCR-015 | Customers | Cashier, Manager | MUST
+SCR-016 | Customer Profile | Cashier, Manager | MUST
+SCR-017 | Store Credit | Cashier, Manager | MUST
+SCR-018 | Suppliers | Inventory, Accountant, Manager | MUST
+SCR-019 | Purchase Orders | Inventory, Manager | MUST
+SCR-020 | Accounts Payable | Accountant, Manager | MUST
+SCR-021 | Supplier Payment | Accountant | MUST
+SCR-022 | Quotations | Sales, Manager | MUST
+SCR-023 | Promotions | Manager, Admin | MUST
+SCR-024 | Online Orders | Order Staff, Manager | MUST
+SCR-025 | Budgets | Accountant, Manager | SHOULD
+SCR-026 | Reports | Manager, Accountant | MUST
+SCR-027 | Notifications | All | SHOULD
+SCR-028 | Users | Admin | MUST
+SCR-029 | Roles & Permissions | Admin | MUST
+SCR-030 | Stores & Terminals | Admin | MUST
+SCR-031 | Audit Logs | Admin, Manager | MUST
+SCR-032 | Receipt / Label Settings | Manager, Admin | SHOULD
+--- END TABLE ---
+
+--- TABLE ---
+Widget | Content
+Today Sales | Total sales, transaction count, average ticket.
+Register Status | Open/closed registers, active cashiers, variances.
+Low Stock | Products below threshold.
+Expiry | Products approaching or past expiration.
+Pending Orders | Online orders awaiting action.
+Payables | Outstanding and overdue supplier balances.
+Top Products | Top-selling products for selected period.
+Quick Actions | New Sale, Receive Stock, Add Product, New Purchase Order, Reports.
+--- END TABLE ---
+
+--- TABLE ---
+Action | Expected Interaction
+Barcode Scan | Immediately search/add matching product.
+Product Search | Search by SKU, barcode, name, or supported identifier.
+Quantity | Allow keyboard editing and configured quantity shortcuts.
+Remove Item | Require confirmation only where business risk warrants.
+Discount | Apply permitted discount; sensitive manual discounts require permission.
+Customer | Search/select without leaving checkout.
+Payment | Open focused payment modal; clearly show amount due and change.
+Complete Sale | Disable duplicate submission while transaction is processing.
+Success | Show receipt number and print/reprint options.
+--- END TABLE ---
+
+--- TABLE ---
+State | Screen Behavior
+Closed | Show Open Register action.
+Open | Show session totals and Cash In/Cash Out actions.
+Closing | Show expected cash, actual cash entry, and variance.
+Closed | Show Z report and read-only session summary.
+--- END TABLE ---
+
+--- TABLE ---
+Section | Fields
+Identity | SKU, product name, barcode(s), description.
+Classification | Category, brand, unit.
+Pricing | Purchase price, selling price, wholesale price, tax.
+Stock Rules | Minimum stock, maximum stock.
+Tracking | Batch tracking, expiry tracking.
+Status | Active/inactive.
+--- END TABLE ---
+
+--- TABLE ---
+Screen | Required Information
+Batches & Expiry | Product, batch, quantity, expiry date, store, status.
+Expiry Alerts | Expired, expiring soon, configurable threshold.
+Stock Alerts | Current quantity, minimum level, suggested action.
+--- END TABLE ---
+
+--- TABLE ---
+Screen | Key UX Elements
+Suppliers | Search, supplier status, contact, outstanding balance shortcut.
+Purchase Orders | Draft/submitted/approved/cancelled statuses, line items, totals.
+Receiving | PO comparison, received vs ordered, discrepancy indicators.
+Accounts Payable | Invoice list, due dates, outstanding balance, overdue filters.
+Supplier Payment | Invoice selection, payment amount, method, confirmation.
+--- END TABLE ---
+
+--- TABLE ---
+Report Category | Filters / Outputs
+Sales | Date range, store, terminal, cashier, product, category, payment method.
+Inventory | Store, category, product, stock status.
+Expiry | Expiry range, store, product, batch.
+Cash Register | Date, store, register, cashier, variance.
+Payables | Supplier, due date, status, overdue.
+Profit/Finance | Period, store, category/account as supported.
+Budget Variance | Budget period, category, store.
+--- END TABLE ---
+
+--- TABLE ---
+Screen | Functions
+Users — SCR-028 | Create/edit/deactivate users, assign roles, store access.
+Roles — SCR-029 | Create roles and manage permissions.
+Stores & Terminals — SCR-030 | Manage stores, terminals, registers, configuration.
+Audit Logs — SCR-031 | Search/filter/view immutable audit records.
+Receipt/Label Settings — SCR-032 | Configure templates and printing behavior.
+--- END TABLE ---
+
+--- TABLE ---
+State | UX Requirement
+Loading | Show skeleton/spinner appropriate to the context; preserve layout.
+Empty | Explain what is empty and provide the next useful action.
+Validation Error | Show field-level errors and summary where useful.
+Server Error | Show friendly message, request/correlation ID if useful, and retry action.
+Permission Denied | Explain that access is restricted without exposing security details.
+Network Offline | Clearly indicate connection issue and prevent unsafe assumptions of success.
+--- END TABLE ---
+
+--- TABLE ---
+Context | Target
+POS Terminal | Desktop/large touch display; optimized for 1280px+ widths.
+Management Desktop | Responsive desktop-first layout.
+Tablet | Support core management workflows where practical.
+Mobile | Prioritize dashboards, notifications, approvals, and lightweight lookups rather than full POS checkout.
+--- END TABLE ---
+
+--- TABLE ---
+Shortcut | Suggested Action
+F2 | Focus product search.
+F4 | Open customer selector.
+F6 | Open payment.
+F8 | Hold/suspend sale.
+F9 | Open register actions.
+Esc | Close modal/cancel current non-committed action.
+Enter | Confirm focused action when safe.
+--- END TABLE ---
+
+--- TABLE ---
+Screen/Module | Cashier | Manager | Inventory | Accountant | Order Staff | Admin
+POS | ✓ | ✓ | — | — | — | ✓
+Sales | ✓ | ✓ | — | — | — | ✓
+Products | View | ✓ | ✓ | — | — | ✓
+Inventory | View | ✓ | ✓ | — | — | ✓
+Customers | ✓ | ✓ | — | — | — | ✓
+Suppliers | — | ✓ | ✓ | ✓ | — | ✓
+Purchasing | — | ✓ | ✓ | ✓ | — | ✓
+Accounts Payable | — | View | — | ✓ | — | ✓
+Register | ✓ | ✓ | — | — | — | ✓
+Quotations | ✓ | ✓ | — | — | — | ✓
+Promotions | Limited | ✓ | — | — | — | ✓
+Online Orders | — | ✓ | — | — | ✓ | ✓
+Budgets | — | ✓ | — | ✓ | — | ✓
+Reports | Limited | ✓ | Limited | ✓ | Limited | ✓
+Users/Roles | — | Limited | — | — | — | ✓
+Audit Logs | — | ✓ | — | ✓ | — | ✓
+--- END TABLE ---
+
+--- TABLE ---
+Screen | Primary API Groups
+POS Checkout | /sales, /products, /customers, /promotions, /payment-methods
+Register | /registers, /register-sessions
+Products | /products, /categories, /brands, /units
+Inventory | /inventory
+Customers | /customers
+Suppliers | /suppliers
+Purchasing | /purchase-orders, /goods-receipts
+Accounts Payable | /accounts-payable
+Quotations | /quotations
+Promotions | /promotions
+Online Orders | /online-orders
+Budgets | /budgets, /expenses
+Reports | /reports
+Administration | /users, /roles, /permissions, /stores, /terminals, /audit-logs
+--- END TABLE ---
+
+--- TABLE ---
+Area | Acceptance Criteria
+Login | User can authenticate, receives correct role-based navigation, and sees meaningful errors.
+POS | Cashier can scan/search, edit cart, apply valid discounts, take payment, complete sale, and retrieve receipt.
+Inventory | Authorized user can search stock, adjust stock with reason, receive goods, and view movements.
+Expiry | Authorized user can view expired/expiring batches and act according to business rules.
+Customers | Cashier can find/create customer during checkout and view credit where permitted.
+Register | Cashier can open, transact, count, close, and view closing results.
+Purchasing/AP | Authorized staff can create purchases, receive goods, view invoices, and record payments.
+Orders | Order staff can manage valid online-order status transitions.
+Reports | Authorized users can filter and generate relevant reports.
+Administration | Admin can manage users, permissions, stores, terminals, and audit access.
+--- END TABLE ---
