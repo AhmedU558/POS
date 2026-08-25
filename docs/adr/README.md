@@ -21,3 +21,4 @@ decision is not re-litigated in every story.
 | [ADR-013](ADR-013-forced-initial-password-rotation.md) | Initial-password rotation is enforced by the application |
 | [ADR-014](ADR-014-audit-precedes-bootstrap.md) | Audit foundation is built before first-administrator provisioning |
 | [ADR-015](ADR-015-first-administrator-provisioning.md) | First administrator is provisioned from operator-supplied secrets at startup |
+| [ADR-016](ADR-016-system-actor-convention.md) | A system-initiated action is recorded with a null actor |
