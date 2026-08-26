@@ -1,12 +1,15 @@
 package com.pos.common.security;
 
 import com.pos.AbstractIntegrationTest;
+import com.pos.users.domain.User;
+import com.pos.users.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -25,6 +28,8 @@ class SecurityFoundationTests extends AbstractIntegrationTest {
     private static final String ALLOWED_ORIGIN = "http://localhost:3000";
 
     @Autowired private MockMvc mockMvc;
+    @Autowired private UserRepository userRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
 
     @Test
     void protectedEndpointsRejectAnonymousCallersWithTheStandardEnvelope() throws Exception {
@@ -49,9 +54,15 @@ class SecurityFoundationTests extends AbstractIntegrationTest {
     }
 
     @Test
-    @WithMockUser
     void authenticatedRequestForAnUnmappedPathReturnsTheNotFoundCode() throws Exception {
-        mockMvc.perform(get("/api/v1/does-not-exist"))
+        // A persisted account, not @WithMockUser's default "user". The rotation filter added in
+        // Goal B fails closed on a principal it cannot resolve to a row, so a phantom principal
+        // now gets 403 -- correctly, but it would mask what this test is actually about.
+        String username = "foundation." + java.util.UUID.randomUUID();
+        userRepository.saveAndFlush(
+                new User(username, passwordEncoder.encode("irrelevant-value"), "Foundation", "User"));
+
+        mockMvc.perform(get("/api/v1/does-not-exist").with(user(username)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"))
                 .andExpect(jsonPath("$.meta.requestId").isNotEmpty());

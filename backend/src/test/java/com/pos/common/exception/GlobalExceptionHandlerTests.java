@@ -108,6 +108,7 @@ class GlobalExceptionHandlerTests {
                         List.of(
                                 "AUTHENTICATION_REQUIRED",
                                 "ACCESS_DENIED",
+                                "PASSWORD_CHANGE_REQUIRED",
                                 "VALIDATION_ERROR",
                                 "RESOURCE_NOT_FOUND",
                                 "RESOURCE_INACTIVE",

@@ -90,3 +90,27 @@ Append-only. Do not edit existing entries.
 - source_spec: `spec-1-2-first-administrator-provisioning.md`
   summary: BCrypt silently truncates input beyond 72 bytes.
   evidence: A passphrase longer than 72 bytes contributes no entropy past that point. Verification truncates identically so nothing breaks, but an operator supplying a long passphrase gets less strength than they believe. Worth a documented note or an explicit guard when the password policy is next revisited.
+
+- source_spec: `spec-1-2b-password-rotation-enforcement.md`
+  summary: Rotating a password does not invalidate credentials issued before the rotation. HARD INPUT TO STORY 1.4.
+  evidence: The change-password path writes password_hash and clears the flag, but nothing records a rotation instant, and no column exists to anchor one. Once Story 1.4 issues tokens, an attacker who logs in with the leaked bootstrap password before the operator rotates it keeps a valid refresh token afterwards -- and because the flag is now clear, the rotation filter waves that session through unconstrained. Rotation would leave the attacker better off than before. Needs a credentials_changed_at (or token_version) column plus a token check that consults it; both halves belong with the token machinery, so this must be settled as part of Story 1.4 rather than after it.
+
+- source_spec: `spec-1-2b-password-rotation-enforcement.md`
+  summary: User has no @Version, so a concurrent administrator password reset can be silently clobbered.
+  evidence: changePassword loads, verifies, mutates and saves with no optimistic lock, and Hibernate writes every column with no guard on the values read. An attacker holding a live session and the old password can start a change, have an administrator reset the credential and re-flag the account mid-flight, and then commit over both -- erasing the reset and the flag. The window spans a bcrypt matches plus a bcrypt encode, roughly 200-400ms. Harmless today because bootstrap is the only other writer; it becomes serious the day an administrator-reset story lands. PasswordChangeTransactionTests documents the last-write-wins behaviour deliberately.
+
+- source_spec: `spec-1-2b-password-rotation-enforcement.md`
+  summary: /api/v1/auth/refresh now requires access-token authentication, which is not the credential it is meant to accept. STORY 1.4 MUST CONFIGURE IT DELIBERATELY.
+  evidence: Narrowing the blanket /api/v1/auth/** permitAll moved refresh under anyRequest().authenticated(). REST API Specification s4.2 classifies it as "Authenticated refresh token" -- a different credential from the access token. Once a Story 1.4 access-token filter exists, refresh would return 401 in exactly the situation it exists to serve: an expired access token. Left fail-closed rather than speculatively opened, since the endpoint has no handler yet. Refresh is also correctly absent from the rotation allow-list, so a flagged session cannot refresh at all.
+
+- source_spec: `spec-1-2b-password-rotation-enforcement.md`
+  summary: No rate limiting on change-password, and ErrorCode.RATE_LIMITED has no callers anywhere.
+  evidence: A caller holding a stolen session can guess currentPassword without limit. Failed attempts are now logged at WARN, so the attempt is no longer invisible, but nothing throttles it. AMD-002 s6 records the rate-limiting requirement as Phase 11 work; this entry exists so it is not lost, since change-password is the first endpoint where the absence is directly exploitable.
+
+- source_spec: `spec-1-2b-password-rotation-enforcement.md`
+  summary: Passwords are neither trimmed nor Unicode-normalised, and the decision is implicit rather than documented.
+  evidence: Change and verification treat the string identically, so nothing breaks today. But a user who sets a password from a client that trims whitespace and signs in from one that does not -- or across input methods producing different composition forms -- is locked out with no diagnosable cause. Worth an explicit documented decision when the password policy is next revisited.
+
+- source_spec: `spec-1-2b-password-rotation-enforcement.md`
+  summary: A blank-but-present password field returns 400 VALIDATION_ERROR where a policy failure would return 422.
+  evidence: Twelve spaces trips @NotBlank and is reported as malformed rather than as a policy violation. Defensible -- a blank required field is a malformed request -- but it sits slightly against the 400/422 line AMD-002 draws, which the DTO's own design is built around. Cosmetic; noted rather than changed, because changing it would move a mapping AMD-002 specifies.

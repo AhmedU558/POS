@@ -16,6 +16,8 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -62,7 +64,14 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
         HttpMessageNotReadableException.class,
         MethodArgumentTypeMismatchException.class,
-        MissingServletRequestParameterException.class
+        MissingServletRequestParameterException.class,
+        // Without these two, Spring's own resolvers never get a look in: the catch-all
+        // @ExceptionHandler(Exception.class) below wins and answers a wrong method or an
+        // unsupported content type with 500 INTERNAL_ERROR and an ERROR-level log line. Neither
+        // 405 nor 415 is in the approved status set (REST API Specification section 5.2), so both
+        // map to VALIDATION_ERROR: the request, not the server, is what went wrong.
+        HttpRequestMethodNotSupportedException.class,
+        HttpMediaTypeNotSupportedException.class
     })
     public ResponseEntity<ApiErrorResponse> handleMalformedRequest(Exception ex) {
         log.debug("Rejected malformed request: {}", ex.getMessage());

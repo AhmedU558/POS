@@ -28,4 +28,11 @@ public class TestcontainersConfiguration {
     PostgreSQLContainer<?> postgresContainer() {
         return new PostgreSQLContainer<>(POSTGRES_IMAGE);
     }
+
+    @Bean
+    @ServiceConnection(name = "redis")
+    org.testcontainers.containers.GenericContainer<?> redisContainer() {
+        return new org.testcontainers.containers.GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                .withExposedPorts(6379);
+    }
 }

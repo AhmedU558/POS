@@ -12,6 +12,9 @@ public enum ErrorCode {
 
     AUTHENTICATION_REQUIRED(HttpStatus.UNAUTHORIZED, "Authentication is required."),
     ACCESS_DENIED(HttpStatus.FORBIDDEN, "Access is denied."),
+    PASSWORD_CHANGE_REQUIRED(
+            HttpStatus.FORBIDDEN,
+            "This account must change its password before this operation is permitted."),
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST, "One or more fields are invalid."),
     RESOURCE_NOT_FOUND(HttpStatus.NOT_FOUND, "Requested record does not exist."),
     RESOURCE_INACTIVE(HttpStatus.CONFLICT, "Requested business resource is inactive."),

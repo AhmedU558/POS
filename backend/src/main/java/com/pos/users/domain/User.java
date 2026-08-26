@@ -94,6 +94,9 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new LinkedHashSet<>();
 
+    @Column(name = "credentials_changed_at", nullable = false)
+    private Instant credentialsChangedAt = Instant.now();
+
     /** Required by JPA. */
     protected User() {}
 
@@ -102,6 +105,7 @@ public class User {
         this.passwordHash = Objects.requireNonNull(passwordHash, "passwordHash");
         this.firstName = firstName;
         this.lastName = lastName;
+        this.credentialsChangedAt = Instant.now();
     }
 
     public UUID getId() {
@@ -157,13 +161,16 @@ public class User {
 
     /**
      * Replaces the credential and clears the rotation requirement together.
-     *
-     * <p>One operation, so the flag cannot be cleared without a new password actually being set —
-     * which a separate setter would have allowed.
+     * Updates credentialsChangedAt to invalidate existing tokens.
      */
     public void changePassword(String newPasswordHash) {
         this.passwordHash = Objects.requireNonNull(newPasswordHash, "newPasswordHash");
         this.passwordChangeRequired = false;
+        this.credentialsChangedAt = Instant.now();
+    }
+
+    public Instant getCredentialsChangedAt() {
+        return credentialsChangedAt;
     }
 
     public Instant getLastLoginAt() {
