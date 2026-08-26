@@ -14,6 +14,8 @@ import java.util.UUID;
 public interface UserRepository extends JpaRepository<User, UUID> {
 
     Optional<User> findByUsername(String username);
+    
+    Optional<User> findByEmail(String email);
 
     /**
      * Loads a user together with roles and their permissions in one query.
