@@ -59,7 +59,7 @@ public class JwtTokenProvider {
 
     public Claims getRefreshClaims(String token) {
         return Jwts.parser()
-                
+                .verifyWith(refreshKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
@@ -105,7 +105,7 @@ public class JwtTokenProvider {
 
     public boolean validateRefreshToken(String authToken) {
         try {
-            Jwts.parser().build().parseSignedClaims(authToken);
+            Jwts.parser().verifyWith(refreshKey).build().parseSignedClaims(authToken);
             return true;
         } catch (SignatureException ex) {
             log.error("Invalid Refresh JWT signature");
