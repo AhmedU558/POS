@@ -7,10 +7,12 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.Instant;
 import java.util.Collection;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class CustomUserDetails implements UserDetails {
 
+    private final UUID id;
     private final String username;
     private final String passwordHash;
     private final boolean active;
@@ -18,6 +20,7 @@ public class CustomUserDetails implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
 
     public CustomUserDetails(User user) {
+        this.id = user.getId();
         this.username = user.getUsername();
         this.passwordHash = user.getPasswordHash();
         this.active = user.isActive();
@@ -25,6 +28,10 @@ public class CustomUserDetails implements UserDetails {
         this.authorities = user.permissionCodes().stream()
                 .map(SimpleGrantedAuthority::new)
                 .collect(Collectors.toUnmodifiableSet());
+    }
+
+    public UUID getId() {
+        return id;
     }
 
     @Override

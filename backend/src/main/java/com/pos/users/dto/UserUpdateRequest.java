@@ -12,5 +12,6 @@ public record UserUpdateRequest(
         @Email @Size(max = 255) String email,
         @NotBlank @Size(max = 100) String firstName,
         @NotBlank @Size(max = 100) String lastName,
-        @NotNull Set<UUID> roleIds
+        @NotNull Set<UUID> roleIds,
+        @NotNull Set<UUID> storeIds
 ) {}

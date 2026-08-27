@@ -1,0 +1,110 @@
+--- backend/src/main/java/com/pos/users/service/UserService.java
++++ backend/src/main/java/com/pos/users/service/UserService.java
+@@ -8,6 +8,7 @@
+ import com.pos.common.exception.ApiException;
+ import com.pos.common.response.ErrorCode;
+ import com.pos.users.domain.Role;
++import com.pos.organization.domain.Store;
+ import com.pos.users.domain.User;
+ import com.pos.users.dto.UserCreateRequest;
+ import com.pos.users.dto.UserResponse;
+@@ -15,6 +16,7 @@
+ import com.pos.users.dto.UserUpdateRequest;
+ import com.pos.users.repository.RoleRepository;
+ import com.pos.users.repository.UserRepository;
++import com.pos.organization.repository.StoreRepository;
+ import org.springframework.security.core.Authentication;
+ import org.springframework.security.core.GrantedAuthority;
+ import org.springframework.security.core.context.SecurityContextHolder;
+@@ -31,12 +33,14 @@
+ 
+     private final UserRepository userRepository;
+     private final RoleRepository roleRepository;
++    private final StoreRepository storeRepository;
+     private final PasswordEncoder passwordEncoder;
+     private final AuditRecorder auditRecorder;
+ 
+-    public UserService(UserRepository userRepository, RoleRepository roleRepository, PasswordEncoder passwordEncoder, AuditRecorder auditRecorder) {
++    public UserService(UserRepository userRepository, RoleRepository roleRepository, StoreRepository storeRepository, PasswordEncoder passwordEncoder, AuditRecorder auditRecorder) {
+         this.userRepository = userRepository;
+         this.roleRepository = roleRepository;
++        this.storeRepository = storeRepository;
+         this.passwordEncoder = passwordEncoder;
+         this.auditRecorder = auditRecorder;
+     }
+@@ -67,16 +71,25 @@
+             throw new ApiException(ErrorCode.VALIDATION_ERROR, "One or more roles do not exist");
+         }
+ 
++        Set<Store> stores = storeRepository.findAllById(request.storeIds())
++                .stream().collect(Collectors.toSet());
++        if (stores.size() != request.storeIds().size()) {
++            throw new ApiException(ErrorCode.VALIDATION_ERROR, "One or more stores do not exist");
++        }
++
+         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
++        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+         requireRoleAdministrationAuthority(roles, authentication);
++        requireStoreAdministrationAuthority(stores, userDetails.getId());
+ 
+         String encodedPassword = passwordEncoder.encode(request.password());
+         User user = new User(request.username(), encodedPassword, request.firstName(), request.lastName());
+         user.setEmail(request.email());
+         user.requirePasswordChange();
+ 
+         roles.forEach(user::assignRole);
++        stores.forEach(user::assignStore);
+ 
+         User savedUser = userRepository.save(user);
+ 
+-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+         auditRecorder.record(AuditEvent.of(
+                 AuditActor.user(userDetails.getId()),
+                 "USER_CREATED",
+@@ -99,8 +112,16 @@
+             throw new ApiException(ErrorCode.VALIDATION_ERROR, "One or more roles do not exist");
+         }
+ 
++        Set<Store> stores = storeRepository.findAllById(request.storeIds())
++                .stream().collect(Collectors.toSet());
++        if (stores.size() != request.storeIds().size()) {
++            throw new ApiException(ErrorCode.VALIDATION_ERROR, "One or more stores do not exist");
++        }
++
+         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
++        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+         requireRoleAdministrationAuthority(roles, authentication);
++        requireStoreAdministrationAuthority(stores, userDetails.getId());
+ 
+         user.setEmail(request.email());
+         user.setFirstName(request.firstName());
+         user.setLastName(request.lastName());
+ 
+         Set<Role> currentRoles = Set.copyOf(user.getRoles());
+         currentRoles.forEach(user::removeRole);
+         roles.forEach(user::assignRole);
+ 
+-        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
++        Set<Store> currentStores = Set.copyOf(user.getStores());
++        currentStores.forEach(user::removeStore);
++        stores.forEach(user::assignStore);
++
+         auditRecorder.record(AuditEvent.of(
+                 AuditActor.user(userDetails.getId()),
+                 "USER_UPDATED",
+@@ -148,4 +169,13 @@
+             }
+         }
+     }
++
++    private void requireStoreAdministrationAuthority(Set<Store> stores, UUID adminId) {
++        for (Store store : stores) {
++            if (!userRepository.hasStoreAccess(adminId, store.getId())) {
++                throw new ApiException(
++                        ErrorCode.ACCESS_DENIED,
++                        "Cannot assign a user to a store you do not possess access to (storeId: " + store.getId() + ")"
++                );
++            }
++        }
++    }
+ }

@@ -46,6 +46,9 @@ class UserApiIntegrationTests extends AbstractIntegrationTest {
     private PermissionRepository permissionRepository;
     
     @Autowired
+    private com.pos.organization.repository.StoreRepository storeRepository;
+    
+    @Autowired
     private AuditLogRepository auditLogRepository;
 
     @Autowired
@@ -82,7 +85,7 @@ class UserApiIntegrationTests extends AbstractIntegrationTest {
         Role cashier = roleRepository.findByName("Cashier").orElseThrow();
 
         String unique = UUID.randomUUID().toString().substring(0, 8);
-        UserCreateRequest req = new UserCreateRequest("cashier" + unique, "Pass123!", "cashier" + unique + "@test.com", "John", "Doe", Set.of(cashier.getId()));
+        UserCreateRequest req = new UserCreateRequest("cashier" + unique, "Pass123!", "cashier" + unique + "@test.com", "John", "Doe", Set.of(cashier.getId()), Set.of());
 
         mockMvc.perform(post("/api/v1/users")
                         .header("Authorization", token)
@@ -122,10 +125,35 @@ class UserApiIntegrationTests extends AbstractIntegrationTest {
         String writerToken = authenticate(writer.getUsername());
 
         Role superAdmin = roleRepository.findByName("Super Administrator").orElseThrow();
-        UserCreateRequest req = new UserCreateRequest("hacker" + unique, "Pass123!", "hacker" + unique + "@test.com", "Hack", "Er", Set.of(superAdmin.getId()));
+        UserCreateRequest req = new UserCreateRequest("hacker" + unique, "Pass123!", "hacker" + unique + "@test.com", "Hack", "Er", Set.of(superAdmin.getId()), Set.of());
 
         mockMvc.perform(post("/api/v1/users")
                         .header("Authorization", writerToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void createUser_cannotAssignStoreWithoutAccess() throws Exception {
+        String unique = UUID.randomUUID().toString().substring(0, 8);
+        User writer = new User("writer" + unique, passwordEncoder.encode("Pass123!"), "Writer", "User");
+        writer.setEmail("writer" + unique + "@test.com");
+        Role userAdmin = roleRepository.findByName("Super Administrator").orElseThrow();
+        writer.assignRole(userAdmin);
+        writer = userRepository.saveAndFlush(writer);
+
+        // create a store that the writer does not have access to
+        com.pos.organization.domain.Store alienStore = new com.pos.organization.domain.Store("ALN", "Store " + unique, "USD", "UTC");
+        alienStore = storeRepository.saveAndFlush(alienStore);
+
+        String token = authenticate(writer.getUsername());
+        Role cashier = roleRepository.findByName("Cashier").orElseThrow();
+
+        UserCreateRequest req = new UserCreateRequest("hacker" + unique, "Pass123!", "hacker" + unique + "@test.com", "Hack", "Er", Set.of(cashier.getId()), Set.of(alienStore.getId()));
+
+        mockMvc.perform(post("/api/v1/users")
+                        .header("Authorization", token)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(req)))
                 .andExpect(status().isForbidden());
@@ -136,7 +164,7 @@ class UserApiIntegrationTests extends AbstractIntegrationTest {
         String token = authenticate("admin");
         Role cashier = roleRepository.findByName("Cashier").orElseThrow();
 
-        UserCreateRequest req = new UserCreateRequest("admin", "Pass123!", "admin@test.com", "Admin", "User", Set.of(cashier.getId()));
+        UserCreateRequest req = new UserCreateRequest("admin", "Pass123!", "admin@test.com", "Admin", "User", Set.of(cashier.getId()), Set.of());
 
         mockMvc.perform(post("/api/v1/users")
                         .header("Authorization", token)

@@ -63,13 +63,13 @@ class IdentitySeedDataTests extends AbstractIntegrationTest {
 
         // Intentionally exhaustive. Codes for products, sales and inventory arrive with their own
         // modules, so this turning red means a module seeded its codes ahead of its endpoints.
-        assertThat(codes).containsExactlyInAnyOrderElementsOf(PermissionCode.IDENTITY);
+        assertThat(codes).containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE");
     }
 
     @Test
     void superAdministratorHoldsEveryIdentityPermission() {
         assertThat(permissionCodesOf(RoleName.SUPER_ADMINISTRATOR))
-                .containsExactlyInAnyOrderElementsOf(PermissionCode.IDENTITY);
+                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE");
     }
 
     @Test

@@ -29,4 +29,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
                     + " LEFT JOIN FETCH r.permissions"
                     + " WHERE u.username = :username")
     Optional<User> findByUsernameWithRolesAndPermissions(@Param("username") String username);
+
+    @Query("SELECT COUNT(u) > 0 FROM User u JOIN u.stores s WHERE u.id = :userId AND s.id = :storeId")
+    boolean hasStoreAccess(@Param("userId") UUID userId, @Param("storeId") UUID storeId);
 }

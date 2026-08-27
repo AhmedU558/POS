@@ -1,0 +1,8 @@
+Story 1.8 Security Mutation Report
+====================================
+
+PASS: UserController.createUser PreAuthorize bypass CAUGHT
+PASS: UserService duplicate username bypass CAUGHT
+PASS: UserService privilege escalation bypass CAUGHT
+PASS: UserController.getUser PreAuthorize bypass CAUGHT
+PASS: RoleService privilege escalation bypass CAUGHT

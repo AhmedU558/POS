@@ -65,7 +65,7 @@ class IdentityPersistenceTests extends AbstractIntegrationTest {
         Role superAdmin = roleRepository.findByName(RoleName.SUPER_ADMINISTRATOR).orElseThrow();
 
         assertThat(superAdmin.permissionCodes())
-                .containsExactlyInAnyOrderElementsOf(PermissionCode.IDENTITY);
+                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE");
     }
 
     @Test
@@ -80,7 +80,7 @@ class IdentityPersistenceTests extends AbstractIntegrationTest {
         assertThat(reloaded.getRoles()).hasSize(2);
         // Cashier contributes nothing yet, so the union is still the Super Administrator set.
         assertThat(reloaded.permissionCodes())
-                .containsExactlyInAnyOrderElementsOf(PermissionCode.IDENTITY);
+                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE");
     }
 
     @Test

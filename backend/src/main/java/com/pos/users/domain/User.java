@@ -94,6 +94,13 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "role_id"))
     private Set<Role> roles = new LinkedHashSet<>();
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "user_stores",
+            joinColumns = @JoinColumn(name = "user_id"),
+            inverseJoinColumns = @JoinColumn(name = "store_id"))
+    private Set<com.pos.organization.domain.Store> stores = new LinkedHashSet<>();
+
     @Column(name = "credentials_changed_at", nullable = false)
     private Instant credentialsChangedAt = Instant.now();
 
@@ -207,6 +214,18 @@ public class User {
 
     public void removeRole(Role role) {
         roles.remove(role);
+    }
+
+    public Set<com.pos.organization.domain.Store> getStores() {
+        return Collections.unmodifiableSet(stores);
+    }
+
+    public void assignStore(com.pos.organization.domain.Store store) {
+        stores.add(Objects.requireNonNull(store, "store"));
+    }
+
+    public void removeStore(com.pos.organization.domain.Store store) {
+        stores.remove(store);
     }
 
     /**

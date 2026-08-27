@@ -17,7 +17,8 @@ public record UserResponse(
         Instant lastLoginAt,
         Instant createdAt,
         Instant updatedAt,
-        Set<String> permissions
+        Set<String> permissions,
+        Set<UUID> storeIds
 ) {
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -31,7 +32,8 @@ public record UserResponse(
                 user.getLastLoginAt(),
                 user.getCreatedAt(),
                 user.getUpdatedAt(),
-                user.permissionCodes()
+                user.permissionCodes(),
+                user.getStores().stream().map(com.pos.organization.domain.Store::getId).collect(java.util.stream.Collectors.toSet())
         );
     }
 }
