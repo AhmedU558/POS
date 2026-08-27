@@ -63,22 +63,27 @@ class IdentitySeedDataTests extends AbstractIntegrationTest {
 
         // Intentionally exhaustive. Codes for products, sales and inventory arrive with their own
         // modules, so this turning red means a module seeded its codes ahead of its endpoints.
-        assertThat(codes).containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE");
+        assertThat(codes).containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE");
     }
 
     @Test
     void superAdministratorHoldsEveryIdentityPermission() {
         assertThat(permissionCodesOf(RoleName.SUPER_ADMINISTRATOR))
-                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE");
+                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE");
     }
 
     @Test
-    void noOtherRoleHoldsAnyIdentityPermission() {
-        // Least privilege (roles-and-permissions.md). The UI/UX section 33 "Limited" marking for
-        // Store Manager is an unresolved documentation gap; until it is decided, no grant exists.
-        RoleName.ALL.stream()
-                .filter(role -> !role.equals(RoleName.SUPER_ADMINISTRATOR))
-                .forEach(role -> assertThat(permissionCodesOf(role)).as(role).isEmpty());
+    void expectedRolesHoldTheirSeededPermissions() {
+        // Assert other roles hold their granted permissions, and un-granted roles hold nothing.
+        assertThat(permissionCodesOf(RoleName.STORE_MANAGER))
+                .containsExactlyInAnyOrder("PRODUCT_READ", "PRODUCT_WRITE");
+        assertThat(permissionCodesOf(RoleName.INVENTORY_MANAGER))
+                .containsExactlyInAnyOrder("PRODUCT_READ", "PRODUCT_WRITE");
+        assertThat(permissionCodesOf(RoleName.CASHIER))
+                .containsExactlyInAnyOrder("PRODUCT_READ");
+
+        assertThat(permissionCodesOf(RoleName.ACCOUNTANT)).isEmpty();
+        assertThat(permissionCodesOf(RoleName.ONLINE_ORDER_STAFF)).isEmpty();
     }
 
     @Test
