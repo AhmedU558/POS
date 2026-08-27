@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/features/auth/AuthContext";
+import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 
 export default function Home() {
   const { user, logout } = useAuth();
@@ -39,6 +41,23 @@ export default function Home() {
           <p><strong>Username:</strong> {user.username}</p>
           <p><strong>Email:</strong> {user.email}</p>
           <p><strong>Permissions:</strong> {user.permissions.join(', ')}</p>
+        </div>
+      )}
+
+      {user?.permissions?.includes('PRODUCT_READ') && (
+        <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Catalog Management</h2>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+            <Link href="/categories" style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">Categories</Button>
+            </Link>
+            <Link href="/brands" style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">Brands</Button>
+            </Link>
+            <Link href="/units" style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">Units</Button>
+            </Link>
+          </div>
         </div>
       )}
     </main>
