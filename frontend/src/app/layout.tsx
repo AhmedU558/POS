@@ -1,17 +1,14 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/features/auth/AuthContext";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
-// UI/UX Specification section 7.2 names Inter (or a system sans-serif) as the font token.
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-});
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "POS Management System",
-  description: "Integrated POS, Inventory & Business Management System",
+  description: "Point of Sale and Business Management System",
 };
 
 export default function RootLayout({
@@ -20,8 +17,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body>{children}</body>
+    <html lang="en">
+      <body className={inter.variable}>
+        <AuthProvider>
+          <ProtectedRoute>
+            {children}
+          </ProtectedRoute>
+        </AuthProvider>
+      </body>
     </html>
   );
 }
