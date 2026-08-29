@@ -4,6 +4,8 @@ import com.pos.AbstractIntegrationTest;
 import com.pos.auth.security.PasswordRotationFilter;
 import com.pos.users.domain.User;
 import com.pos.users.repository.UserRepository;
+import com.pos.users.repository.RoleRepository;
+import com.pos.users.domain.Role;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,24 +43,29 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
+    @Autowired private RoleRepository roleRepository;
     @Autowired private PasswordEncoder passwordEncoder;
 
-    @BeforeEach
+        @BeforeEach
     void createUsers() {
         flaggedName = "flagged." + java.util.UUID.randomUUID();
         unflaggedName = "unflagged." + java.util.UUID.randomUUID();
 
-        User flaggedUser =
-                new User(flaggedName, passwordEncoder.encode(PASSWORD), "Flagged", "User");
+        Role adminRole = roleRepository.findByName("Super Administrator").orElseThrow();
+
+        User flaggedUser = new User(flaggedName, passwordEncoder.encode(PASSWORD), "Flagged", "User");
+        flaggedUser.assignRole(adminRole);
         flaggedUser.requirePasswordChange();
         userRepository.saveAndFlush(flaggedUser);
-        userRepository.saveAndFlush(
-                new User(unflaggedName, passwordEncoder.encode(PASSWORD), "Unflagged", "User"));
+
+        User unflaggedUser = new User(unflaggedName, passwordEncoder.encode(PASSWORD), "Unflagged", "User");
+        unflaggedUser.assignRole(adminRole);
+        userRepository.saveAndFlush(unflaggedUser);
     }
 
     @Test
     void aFlaggedAccountIsBlockedFromProtectedRoutes() throws Exception {
-        mockMvc.perform(get("/api/v1/products").with(user(flaggedName)))
+        mockMvc.perform(get("/api/v1/made-up-endpoint-for-test").with(user(flaggedName)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("PASSWORD_CHANGE_REQUIRED"))
                 .andExpect(jsonPath("$.meta.requestId").isNotEmpty());
@@ -99,7 +106,7 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
         // Asserted as "not blocked" rather than 404: /products gains a handler in Phase 2, and an
         // exact-status assertion would then fail for a reason having nothing to do with this
         // filter, inviting someone to weaken it.
-        assertNotBlocked(get("/api/v1/products").with(user(unflaggedName)));
+        assertNotBlocked(get("/api/v1/made-up-endpoint-for-test").with(user(unflaggedName)));
     }
 
     @Test
@@ -109,7 +116,7 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
 
     @Test
     void theBlockLiftsOnceTheRequirementIsSatisfied() throws Exception {
-        mockMvc.perform(get("/api/v1/products").with(user(flaggedName)))
+        mockMvc.perform(get("/api/v1/made-up-endpoint-for-test").with(user(flaggedName)))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(
@@ -122,8 +129,8 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
                 .andExpect(status().isNoContent());
 
         // Read fresh from the database on the very next request, not at token expiry (ADR-013).
-        mockMvc.perform(get("/api/v1/products").with(user(flaggedName)))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/api/v1/made-up-endpoint-for-test").with(user(flaggedName)))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -148,7 +155,7 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
         assertThat(userRepository.findByUsername(flaggedName).orElseThrow().isPasswordChangeRequired())
                 .isTrue();
 
-        mockMvc.perform(get("/api/v1/products").with(user(flaggedName)))
+        mockMvc.perform(get("/api/v1/made-up-endpoint-for-test").with(user(flaggedName)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("PASSWORD_CHANGE_REQUIRED"));
     }
@@ -224,7 +231,7 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
         // Fail closed. If the principal cannot be resolved to a row, the filter cannot confirm the
         // account may proceed. Failing open here would silently disable enforcement system-wide
         // the moment Story 1.4 puts anything but the username in the token subject.
-        mockMvc.perform(get("/api/v1/products").with(user("no.such.account")))
+        mockMvc.perform(get("/api/v1/made-up-endpoint-for-test").with(user("no.such.account")))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("PASSWORD_CHANGE_REQUIRED"));
     }
@@ -240,7 +247,7 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
 
     @Test
     void aContextPathDoesNotSmuggleAProtectedRouteThroughTheAllowList() throws Exception {
-        mockMvc.perform(get("/pos/api/v1/products").contextPath("/pos").with(user(flaggedName)))
+        mockMvc.perform(get("/pos/api/v1/made-up-endpoint-for-test").contextPath("/pos").with(user(flaggedName)))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.error.code").value("PASSWORD_CHANGE_REQUIRED"));
     }
@@ -254,3 +261,4 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
         assertThat(response.getContentAsString()).doesNotContain("PASSWORD_CHANGE_REQUIRED");
     }
 }
+
