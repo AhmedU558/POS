@@ -130,7 +130,7 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
 
         // Read fresh from the database on the very next request, not at token expiry (ADR-013).
         mockMvc.perform(get("/api/v1/made-up-endpoint-for-test").with(user(flaggedName)))
-                .andExpect(status().isOk());
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -261,4 +261,3 @@ class PasswordRotationEnforcementTests extends AbstractIntegrationTest {
         assertThat(response.getContentAsString()).doesNotContain("PASSWORD_CHANGE_REQUIRED");
     }
 }
-

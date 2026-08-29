@@ -40,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
     }
 
     @Autowired private StoreRepository storeRepository;
+
+    @Autowired
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     @Autowired private TerminalRepository terminalRepository;
     @Autowired private RegisterRepository registerRepository;
     @Autowired private UserRepository userRepository;
@@ -49,6 +52,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
     @BeforeEach
     void setUp() { if (userRepository.findByUsername("admin").isEmpty()) { User testAdmin = new User("admin", passwordEncoder.encode("Admin123!"), "Admin", "User"); testAdmin.setEmail("admin@test.com"); Role superAdmin = roleRepository.findByName("Super Administrator").orElseThrow(); testAdmin.assignRole(superAdmin); userRepository.save(testAdmin); }
+        jdbcTemplate.execute("ALTER TABLE inventory_transactions DISABLE TRIGGER ALL");
+        jdbcTemplate.execute("DELETE FROM inventory_transactions");
+        jdbcTemplate.execute("ALTER TABLE inventory_transactions ENABLE TRIGGER ALL");
+        jdbcTemplate.execute("DELETE FROM inventory_balances");
+        jdbcTemplate.execute("DELETE FROM user_stores");
         registerRepository.deleteAllInBatch();
         terminalRepository.deleteAllInBatch();
         storeRepository.deleteAllInBatch();
