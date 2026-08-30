@@ -130,6 +130,31 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void customerCreditsTablesMatchTheDerivedColumnContract() {
+        Map<String, String> credits = columnTypesOf("customer_credits");
+        assertThat(credits)
+                .containsEntry("id", "uuid")
+                .containsEntry("customer_id", "uuid")
+                .containsEntry("balance", "numeric")
+                .containsEntry("currency_code", "character")
+                .containsEntry("status", "character varying")
+                .containsEntry("created_at", "timestamp with time zone")
+                .containsEntry("updated_at", "timestamp with time zone");
+
+        Map<String, String> tx = columnTypesOf("customer_credit_transactions");
+        assertThat(tx)
+                .containsEntry("id", "uuid")
+                .containsEntry("customer_credit_id", "uuid")
+                .containsEntry("transaction_type", "character varying")
+                .containsEntry("amount", "numeric")
+                .containsEntry("reference_type", "character varying")
+                .containsEntry("reference_id", "uuid")
+                .containsEntry("balance_after", "numeric")
+                .containsEntry("created_by", "uuid")
+                .containsEntry("created_at", "timestamp with time zone");
+    }
+
+    @Test
     void inventoryBatchesTableMatchesTheSpecifiedColumnContract() {
         Map<String, String> columns = columnTypesOf("inventory_batches");
 

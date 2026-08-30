@@ -31,6 +31,37 @@ export interface CustomerRequest {
   isActive: boolean;
 }
 
+export type CreditTransactionType = 'ISSUE' | 'REDEEM' | 'ADJUST';
+
+export interface CreditTransaction {
+  id: string;
+  transactionType: CreditTransactionType;
+  amount: number;
+  referenceType: string | null;
+  referenceId: string | null;
+  balanceAfter: number;
+  createdAt: string;
+}
+
+export interface CustomerCredit {
+  customerId: string;
+  customerCode: string;
+  name: string;
+  creditLimit: number;
+  balance: number;
+  currencyCode: string | null;
+  status: string | null;
+  transactions: PaginatedResponse<CreditTransaction>;
+}
+
+export interface CreditTransactionRequest {
+  transactionType: CreditTransactionType;
+  amount: number;
+  currencyCode?: string | null;
+  referenceType?: string | null;
+  referenceId?: string | null;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -61,5 +92,19 @@ export const customersApi = {
   update: async (id: string, body: CustomerRequest) => {
     const res = await apiClient('/customers/' + id, { method: 'PATCH', body: JSON.stringify(body) });
     return handleResponse<Customer>(res);
+  },
+
+  getCredit: async (id: string, page = 0, size = 50) => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    const res = await apiClient('/customers/' + id + '/credit?' + params.toString(), { method: 'GET' });
+    return handleResponse<CustomerCredit>(res);
+  },
+
+  postCredit: async (id: string, body: CreditTransactionRequest) => {
+    const res = await apiClient('/customers/' + id + '/credit/transactions', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    return handleResponse<CustomerCredit>(res);
   },
 };

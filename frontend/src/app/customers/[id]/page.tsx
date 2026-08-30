@@ -15,6 +15,7 @@ export default function CustomerProfilePage() {
   const { user } = useAuth();
   const canRead = user?.permissions?.includes('CUSTOMER_READ') ?? false;
   const canWrite = user?.permissions?.includes('CUSTOMER_WRITE') ?? false;
+  const canReadCredit = user?.permissions?.includes('CREDIT_READ') ?? false;
 
   const [customerCode, setCustomerCode] = useState('');
   const [name, setName] = useState('');
@@ -82,9 +83,16 @@ export default function CustomerProfilePage() {
 
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <Button type="button" variant="secondary" onClick={() => router.push('/customers')} style={{ marginBottom: 'var(--space-4)' }}>
-        Back to customers
-      </Button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+        <Button type="button" variant="secondary" onClick={() => router.push('/customers')}>
+          Back to customers
+        </Button>
+        {canReadCredit && (
+          <Button type="button" variant="secondary" onClick={() => router.push('/customers/' + id + '/credit')}>
+            Store Credit
+          </Button>
+        )}
+      </div>
       <h1>Customer Profile</h1>
       {isActive ? <Badge variant="success">Active</Badge> : <Badge variant="error">Inactive</Badge>}
 
