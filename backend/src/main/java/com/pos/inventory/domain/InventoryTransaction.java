@@ -69,6 +69,11 @@ public class InventoryTransaction {
         this.batchId = batchId;
     }
 
+    public void assignReference(String referenceType, UUID referenceId) {
+        this.referenceType = referenceType;
+        this.referenceId = referenceId;
+    }
+
     public UUID getId() { return id; }
     public Product getProduct() { return product; }
     public Store getStore() { return store; }

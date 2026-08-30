@@ -91,6 +91,12 @@ class ProductApiIntegrationTests extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.barcode").value("1234567890"));
 
+        mockMvc.perform(get("/api/v1/products")
+                        .header("Authorization", adminToken)
+                        .param("query", "1234567890"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].id").value(productId));
+
         // 3. Add Price
         String priceJson = """
             {"priceType": "REGULAR", "amount": 25.0, "effectiveFrom": "2025-01-01T00:00:00Z"}

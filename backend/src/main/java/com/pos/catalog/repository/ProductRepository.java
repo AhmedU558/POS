@@ -19,7 +19,8 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     boolean existsBySkuAndIdNot(String sku, UUID id);
 
     @Query("SELECT p FROM Product p WHERE " +
-           "(:query IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
+           "(:query IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "OR EXISTS (SELECT 1 FROM ProductBarcode b WHERE b.product = p AND LOWER(b.barcode) LIKE LOWER(CONCAT('%', :query, '%')))) AND " +
            "(:categoryId IS NULL OR p.category.id = :categoryId) AND " +
            "(:brandId IS NULL OR p.brand.id = :brandId) AND " +
            "(:isActive IS NULL OR p.isActive = :isActive)")

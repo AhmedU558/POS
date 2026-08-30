@@ -32,6 +32,8 @@ public final class PermissionCode {
     public static final String AP_READ = "AP_READ";
     public static final String AP_WRITE = "AP_WRITE";
     public static final String AP_PAYMENT_CREATE = "AP_PAYMENT_CREATE";
+    public static final String SALE_CREATE = "SALE_CREATE";
+    public static final String SALE_READ = "SALE_READ";
 
     public static final Set<String> IDENTITY =
             Set.of(USER_READ, USER_WRITE, USER_ADMIN, ROLE_READ, ROLE_WRITE);

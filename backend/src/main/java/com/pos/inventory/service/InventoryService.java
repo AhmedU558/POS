@@ -228,6 +228,37 @@ public class InventoryService {
     }
 
     @Transactional
+    public void deductForSale(UUID storeId, UUID productId, BigDecimal quantity, UUID saleId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
+        User currentUser = getCurrentUser();
+
+        InventoryBalance balance = balanceRepository
+                .findByProductIdAndStoreIdForUpdate(product.getId(), store.getId())
+                .orElseThrow(() -> new ApiException(ErrorCode.INSUFFICIENT_STOCK, "Required stock is unavailable"));
+        if (balance.getQuantity().compareTo(quantity) < 0) {
+            throw new ApiException(ErrorCode.INSUFFICIENT_STOCK, "Required stock is unavailable");
+        }
+
+        balance.addQuantity(quantity.negate());
+        balanceRepository.save(balance);
+
+        InventoryTransaction sale = new InventoryTransaction(
+                product,
+                store,
+                TransactionType.SALE,
+                quantity.negate(),
+                null,
+                currentUser
+        );
+        sale.assignReference("Sale", saleId);
+        transactionRepository.save(sale);
+        syncLowStockAlert(store, product, balance.getQuantity());
+    }
+
+    @Transactional
     public InventoryBalanceResponse receiveStock(InventoryReceiptRequest request) {
         Store store = storeRepository.findById(request.storeId())
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));

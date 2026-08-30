@@ -145,6 +145,78 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void salesTablesMatchTheDerivedColumnContract() {
+        Map<String, String> sales = columnTypesOf("sales");
+        assertThat(sales)
+                .containsEntry("id", "uuid")
+                .containsEntry("receipt_number", "character varying")
+                .containsEntry("store_id", "uuid")
+                .containsEntry("terminal_id", "uuid")
+                .containsEntry("register_id", "uuid")
+                .containsEntry("register_session_id", "uuid")
+                .containsEntry("cashier_id", "uuid")
+                .containsEntry("customer_id", "uuid")
+                .containsEntry("status", "character varying")
+                .containsEntry("subtotal", "numeric")
+                .containsEntry("discount_total", "numeric")
+                .containsEntry("tax_total", "numeric")
+                .containsEntry("grand_total", "numeric")
+                .containsEntry("currency_code", "character")
+                .containsEntry("created_at", "timestamp with time zone");
+
+        Map<String, String> items = columnTypesOf("sale_items");
+        assertThat(items)
+                .containsEntry("id", "uuid")
+                .containsEntry("sale_id", "uuid")
+                .containsEntry("product_id", "uuid")
+                .containsEntry("quantity", "numeric")
+                .containsEntry("unit_price", "numeric")
+                .containsEntry("discount_amount", "numeric")
+                .containsEntry("tax_amount", "numeric")
+                .containsEntry("line_total", "numeric")
+                .containsEntry("batch_id", "uuid");
+
+        Map<String, String> payments = columnTypesOf("sale_payments");
+        assertThat(payments)
+                .containsEntry("id", "uuid")
+                .containsEntry("sale_id", "uuid")
+                .containsEntry("payment_method_id", "uuid")
+                .containsEntry("amount", "numeric")
+                .containsEntry("reference_number", "character varying")
+                .containsEntry("status", "character varying");
+
+        Map<String, String> sessions = columnTypesOf("register_sessions");
+        assertThat(sessions)
+                .containsEntry("id", "uuid")
+                .containsEntry("register_id", "uuid")
+                .containsEntry("cashier_id", "uuid")
+                .containsEntry("status", "character varying")
+                .containsEntry("opened_at", "timestamp with time zone");
+
+        Map<String, String> cash = columnTypesOf("cash_transactions");
+        assertThat(cash)
+                .containsEntry("id", "uuid")
+                .containsEntry("register_session_id", "uuid")
+                .containsEntry("transaction_type", "character varying")
+                .containsEntry("amount", "numeric");
+
+        Map<String, String> methods = columnTypesOf("payment_methods");
+        assertThat(methods)
+                .containsEntry("id", "uuid")
+                .containsEntry("code", "character varying")
+                .containsEntry("name", "character varying")
+                .containsEntry("type", "character varying")
+                .containsEntry("is_active", "boolean");
+
+        Map<String, String> keys = columnTypesOf("idempotency_keys");
+        assertThat(keys)
+                .containsEntry("id", "uuid")
+                .containsEntry("idempotency_key", "character varying")
+                .containsEntry("request_hash", "character varying")
+                .containsEntry("sale_id", "uuid");
+    }
+
+    @Test
     void supplierPaymentsTableMatchesTheDerivedColumnContract() {
         Map<String, String> columns = columnTypesOf("supplier_payments");
         assertThat(columns)
