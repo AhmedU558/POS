@@ -3,8 +3,11 @@ package com.pos.suppliers.controller;
 import com.pos.common.config.RequestCorrelation;
 import com.pos.common.response.ApiResponse;
 import com.pos.suppliers.dto.SupplierCreateRequest;
+import com.pos.suppliers.dto.SupplierProductResponse;
+import com.pos.suppliers.dto.SupplierProductsReplaceRequest;
 import com.pos.suppliers.dto.SupplierResponse;
 import com.pos.suppliers.dto.SupplierUpdateRequest;
+import com.pos.suppliers.service.SupplierProductService;
 import com.pos.suppliers.service.SupplierService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -14,11 +17,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -26,9 +31,11 @@ import java.util.UUID;
 public class SupplierController {
 
     private final SupplierService supplierService;
+    private final SupplierProductService supplierProductService;
 
-    public SupplierController(SupplierService supplierService) {
+    public SupplierController(SupplierService supplierService, SupplierProductService supplierProductService) {
         this.supplierService = supplierService;
+        this.supplierProductService = supplierProductService;
     }
 
     @GetMapping
@@ -58,5 +65,19 @@ public class SupplierController {
             @PathVariable UUID id,
             @Valid @RequestBody SupplierUpdateRequest request) {
         return ApiResponse.of(supplierService.update(id, request), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/{id}/products")
+    @PreAuthorize("hasAuthority('SUPPLIER_READ')") // supplier products list
+    public ApiResponse<List<SupplierProductResponse>> listProducts(@PathVariable UUID id) {
+        return ApiResponse.of(supplierProductService.list(id), RequestCorrelation.currentId());
+    }
+
+    @PutMapping("/{id}/products")
+    @PreAuthorize("hasAuthority('SUPPLIER_WRITE')") // supplier products replace
+    public ApiResponse<List<SupplierProductResponse>> replaceProducts(
+            @PathVariable UUID id,
+            @Valid @RequestBody SupplierProductsReplaceRequest request) {
+        return ApiResponse.of(supplierProductService.replace(id, request), RequestCorrelation.currentId());
     }
 }

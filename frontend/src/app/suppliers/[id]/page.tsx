@@ -3,11 +3,14 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { suppliersApi } from '@/lib/api/suppliers';
+import { suppliersApi, SupplierProduct } from '@/lib/api/suppliers';
+import { getProducts } from '@/lib/api/catalog';
+import { Product } from '@/types/catalog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { Badge } from '@/components/ui/Badge';
+import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
 
 export default function SupplierProfilePage() {
   const { id } = useParams() as { id: string };
@@ -15,6 +18,7 @@ export default function SupplierProfilePage() {
   const { user } = useAuth();
   const canRead = user?.permissions?.includes('SUPPLIER_READ') ?? false;
   const canWrite = user?.permissions?.includes('SUPPLIER_WRITE') ?? false;
+  const canReadProducts = user?.permissions?.includes('PRODUCT_READ') ?? false;
 
   const [supplierCode, setSupplierCode] = useState('');
   const [name, setName] = useState('');
@@ -25,27 +29,41 @@ export default function SupplierProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [associations, setAssociations] = useState<SupplierProduct[]>([]);
+  const [catalog, setCatalog] = useState<Product[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [isSavingProducts, setIsSavingProducts] = useState(false);
 
   useEffect(() => {
     if (!canRead || !id) {
       setIsLoading(false);
       return;
     }
-    suppliersApi.get(id)
-      .then((supplier) => {
+    Promise.all([
+      suppliersApi.get(id),
+      suppliersApi.listProducts(id),
+      canReadProducts ? getProducts({ size: 100 }) : Promise.resolve([] as Product[]),
+    ])
+      .then(([supplier, products, catalogResult]) => {
         setSupplierCode(supplier.supplierCode);
         setName(supplier.name);
         setPhone(supplier.phone ?? '');
         setEmail(supplier.email ?? '');
         setAddress(supplier.address ?? '');
         setIsActive(supplier.active);
+        setAssociations(products);
+        setSelectedProductIds(products.map((row) => row.productId));
+        const list = Array.isArray(catalogResult)
+          ? catalogResult
+          : ((catalogResult as { content?: Product[] }).content ?? []);
+        setCatalog(list);
         setError(null);
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load supplier');
       })
       .finally(() => setIsLoading(false));
-  }, [canRead, id]);
+  }, [canRead, canReadProducts, id]);
 
   if (!canRead) {
     return (
@@ -55,6 +73,20 @@ export default function SupplierProfilePage() {
       </div>
     );
   }
+
+  const saveAssociatedProducts = async (productIds: string[]) => {
+    setIsSavingProducts(true);
+    setError(null);
+    try {
+      const updated = await suppliersApi.replaceProducts(id, productIds);
+      setAssociations(updated);
+      setSelectedProductIds(updated.map((row) => row.productId));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to update associated products');
+    } finally {
+      setIsSavingProducts(false);
+    }
+  };
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -105,6 +137,86 @@ export default function SupplierProfilePage() {
             <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>Save</Button>
           )}
         </form>
+      )}
+
+      {!isLoading && (
+        <section style={{ marginTop: 'var(--space-8)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Associated products</h2>
+          {associations.length === 0 ? (
+            <div style={{ padding: 'var(--space-6)', textAlign: 'center', backgroundColor: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
+              No associated products.
+            </div>
+          ) : (
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>SKU</Th>
+                  <Th>Name</Th>
+                  <Th>Status</Th>
+                  {canWrite && <Th>Actions</Th>}
+                </Tr>
+              </Thead>
+              <Tbody>
+                {associations.map((row) => (
+                  <Tr key={row.id}>
+                    <Td>{row.sku}</Td>
+                    <Td>{row.name}</Td>
+                    <Td>
+                      <Badge variant={row.active ? 'success' : 'error'}>
+                        {row.active ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </Td>
+                    {canWrite && (
+                      <Td>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={isSavingProducts}
+                          onClick={() => saveAssociatedProducts(
+                            associations
+                              .map((item) => item.productId)
+                              .filter((productId) => productId !== row.productId)
+                          )}
+                        >
+                          Remove
+                        </Button>
+                      </Td>
+                    )}
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+          )}
+
+          {canWrite && canReadProducts && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveAssociatedProducts(selectedProductIds);
+              }}
+              style={{ marginTop: 'var(--space-6)' }}
+            >
+              {catalog.map((product) => (
+                <Checkbox
+                  key={product.id}
+                  id={'assoc-' + product.id}
+                  label={product.sku + ' — ' + product.name}
+                  checked={selectedProductIds.includes(product.id)}
+                  onChange={(e) => {
+                    setSelectedProductIds((current) =>
+                      e.target.checked
+                        ? [...current, product.id]
+                        : current.filter((item) => item !== product.id)
+                    );
+                  }}
+                />
+              ))}
+              <Button type="submit" isLoading={isSavingProducts} disabled={isSavingProducts}>
+                Save associated products
+              </Button>
+            </form>
+          )}
+        </section>
       )}
     </div>
   );

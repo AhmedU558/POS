@@ -20,6 +20,14 @@ export interface Supplier {
   updatedAt: string;
 }
 
+export interface SupplierProduct {
+  id: string;
+  productId: string;
+  sku: string;
+  name: string;
+  active: boolean;
+}
+
 export interface SupplierRequest {
   supplierCode: string;
   name: string;
@@ -59,5 +67,18 @@ export const suppliersApi = {
   update: async (id: string, body: SupplierRequest) => {
     const res = await apiClient('/suppliers/' + id, { method: 'PATCH', body: JSON.stringify(body) });
     return handleResponse<Supplier>(res);
+  },
+
+  listProducts: async (id: string) => {
+    const res = await apiClient('/suppliers/' + id + '/products', { method: 'GET' });
+    return handleResponse<SupplierProduct[]>(res);
+  },
+
+  replaceProducts: async (id: string, productIds: string[]) => {
+    const res = await apiClient('/suppliers/' + id + '/products', {
+      method: 'PUT',
+      body: JSON.stringify({ productIds }),
+    });
+    return handleResponse<SupplierProduct[]>(res);
   },
 };

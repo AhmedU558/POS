@@ -29,3 +29,4 @@ decision is not re-litigated in every story.
 | [ADR-021](ADR-021-story-4-1-customer-profiles.md) | Story 4.1 customer profiles are global master data |
 | [ADR-022](ADR-022-story-4-2-store-credit-ledger.md) | Story 4.2 store credit is a customer-scoped immutable ledger |
 | [ADR-023](ADR-023-story-4-3-supplier-profiles.md) | Story 4.3 supplier profiles are global master data |
+| [ADR-024](ADR-024-story-4-4-supplier-products.md) | Story 4.4 supplier-product associations are a replace-set join |

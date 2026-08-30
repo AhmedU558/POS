@@ -26,6 +26,8 @@ specifications at once.
 | [AMD-014](AMD-014-ui-ux-store-credit.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 4.2) |
 | [AMD-015](AMD-015-rest-api-supplier-profiles.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 4.3) |
 | [AMD-016](AMD-016-ui-ux-supplier-profiles.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 4.3) |
+| [AMD-017](AMD-017-rest-api-supplier-products.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 4.4) |
+| [AMD-018](AMD-018-ui-ux-supplier-products.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 4.4) |
 
 ## Status values
 
