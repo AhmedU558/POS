@@ -52,7 +52,7 @@ class IdentityDetachedGraphTests extends AbstractIntegrationTest {
 
         // Fails with LazyInitializationException if the JOIN FETCH clauses are removed.
         assertThat(loaded.permissionCodes())
-                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE", "REPORT_INVENTORY");
+                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE", "REPORT_INVENTORY", "CUSTOMER_READ", "CUSTOMER_WRITE");
     }
 
     @Test

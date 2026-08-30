@@ -20,6 +20,9 @@ public final class PermissionCode {
     public static final String PRODUCT_READ = "PRODUCT_READ";
     public static final String PRODUCT_WRITE = "PRODUCT_WRITE";
 
+    public static final String CUSTOMER_READ = "CUSTOMER_READ";
+    public static final String CUSTOMER_WRITE = "CUSTOMER_WRITE";
+
     public static final Set<String> IDENTITY =
             Set.of(USER_READ, USER_WRITE, USER_ADMIN, ROLE_READ, ROLE_WRITE);
 

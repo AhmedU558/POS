@@ -20,6 +20,8 @@ specifications at once.
 | [AMD-008](AMD-008-ui-ux-batches-expiry.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-30 (Story 3.3 / D5) |
 | [AMD-009](AMD-009-rest-api-inventory-alerts-reports.md) | POS REST API Specification | **Approved** 2026-08-30 (Story 3.4) |
 | [AMD-010](AMD-010-ui-ux-stock-alerts-reports.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-30 (Story 3.4) |
+| [AMD-011](AMD-011-rest-api-customer-profiles.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 4.1) |
+| [AMD-012](AMD-012-ui-ux-customer-profiles.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 4.1) |
 
 ## Status values
 

@@ -44,6 +44,15 @@ export default function Home() {
         </div>
       )}
 
+      {user?.permissions?.includes('CUSTOMER_READ') && (
+        <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Customers</h2>
+          <Link href="/customers" style={{ textDecoration: 'none' }}>
+            <Button variant="secondary">Customers</Button>
+          </Link>
+        </div>
+      )}
+
       {user?.permissions?.includes('PRODUCT_READ') && (
         <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
           <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Catalog Management</h2>
