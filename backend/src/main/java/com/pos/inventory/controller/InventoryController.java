@@ -4,6 +4,7 @@ import com.pos.common.config.RequestCorrelation;
 import com.pos.common.response.ApiResponse;
 import com.pos.inventory.dto.InventoryAdjustmentRequest;
 import com.pos.inventory.dto.InventoryBalanceResponse;
+import com.pos.inventory.dto.InventoryBatchResponse;
 import com.pos.inventory.dto.InventoryReceiptRequest;
 import com.pos.inventory.dto.InventoryTransactionResponse;
 import com.pos.inventory.service.InventoryService;
@@ -35,7 +36,26 @@ public class InventoryController {
         return ApiResponse.of(inventoryService.searchBalances(storeId, categoryId, query, pageable), RequestCorrelation.currentId());
     }
 
-    @GetMapping("/{productId}")
+    @GetMapping("/batches")
+    @PreAuthorize("hasAuthority('INVENTORY_READ')") // batches list
+    public ApiResponse<Page<InventoryBatchResponse>> listBatches(
+            @RequestParam UUID storeId,
+            @RequestParam(required = false) UUID productId,
+            @RequestParam(required = false) Integer days,
+            Pageable pageable) {
+        return ApiResponse.of(inventoryService.listBatches(storeId, productId, days, pageable), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/expiry")
+    @PreAuthorize("hasAuthority('INVENTORY_READ')")
+    public ApiResponse<Page<InventoryBatchResponse>> listExpiry(
+            @RequestParam UUID storeId,
+            @RequestParam(required = false) Integer days,
+            Pageable pageable) {
+        return ApiResponse.of(inventoryService.listExpiry(storeId, days, pageable), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/{productId:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}")
     @PreAuthorize("hasAuthority('INVENTORY_READ')")
     public ApiResponse<InventoryBalanceResponse> getBalance(
             @PathVariable UUID productId,
@@ -43,7 +63,7 @@ public class InventoryController {
         return ApiResponse.of(inventoryService.getBalance(storeId, productId), RequestCorrelation.currentId());
     }
 
-    @GetMapping("/{productId}/movements")
+    @GetMapping("/{productId:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}/movements")
     @PreAuthorize("hasAuthority('INVENTORY_READ')")
     public ApiResponse<Page<InventoryTransactionResponse>> getMovements(
             @PathVariable UUID productId,

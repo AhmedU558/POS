@@ -31,6 +31,14 @@ export default function InventoryOverviewPage() {
           >
             Adjust Stock
           </Link>
+          {user?.permissions?.includes('INVENTORY_READ') && (
+            <Link
+              href="/inventory/batches"
+              className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+            >
+              Batches &amp; Expiry
+            </Link>
+          )}
           {user?.permissions?.includes('INVENTORY_RECEIVE') && (
             <Link
               href="/inventory/receive"

@@ -65,6 +65,10 @@ public class InventoryTransaction {
         this.createdAt = Instant.now();
     }
 
+    public void assignBatch(UUID batchId) {
+        this.batchId = batchId;
+    }
+
     public UUID getId() { return id; }
     public Product getProduct() { return product; }
     public Store getStore() { return store; }

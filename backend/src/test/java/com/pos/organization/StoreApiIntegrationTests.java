@@ -55,6 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         jdbcTemplate.execute("ALTER TABLE inventory_transactions DISABLE TRIGGER ALL");
         jdbcTemplate.execute("DELETE FROM inventory_transactions");
         jdbcTemplate.execute("ALTER TABLE inventory_transactions ENABLE TRIGGER ALL");
+        jdbcTemplate.execute("DELETE FROM inventory_batches");
         jdbcTemplate.execute("DELETE FROM inventory_balances");
         jdbcTemplate.execute("DELETE FROM user_stores");
         registerRepository.deleteAllInBatch();

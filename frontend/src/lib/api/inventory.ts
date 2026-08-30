@@ -34,6 +34,26 @@ export interface InventoryReceiptRequest {
   storeId: string;
   productId: string;
   quantity: number;
+  batchNumber?: string;
+  expirationDate?: string;
+  manufacturingDate?: string;
+}
+
+export type InventoryBatchStatus = 'EXPIRED' | 'EXPIRING_TODAY' | 'APPROACHING' | 'OK';
+
+export interface InventoryBatch {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  storeId: string;
+  storeName: string;
+  batchNumber: string;
+  quantity: number;
+  expirationDate: string | null;
+  manufacturingDate: string | null;
+  status: InventoryBatchStatus;
+  daysRemaining: number | null;
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
@@ -72,5 +92,20 @@ export const inventoryApi = {
   receiveStock: async (request: InventoryReceiptRequest) => {
     const res = await apiClient('/inventory/receipts', { method: 'POST', body: JSON.stringify(request) });
     return handleResponse<InventoryBalance>(res);
+  },
+
+  getBatches: async (storeId: string, page = 0, size = 50, days?: number, productId?: string) => {
+    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
+    if (days !== undefined) params.append('days', days.toString());
+    if (productId) params.append('productId', productId);
+    const res = await apiClient('/inventory/batches?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedResponse<InventoryBatch>>(res);
+  },
+
+  getExpiry: async (storeId: string, page = 0, size = 50, days?: number) => {
+    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
+    if (days !== undefined) params.append('days', days.toString());
+    const res = await apiClient('/inventory/expiry?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedResponse<InventoryBatch>>(res);
   }
 };

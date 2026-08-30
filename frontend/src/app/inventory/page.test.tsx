@@ -24,6 +24,7 @@ describe('InventoryOverviewPage', () => {
 
     expect(screen.getByText('Inventory Overview')).toBeTruthy();
     expect(screen.getByText('Receive Stock')).toBeTruthy();
+    expect(screen.getByText('Batches & Expiry')).toBeTruthy();
 
     await waitFor(() => {
       expect(screen.getByText('Apple')).toBeTruthy();

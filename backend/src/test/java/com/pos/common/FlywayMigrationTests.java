@@ -93,6 +93,43 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void inventoryBatchesTableMatchesTheSpecifiedColumnContract() {
+        Map<String, String> columns = columnTypesOf("inventory_batches");
+
+        assertThat(columns)
+                .containsEntry("id", "uuid")
+                .containsEntry("product_id", "uuid")
+                .containsEntry("store_id", "uuid")
+                .containsEntry("batch_number", "character varying")
+                .containsEntry("quantity", "numeric")
+                .containsEntry("expiration_date", "date")
+                .containsEntry("manufacturing_date", "date")
+                .containsEntry("created_at", "timestamp with time zone");
+    }
+
+    @Test
+    void inventoryBatchesHasTheSpecifiedProductExpirationIndex() {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM pg_indexes"
+                        + " WHERE schemaname = 'public'"
+                        + " AND indexname = 'idx_inventory_batches_product_id_expiration_date'",
+                Integer.class);
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
+    void inventoryTransactionBatchIdReferencesInventoryBatches() {
+        Integer count = jdbcTemplate.queryForObject(
+                "SELECT count(*) FROM information_schema.table_constraints"
+                        + " WHERE table_schema = 'public'"
+                        + " AND table_name = 'inventory_transactions'"
+                        + " AND constraint_name = 'fk_inventory_transactions_batch_id'"
+                        + " AND constraint_type = 'FOREIGN KEY'",
+                Integer.class);
+        assertThat(count).isEqualTo(1);
+    }
+
+    @Test
     void referentialIntegrityIsEnforcedOnUserRoles() {
         assertThatThrownBy(
                         () ->

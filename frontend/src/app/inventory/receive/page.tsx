@@ -28,6 +28,9 @@ export default function StockReceivingPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductId, setSelectedProductId] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [batchNumber, setBatchNumber] = useState('');
+  const [expirationDate, setExpirationDate] = useState('');
+  const [manufacturingDate, setManufacturingDate] = useState('');
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +55,14 @@ export default function StockReceivingPage() {
       setError('Select a product and enter a quantity greater than zero.');
       return;
     }
+    if ((selectedProduct?.trackBatch || selectedProduct?.trackExpiry) && !batchNumber.trim()) {
+      setError('Batch number is required for this product.');
+      return;
+    }
+    if (selectedProduct?.trackExpiry && !expirationDate) {
+      setError('Expiration date is required for this product.');
+      return;
+    }
     setConfirming(true);
   };
 
@@ -66,6 +77,13 @@ export default function StockReceivingPage() {
         storeId,
         productId: selectedProductId,
         quantity: Number(quantity),
+        ...(selectedProduct?.trackBatch || selectedProduct?.trackExpiry
+          ? {
+              batchNumber: batchNumber.trim(),
+              ...(selectedProduct.trackExpiry ? { expirationDate } : {}),
+              ...(manufacturingDate ? { manufacturingDate } : {}),
+            }
+          : {}),
       });
       setResultingQuantity(result.quantity);
     } catch (err: unknown) {
@@ -174,6 +192,37 @@ export default function StockReceivingPage() {
             required
           />
 
+          {(selectedProduct?.trackBatch || selectedProduct?.trackExpiry) && (
+            <Input
+              id="batchNumber"
+              label="Batch / lot"
+              value={batchNumber}
+              onChange={(e) => setBatchNumber(e.target.value)}
+              required
+            />
+          )}
+
+          {selectedProduct?.trackExpiry && (
+            <Input
+              id="expirationDate"
+              label="Expiration date"
+              type="date"
+              value={expirationDate}
+              onChange={(e) => setExpirationDate(e.target.value)}
+              required
+            />
+          )}
+
+          {(selectedProduct?.trackBatch || selectedProduct?.trackExpiry) && (
+            <Input
+              id="manufacturingDate"
+              label="Manufacturing date"
+              type="date"
+              value={manufacturingDate}
+              onChange={(e) => setManufacturingDate(e.target.value)}
+            />
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)' }}>
             <Button type="button" variant="secondary" onClick={() => router.back()}>
               Cancel
@@ -183,7 +232,10 @@ export default function StockReceivingPage() {
         </form>
       ) : (
         <div style={{ marginTop: 'var(--space-6)' }}>
-          <p>Confirm receipt of {quantity} of {selectedProduct ? `${selectedProduct.name} (${selectedProduct.sku})` : 'the selected product'}.</p>
+          <p>
+            Confirm receipt of {quantity} of {selectedProduct ? `${selectedProduct.name} (${selectedProduct.sku})` : 'the selected product'}
+            {batchNumber ? ` , batch ${batchNumber}` : ''}.
+          </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
             <Button type="button" variant="secondary" onClick={() => setConfirming(false)} disabled={loading}>
               Back

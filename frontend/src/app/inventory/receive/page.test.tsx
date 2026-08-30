@@ -109,4 +109,42 @@ describe('StockReceivingPage', () => {
       expect(screen.getByText('Receipt confirmed. On-hand quantity is now 42.')).toBeTruthy();
     });
   });
+
+  it('collects lot and expiry when the product tracks them', async () => {
+    vi.mocked(getProducts).mockResolvedValue([
+      { id: '2', name: 'Milk', sku: 'MLK', trackBatch: true, trackExpiry: true } as never,
+    ]);
+    vi.mocked(inventoryApi.receiveStock).mockResolvedValue({
+      productId: '2',
+      productName: 'Milk',
+      sku: 'MLK',
+      storeId: 'store-1',
+      storeName: 'Main',
+      quantity: 3,
+      lastUpdatedAt: '2026-08-30T10:00:00Z',
+    });
+
+    renderWithAuth(['INVENTORY_RECEIVE']);
+
+    await waitFor(() => {
+      expect(screen.getByText('Milk (MLK)')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText('Product'), { target: { value: '2' } });
+    fireEvent.change(screen.getByLabelText('Quantity'), { target: { value: '3' } });
+    fireEvent.change(screen.getByLabelText('Batch / lot'), { target: { value: 'LOT-9' } });
+    fireEvent.change(screen.getByLabelText('Expiration date'), { target: { value: '2026-12-31' } });
+    fireEvent.click(screen.getByText('Review Receipt'));
+    fireEvent.click(screen.getByText('Confirm Receipt'));
+
+    await waitFor(() => {
+      expect(inventoryApi.receiveStock).toHaveBeenCalledWith({
+        storeId: 'store-1',
+        productId: '2',
+        quantity: 3,
+        batchNumber: 'LOT-9',
+        expirationDate: '2026-12-31',
+      });
+    });
+  });
 });
