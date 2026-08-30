@@ -14,7 +14,7 @@ vi.mock('@/lib/api/inventory', () => ({
 
 vi.mock('@/features/auth/AuthContext', () => ({
   useAuth: () => ({
-    user: { storeIds: ['store-1'] }
+    user: { storeIds: ['store-1'], permissions: ['INVENTORY_READ', 'INVENTORY_RECEIVE'] }
   })
 }));
 
@@ -23,6 +23,7 @@ describe('InventoryOverviewPage', () => {
     render(<InventoryOverviewPage />);
 
     expect(screen.getByText('Inventory Overview')).toBeTruthy();
+    expect(screen.getByText('Receive Stock')).toBeTruthy();
 
     await waitFor(() => {
       expect(screen.getByText('Apple')).toBeTruthy();

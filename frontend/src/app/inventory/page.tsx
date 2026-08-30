@@ -24,12 +24,22 @@ export default function InventoryOverviewPage() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Inventory Overview</h1>
-        <Link 
-          href="/inventory/adjust" 
-          className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
-        >
-          Adjust Stock
-        </Link>
+        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+          <Link 
+            href="/inventory/adjust" 
+            className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+          >
+            Adjust Stock
+          </Link>
+          {user?.permissions?.includes('INVENTORY_RECEIVE') && (
+            <Link
+              href="/inventory/receive"
+              className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+            >
+              Receive Stock
+            </Link>
+          )}
+        </div>
       </div>
 
       {!storeId ? (

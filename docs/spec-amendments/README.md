@@ -12,6 +12,10 @@ specifications at once.
 |-----------|-----------------|--------|
 | [AMD-001](AMD-001-database-design-rotation-and-bootstrap.md) | POS Database Design & ERD Specification | **Approved** 2026-08-25 |
 | [AMD-002](AMD-002-rest-api-self-service-password-change.md) | POS REST API Specification | **Approved** 2026-08-25 |
+| [AMD-003](AMD-003-ui-ux-forced-password-rotation-screen.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-27 |
+| [AMD-004](AMD-004-catalog-reference-data.md) | REST API + Database Design (catalog reference data) | **Approved** (Story 2.1) |
+| [AMD-005](AMD-005-rest-api-inventory-receipts.md) | POS REST API Specification | **Approved** 2026-08-30 |
+| [AMD-006](AMD-006-ui-ux-phase-3-stock-receiving.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-30 |
 
 ## Status values
 

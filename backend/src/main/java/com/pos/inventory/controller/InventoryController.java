@@ -4,6 +4,7 @@ import com.pos.common.config.RequestCorrelation;
 import com.pos.common.response.ApiResponse;
 import com.pos.inventory.dto.InventoryAdjustmentRequest;
 import com.pos.inventory.dto.InventoryBalanceResponse;
+import com.pos.inventory.dto.InventoryReceiptRequest;
 import com.pos.inventory.dto.InventoryTransactionResponse;
 import com.pos.inventory.service.InventoryService;
 import jakarta.validation.Valid;
@@ -55,5 +56,11 @@ public class InventoryController {
     @PreAuthorize("hasAuthority('INVENTORY_ADJUST')")
     public ApiResponse<InventoryBalanceResponse> adjustStock(@Valid @RequestBody InventoryAdjustmentRequest request) {
         return ApiResponse.of(inventoryService.adjustStock(request), RequestCorrelation.currentId());
+    }
+
+    @PostMapping("/receipts")
+    @PreAuthorize("hasAuthority('INVENTORY_RECEIVE')")
+    public ApiResponse<InventoryBalanceResponse> receiveStock(@Valid @RequestBody InventoryReceiptRequest request) {
+        return ApiResponse.of(inventoryService.receiveStock(request), RequestCorrelation.currentId());
     }
 }

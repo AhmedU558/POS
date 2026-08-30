@@ -13,6 +13,7 @@ import com.pos.inventory.domain.InventoryTransaction;
 import com.pos.inventory.domain.TransactionType;
 import com.pos.inventory.dto.InventoryAdjustmentRequest;
 import com.pos.inventory.dto.InventoryBalanceResponse;
+import com.pos.inventory.dto.InventoryReceiptRequest;
 import com.pos.inventory.dto.InventoryTransactionResponse;
 import com.pos.inventory.repository.InventoryBalanceRepository;
 import com.pos.inventory.repository.InventoryTransactionRepository;
@@ -132,6 +133,63 @@ public class InventoryService {
         auditRecorder.record(event);
 
         return InventoryBalanceResponse.fromEntity(balance);
+    }
+
+    @Transactional
+    public InventoryBalanceResponse receiveStock(InventoryReceiptRequest request) {
+        Store store = storeRepository.findById(request.storeId())
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
+        if (!store.isActive()) {
+            throw new ApiException(ErrorCode.RESOURCE_INACTIVE, "Store is inactive");
+        }
+        if (!storeScopeEvaluator.canAccess(store.getId())) {
+            throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
+        }
+
+        Product product = productRepository.findById(request.productId())
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
+        if (!product.isActive()) {
+            throw new ApiException(ErrorCode.RESOURCE_INACTIVE, "Product is inactive");
+        }
+
+        User currentUser = getCurrentUser();
+
+        balanceRepository.insertZeroBalanceIfAbsent(product.getId(), store.getId());
+        InventoryBalance balance = balanceRepository
+                .findByProductIdAndStoreIdForUpdate(product.getId(), store.getId())
+                .orElseThrow(() -> new ApiException(ErrorCode.INTERNAL_ERROR, "Balance could not be created"));
+
+        BigDecimal quantityBefore = balance.getQuantity();
+        balance.addQuantity(request.quantity());
+        balanceRepository.save(balance);
+
+        InventoryTransaction receipt = new InventoryTransaction(
+                product,
+                store,
+                TransactionType.RECEIPT,
+                request.quantity(),
+                null,
+                currentUser
+        );
+        transactionRepository.save(receipt);
+
+        AuditActor actor = currentUser != null ? AuditActor.user(currentUser.getId()) : AuditActor.system();
+        AuditEvent event = new AuditEvent(
+                actor,
+                "STOCK_RECEIPT",
+                "InventoryTransaction",
+                receipt.getId(),
+                quantitySnapshot(quantityBefore),
+                quantitySnapshot(balance.getQuantity()),
+                null
+        );
+        auditRecorder.record(event);
+
+        return InventoryBalanceResponse.fromEntity(balance);
+    }
+
+    private static String quantitySnapshot(BigDecimal quantity) {
+        return "{\"quantity\":\"" + quantity.toPlainString() + "\"}";
     }
 
     private User getCurrentUser() {

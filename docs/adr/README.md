@@ -22,3 +22,5 @@ decision is not re-litigated in every story.
 | [ADR-014](ADR-014-audit-precedes-bootstrap.md) | Audit foundation is built before first-administrator provisioning |
 | [ADR-015](ADR-015-first-administrator-provisioning.md) | First administrator is provisioned from operator-supplied secrets at startup |
 | [ADR-016](ADR-016-system-actor-convention.md) | A system-initiated action is recorded with a null actor |
+| [ADR-017](ADR-017-store-scope-many-to-many.md) | Store scope is `user_stores` plus `StoreScopeEvaluator` |
+| [ADR-018](ADR-018-story-3-2-stock-receiving-scope.md) | Story 3.2 is standalone receiving; transfers are deferred |

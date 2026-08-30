@@ -30,6 +30,12 @@ export interface InventoryAdjustmentRequest {
   reason: string;
 }
 
+export interface InventoryReceiptRequest {
+  storeId: string;
+  productId: string;
+  quantity: number;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -60,6 +66,11 @@ export const inventoryApi = {
 
   adjustStock: async (request: InventoryAdjustmentRequest) => {
     const res = await apiClient('/inventory/adjustments', { method: 'POST', body: JSON.stringify(request) });
+    return handleResponse<InventoryBalance>(res);
+  },
+
+  receiveStock: async (request: InventoryReceiptRequest) => {
+    const res = await apiClient('/inventory/receipts', { method: 'POST', body: JSON.stringify(request) });
     return handleResponse<InventoryBalance>(res);
   }
 };
