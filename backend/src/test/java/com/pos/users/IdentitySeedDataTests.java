@@ -63,26 +63,27 @@ class IdentitySeedDataTests extends AbstractIntegrationTest {
 
         // Intentionally exhaustive. Codes for products, sales and inventory arrive with their own
         // modules, so this turning red means a module seeded its codes ahead of its endpoints.
-        assertThat(codes).containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE");
+        assertThat(codes).containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE", "REPORT_INVENTORY");
     }
 
     @Test
     void superAdministratorHoldsEveryIdentityPermission() {
         assertThat(permissionCodesOf(RoleName.SUPER_ADMINISTRATOR))
-                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE");
+                .containsExactlyInAnyOrder("USER_READ", "USER_WRITE", "USER_ADMIN", "ROLE_READ", "ROLE_WRITE", "STORE_READ", "STORE_WRITE", "TERMINAL_READ", "TERMINAL_WRITE", "REGISTER_READ", "REGISTER_WRITE", "PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE", "REPORT_INVENTORY");
     }
 
     @Test
     void expectedRolesHoldTheirSeededPermissions() {
         // Assert other roles hold their granted permissions, and un-granted roles hold nothing.
         assertThat(permissionCodesOf(RoleName.STORE_MANAGER))
-                .containsExactlyInAnyOrder("PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE");
+                .containsExactlyInAnyOrder("PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE", "REPORT_INVENTORY");
         assertThat(permissionCodesOf(RoleName.INVENTORY_MANAGER))
-                .containsExactlyInAnyOrder("PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE");
+                .containsExactlyInAnyOrder("PRODUCT_READ", "PRODUCT_WRITE", "PRODUCT_PRICE_WRITE", "INVENTORY_READ", "INVENTORY_ADJUST", "INVENTORY_RECEIVE", "REPORT_INVENTORY");
         assertThat(permissionCodesOf(RoleName.CASHIER))
                 .containsExactlyInAnyOrder("PRODUCT_READ");
 
-        assertThat(permissionCodesOf(RoleName.ACCOUNTANT)).isEmpty();
+        assertThat(permissionCodesOf(RoleName.ACCOUNTANT))
+                .containsExactlyInAnyOrder("REPORT_INVENTORY");
         assertThat(permissionCodesOf(RoleName.ONLINE_ORDER_STAFF)).isEmpty();
     }
 

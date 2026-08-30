@@ -39,6 +39,22 @@ export default function InventoryOverviewPage() {
               Batches &amp; Expiry
             </Link>
           )}
+          {user?.permissions?.includes('INVENTORY_READ') && (
+            <Link
+              href="/inventory/alerts"
+              className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+            >
+              Stock Alerts
+            </Link>
+          )}
+          {user?.permissions?.includes('REPORT_INVENTORY') && (
+            <Link
+              href="/reports"
+              className="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700"
+            >
+              Inventory Reports
+            </Link>
+          )}
           {user?.permissions?.includes('INVENTORY_RECEIVE') && (
             <Link
               href="/inventory/receive"

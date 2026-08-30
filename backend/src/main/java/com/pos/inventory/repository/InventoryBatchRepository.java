@@ -12,6 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -59,4 +60,10 @@ public interface InventoryBatchRepository extends JpaRepository<InventoryBatch, 
             @Param("storeId") UUID storeId,
             @Param("horizon") LocalDate horizon,
             Pageable pageable);
+
+    @EntityGraph(attributePaths = {"product", "store"})
+    @Query("SELECT b FROM InventoryBatch b WHERE b.store.id = :storeId AND b.expirationDate IS NOT NULL AND b.expirationDate <= :horizon")
+    List<InventoryBatch> listExpiringOnOrBefore(
+            @Param("storeId") UUID storeId,
+            @Param("horizon") LocalDate horizon);
 }

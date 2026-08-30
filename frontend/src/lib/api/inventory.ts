@@ -41,6 +41,38 @@ export interface InventoryReceiptRequest {
 
 export type InventoryBatchStatus = 'EXPIRED' | 'EXPIRING_TODAY' | 'APPROACHING' | 'OK';
 
+export interface StockAlert {
+  id: string;
+  storeId: string;
+  storeName: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  batchId: string | null;
+  batchNumber: string | null;
+  alertType: 'LOW_STOCK' | 'EXPIRY';
+  quantity: number;
+  minimumLevel: number | null;
+  expirationDate: string | null;
+  status: 'OPEN' | 'ACKNOWLEDGED';
+  suggestedAction: string;
+  daysRemaining: number | null;
+  createdAt: string;
+  acknowledgedAt: string | null;
+}
+
+export interface InventoryReportRow {
+  productId: string;
+  productName: string;
+  sku: string;
+  storeId: string;
+  storeName: string;
+  quantity: number;
+  minStock: number;
+  belowMinimum: boolean;
+  lastUpdatedAt: string;
+}
+
 export interface InventoryBatch {
   id: string;
   productId: string;
@@ -106,6 +138,45 @@ export const inventoryApi = {
     const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
     if (days !== undefined) params.append('days', days.toString());
     const res = await apiClient('/inventory/expiry?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedResponse<InventoryBatch>>(res);
+  },
+
+  getAlerts: async (storeId: string, page = 0, size = 50, alertType?: string, status?: string, days?: number) => {
+    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
+    if (alertType) params.append('alertType', alertType);
+    if (status) params.append('status', status);
+    if (days !== undefined) params.append('days', days.toString());
+    const res = await apiClient('/inventory/alerts?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedResponse<StockAlert>>(res);
+  },
+
+  acknowledgeAlert: async (id: string) => {
+    const res = await apiClient('/inventory/alerts/' + id + '/acknowledge', { method: 'PATCH' });
+    return handleResponse<StockAlert>(res);
+  },
+
+  getInventoryReport: async (storeId: string, page = 0, size = 50, lowStockOnly = false) => {
+    const params = new URLSearchParams({
+      storeId,
+      page: page.toString(),
+      size: size.toString(),
+      lowStockOnly: String(lowStockOnly),
+    });
+    const res = await apiClient('/reports/inventory?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedResponse<InventoryReportRow>>(res);
+  },
+
+  getMovementReport: async (storeId: string, page = 0, size = 50, productId?: string) => {
+    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
+    if (productId) params.append('productId', productId);
+    const res = await apiClient('/reports/inventory/movements?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedResponse<InventoryTransaction>>(res);
+  },
+
+  getExpiryReport: async (storeId: string, page = 0, size = 50, days?: number) => {
+    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
+    if (days !== undefined) params.append('days', days.toString());
+    const res = await apiClient('/reports/inventory/expiry?' + params.toString(), { method: 'GET' });
     return handleResponse<PaginatedResponse<InventoryBatch>>(res);
   }
 };

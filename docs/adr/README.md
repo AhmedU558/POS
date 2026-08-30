@@ -25,3 +25,4 @@ decision is not re-litigated in every story.
 | [ADR-017](ADR-017-store-scope-many-to-many.md) | Store scope is `user_stores` plus `StoreScopeEvaluator` |
 | [ADR-018](ADR-018-story-3-2-stock-receiving-scope.md) | Story 3.2 is standalone receiving; transfers are deferred |
 | [ADR-019](ADR-019-story-3-3-batches-expiry.md) | Story 3.3 batches/expiry schema and reserved receiving contract |
+| [ADR-020](ADR-020-story-3-4-alerts-and-reports.md) | Story 3.4 stock alerts and inventory reports |

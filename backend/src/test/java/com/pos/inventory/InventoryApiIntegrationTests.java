@@ -22,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -51,14 +52,12 @@ public class InventoryApiIntegrationTests extends AbstractIntegrationTest {
 
     @BeforeEach
     void setup() {
-        if (storeRepository.count() == 0) {
-            Store store = new Store("TEST-STORE", "Test Store", "USD", "UTC");
-            testStore = storeRepository.save(store);
-        } else {
-            testStore = storeRepository.findAll().get(0);
-        }
+        testStore = storeRepository.findAll().stream()
+                .filter(store -> "TEST-STORE".equals(store.getCode()))
+                .findFirst()
+                .orElseGet(() -> storeRepository.save(new Store("TEST-STORE", "Test Store", "USD", "UTC")));
 
-        if (productRepository.count() == 0) {
+        testProduct = productRepository.findBySku("TEST-SKU").orElseGet(() -> {
             Product product = new Product();
             product.setSku("TEST-SKU");
             product.setName("Test Product");
@@ -70,10 +69,8 @@ public class InventoryApiIntegrationTests extends AbstractIntegrationTest {
             product.setTrackBatch(false);
             product.setTrackExpiry(false);
             product.setActive(true);
-            testProduct = productRepository.save(product);
-        } else {
-            testProduct = productRepository.findAll().get(0);
-        }
+            return productRepository.save(product);
+        });
 
         if (userRepository.findByUsername("admin").isEmpty()) {
             admin = new User("admin", passwordEncoder.encode("Admin123!"), "Admin", "User");
@@ -131,10 +128,29 @@ public class InventoryApiIntegrationTests extends AbstractIntegrationTest {
 
     @Test
     void shouldFailAdjustmentResultingInNegativeStock() throws Exception {
-        InventoryBalance b = new InventoryBalance(testProduct, testStore);
+        String suffix = UUID.randomUUID().toString().substring(0, 8);
+        Store isolatedStore = storeRepository.save(new Store("NEG-" + suffix, "Negative " + suffix, "USD", "UTC"));
+        Product isolatedProduct = new Product();
+        isolatedProduct.setSku("NEG-SKU-" + suffix);
+        isolatedProduct.setName("Negative Product " + suffix);
+        isolatedProduct.setPurchasePrice(BigDecimal.TEN);
+        isolatedProduct.setSellingPrice(BigDecimal.valueOf(20));
+        isolatedProduct.setTaxRate(BigDecimal.ZERO);
+        isolatedProduct.setMinStock(BigDecimal.ZERO);
+        isolatedProduct.setMaxStock(BigDecimal.valueOf(100));
+        isolatedProduct.setTrackBatch(false);
+        isolatedProduct.setTrackExpiry(false);
+        isolatedProduct.setActive(true);
+        isolatedProduct = productRepository.save(isolatedProduct);
+        if (!userRepository.hasStoreAccess(admin.getId(), isolatedStore.getId())) {
+            admin.assignStore(isolatedStore);
+            admin = userRepository.save(admin);
+        }
+
+        InventoryBalance b = new InventoryBalance(isolatedProduct, isolatedStore);
         b.addQuantity(BigDecimal.valueOf(5.0));
         balanceRepository.save(b);
-        String payload = String.format("{\"storeId\":\"%s\", \"productId\":\"%s\", \"quantity\":-10.0, \"reason\":\"Too much reduction\"}", testStore.getId(), testProduct.getId());
+        String payload = String.format("{\"storeId\":\"%s\", \"productId\":\"%s\", \"quantity\":-10.0, \"reason\":\"Too much reduction\"}", isolatedStore.getId(), isolatedProduct.getId());
 
         mockMvc.perform(post("/api/v1/inventory/adjustments")
                 .header("Authorization", adminToken)

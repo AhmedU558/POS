@@ -11,19 +11,24 @@ import com.pos.common.security.StoreScopeEvaluator;
 import com.pos.inventory.domain.InventoryBalance;
 import com.pos.inventory.domain.InventoryBatch;
 import com.pos.inventory.domain.InventoryTransaction;
+import com.pos.inventory.domain.StockAlert;
 import com.pos.inventory.domain.TransactionType;
 import com.pos.inventory.dto.InventoryAdjustmentRequest;
 import com.pos.inventory.dto.InventoryBalanceResponse;
 import com.pos.inventory.dto.InventoryBatchResponse;
 import com.pos.inventory.dto.InventoryReceiptRequest;
+import com.pos.inventory.dto.InventoryReportRow;
 import com.pos.inventory.dto.InventoryTransactionResponse;
+import com.pos.inventory.dto.StockAlertResponse;
 import com.pos.inventory.repository.InventoryBalanceRepository;
 import com.pos.inventory.repository.InventoryBatchRepository;
 import com.pos.inventory.repository.InventoryTransactionRepository;
+import com.pos.inventory.repository.StockAlertRepository;
 import com.pos.organization.domain.Store;
 import com.pos.organization.repository.StoreRepository;
 import com.pos.users.domain.User;
 import com.pos.users.repository.UserRepository;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -35,6 +40,8 @@ import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -45,6 +52,7 @@ public class InventoryService {
     private final InventoryBalanceRepository balanceRepository;
     private final InventoryBatchRepository batchRepository;
     private final InventoryTransactionRepository transactionRepository;
+    private final StockAlertRepository alertRepository;
     private final ProductRepository productRepository;
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
@@ -54,6 +62,7 @@ public class InventoryService {
     public InventoryService(InventoryBalanceRepository balanceRepository,
                             InventoryBatchRepository batchRepository,
                             InventoryTransactionRepository transactionRepository,
+                            StockAlertRepository alertRepository,
                             ProductRepository productRepository,
                             StoreRepository storeRepository,
                             UserRepository userRepository,
@@ -62,6 +71,7 @@ public class InventoryService {
         this.balanceRepository = balanceRepository;
         this.batchRepository = batchRepository;
         this.transactionRepository = transactionRepository;
+        this.alertRepository = alertRepository;
         this.productRepository = productRepository;
         this.storeRepository = storeRepository;
         this.userRepository = userRepository;
@@ -119,6 +129,56 @@ public class InventoryService {
     }
 
     @Transactional
+    public Page<StockAlertResponse> listAlerts(UUID storeId, String alertType, String status, Integer days, Pageable pageable) {
+        Store store = requireReadableStore(storeId);
+        int window = normalizeExpiryWindow(days);
+        LocalDate today = todayInStore(store);
+        refreshAlerts(store, today, window);
+        return alertRepository.search(storeId, blankToNull(alertType), blankToNull(status), pageable)
+                .map(alert -> StockAlertResponse.fromEntity(alert, today));
+    }
+
+    @Transactional
+    public StockAlertResponse acknowledgeAlert(UUID alertId) {
+        StockAlert alert = alertRepository.findById(alertId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Alert not found"));
+        if (!storeScopeEvaluator.canAccess(alert.getStore().getId())) {
+            throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
+        }
+        User currentUser = getCurrentUser();
+        if (!StockAlert.STATUS_ACKNOWLEDGED.equals(alert.getStatus())) {
+            alert.acknowledge(currentUser);
+            alertRepository.save(alert);
+            AuditActor actor = currentUser != null ? AuditActor.user(currentUser.getId()) : AuditActor.system();
+            auditRecorder.record(AuditEvent.of(actor, "ALERT_ACKNOWLEDGE", "StockAlert", alert.getId()));
+        }
+        return StockAlertResponse.fromEntity(alert, todayInStore(alert.getStore()));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InventoryReportRow> reportInventory(UUID storeId, boolean lowStockOnly, Pageable pageable) {
+        requireReadableStore(storeId);
+        return balanceRepository.searchReportBalances(storeId, lowStockOnly, pageable)
+                .map(InventoryReportRow::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InventoryTransactionResponse> reportMovements(UUID storeId, UUID productId, Pageable pageable) {
+        requireReadableStore(storeId);
+        if (productId != null) {
+            return transactionRepository.findByProductIdAndStoreIdOrderByCreatedAtDesc(productId, storeId, pageable)
+                    .map(InventoryTransactionResponse::fromEntity);
+        }
+        return transactionRepository.findByStoreIdOrderByCreatedAtDesc(storeId, pageable)
+                .map(InventoryTransactionResponse::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<InventoryBatchResponse> reportExpiry(UUID storeId, Integer days, Pageable pageable) {
+        return listExpiry(storeId, days, pageable);
+    }
+
+    @Transactional
     public InventoryBalanceResponse adjustStock(InventoryAdjustmentRequest request) {
         if (!storeScopeEvaluator.canAccess(request.storeId())) {
             throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
@@ -161,6 +221,8 @@ public class InventoryService {
         AuditActor actor = currentUser != null ? AuditActor.user(currentUser.getId()) : AuditActor.system();
         AuditEvent event = AuditEvent.of(actor, "STOCK_ADJUSTMENT", "InventoryTransaction", tx.getId());
         auditRecorder.record(event);
+
+        syncLowStockAlert(store, product, balance.getQuantity());
 
         return InventoryBalanceResponse.fromEntity(balance);
     }
@@ -219,6 +281,11 @@ public class InventoryService {
                 null
         );
         auditRecorder.record(event);
+
+        syncLowStockAlert(store, product, balance.getQuantity());
+        if (batch != null) {
+            syncExpiryAlert(store, todayInStore(store), DEFAULT_EXPIRY_WINDOW_DAYS, batch);
+        }
 
         return InventoryBalanceResponse.fromEntity(balance);
     }
@@ -302,6 +369,101 @@ public class InventoryService {
 
     private static boolean datesConflict(LocalDate stored, LocalDate requested) {
         return stored != null && requested != null && !stored.equals(requested);
+    }
+
+    private void refreshAlerts(Store store, LocalDate today, int windowDays) {
+        Set<UUID> lowProductIds = new HashSet<>();
+        for (InventoryBalance balance : balanceRepository.findBelowMinimum(store.getId())) {
+            lowProductIds.add(balance.getProduct().getId());
+            upsertLowStock(store, balance.getProduct(), balance.getQuantity());
+        }
+        for (StockAlert existing : alertRepository.findByStoreIdAndAlertType(store.getId(), StockAlert.TYPE_LOW_STOCK)) {
+            if (!lowProductIds.contains(existing.getProduct().getId())) {
+                alertRepository.delete(existing);
+            }
+        }
+
+        LocalDate horizon = today.plusDays(windowDays);
+        Set<UUID> expiringBatchIds = new HashSet<>();
+        for (InventoryBatch batch : batchRepository.listExpiringOnOrBefore(store.getId(), horizon)) {
+            expiringBatchIds.add(batch.getId());
+            syncExpiryAlert(store, today, windowDays, batch);
+        }
+        for (StockAlert existing : alertRepository.findByStoreIdAndAlertType(store.getId(), StockAlert.TYPE_EXPIRY)) {
+            UUID batchId = existing.getBatch() == null ? null : existing.getBatch().getId();
+            if (batchId == null || !expiringBatchIds.contains(batchId)) {
+                alertRepository.delete(existing);
+            }
+        }
+    }
+
+    private void syncLowStockAlert(Store store, Product product, BigDecimal quantity) {
+        BigDecimal minimum = product.getMinStock();
+        if (minimum != null && quantity.compareTo(minimum) <= 0) {
+            upsertLowStock(store, product, quantity);
+            return;
+        }
+        alertRepository.findByStoreIdAndProductIdAndAlertTypeAndBatchIsNull(
+                        store.getId(), product.getId(), StockAlert.TYPE_LOW_STOCK)
+                .ifPresent(alertRepository::delete);
+    }
+
+    private void upsertLowStock(Store store, Product product, BigDecimal quantity) {
+        alertRepository.findByStoreIdAndProductIdAndAlertTypeAndBatchIsNull(
+                        store.getId(), product.getId(), StockAlert.TYPE_LOW_STOCK)
+                .ifPresentOrElse(
+                        existing -> {
+                            existing.refresh(quantity, product.getMinStock(), null);
+                            alertRepository.save(existing);
+                        },
+                        () -> saveNewAlert(StockAlert.lowStock(store, product, quantity, product.getMinStock())));
+    }
+
+    private void syncExpiryAlert(Store store, LocalDate today, int windowDays, InventoryBatch batch) {
+        LocalDate expiration = batch.getExpirationDate();
+        if (expiration == null || expiration.isAfter(today.plusDays(windowDays))) {
+            if (batch.getId() != null) {
+                alertRepository.findByStoreIdAndBatchIdAndAlertType(store.getId(), batch.getId(), StockAlert.TYPE_EXPIRY)
+                        .ifPresent(alertRepository::delete);
+            }
+            return;
+        }
+        alertRepository.findByStoreIdAndBatchIdAndAlertType(store.getId(), batch.getId(), StockAlert.TYPE_EXPIRY)
+                .ifPresentOrElse(
+                        existing -> {
+                            existing.refresh(batch.getQuantity(), null, expiration);
+                            alertRepository.save(existing);
+                        },
+                        () -> saveNewAlert(StockAlert.expiry(store, batch.getProduct(), batch, batch.getQuantity(), expiration)));
+    }
+
+    private void saveNewAlert(StockAlert alert) {
+        try {
+            alertRepository.saveAndFlush(alert);
+        } catch (DataIntegrityViolationException ex) {
+            if (StockAlert.TYPE_LOW_STOCK.equals(alert.getAlertType())) {
+                alertRepository.findByStoreIdAndProductIdAndAlertTypeAndBatchIsNull(
+                                alert.getStore().getId(), alert.getProduct().getId(), StockAlert.TYPE_LOW_STOCK)
+                        .ifPresent(existing -> {
+                            existing.refresh(alert.getQuantity(), alert.getMinimumLevel(), null);
+                            alertRepository.save(existing);
+                        });
+            } else if (alert.getBatch() != null) {
+                alertRepository.findByStoreIdAndBatchIdAndAlertType(
+                                alert.getStore().getId(), alert.getBatch().getId(), StockAlert.TYPE_EXPIRY)
+                        .ifPresent(existing -> {
+                            existing.refresh(alert.getQuantity(), null, alert.getExpirationDate());
+                            alertRepository.save(existing);
+                        });
+            }
+        }
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private static String quantitySnapshot(BigDecimal quantity) {

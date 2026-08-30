@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.hasItem;
@@ -50,7 +51,7 @@ class InventoryBatchExpiryFilterTests extends AbstractIntegrationTest {
         Product product = newProduct("EFL-SKU-" + suffix, true, true);
         Product otherProduct = newProduct("EFO-SKU-" + suffix, true, false);
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(ZoneOffset.UTC);
         saveBatch(product, store, "EXPIRED", today.minusDays(2), new BigDecimal("1"));
         saveBatch(product, store, "TODAY", today, new BigDecimal("2"));
         saveBatch(product, store, "SOON", today.plusDays(5), new BigDecimal("3"));

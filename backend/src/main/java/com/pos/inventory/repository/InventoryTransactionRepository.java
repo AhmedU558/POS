@@ -9,4 +9,6 @@ import java.util.UUID;
 
 public interface InventoryTransactionRepository extends JpaRepository<InventoryTransaction, UUID> {
     Page<InventoryTransaction> findByProductIdAndStoreIdOrderByCreatedAtDesc(UUID productId, UUID storeId, Pageable pageable);
+
+    Page<InventoryTransaction> findByStoreIdOrderByCreatedAtDesc(UUID storeId, Pageable pageable);
 }

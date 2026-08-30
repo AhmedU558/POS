@@ -7,6 +7,7 @@ import com.pos.inventory.dto.InventoryBalanceResponse;
 import com.pos.inventory.dto.InventoryBatchResponse;
 import com.pos.inventory.dto.InventoryReceiptRequest;
 import com.pos.inventory.dto.InventoryTransactionResponse;
+import com.pos.inventory.dto.StockAlertResponse;
 import com.pos.inventory.service.InventoryService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,23 @@ public class InventoryController {
             @RequestParam(required = false) Integer days,
             Pageable pageable) {
         return ApiResponse.of(inventoryService.listBatches(storeId, productId, days, pageable), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/alerts")
+    @PreAuthorize("hasAuthority('INVENTORY_READ')") // alerts list
+    public ApiResponse<Page<StockAlertResponse>> listAlerts(
+            @RequestParam UUID storeId,
+            @RequestParam(required = false) String alertType,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer days,
+            Pageable pageable) {
+        return ApiResponse.of(inventoryService.listAlerts(storeId, alertType, status, days, pageable), RequestCorrelation.currentId());
+    }
+
+    @PatchMapping("/alerts/{id}/acknowledge")
+    @PreAuthorize("hasAuthority('INVENTORY_READ')") // alert acknowledge
+    public ApiResponse<StockAlertResponse> acknowledgeAlert(@PathVariable UUID id) {
+        return ApiResponse.of(inventoryService.acknowledgeAlert(id), RequestCorrelation.currentId());
     }
 
     @GetMapping("/expiry")
