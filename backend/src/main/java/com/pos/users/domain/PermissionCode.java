@@ -29,6 +29,8 @@ public final class PermissionCode {
     public static final String PURCHASE_READ = "PURCHASE_READ";
     public static final String PURCHASE_WRITE = "PURCHASE_WRITE";
     public static final String PURCHASE_APPROVE = "PURCHASE_APPROVE";
+    public static final String AP_READ = "AP_READ";
+    public static final String AP_WRITE = "AP_WRITE";
 
     public static final Set<String> IDENTITY =
             Set.of(USER_READ, USER_WRITE, USER_ADMIN, ROLE_READ, ROLE_WRITE);

@@ -145,6 +145,23 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
     }
 
     @Test
+    void supplierInvoicesTableMatchesTheDerivedColumnContract() {
+        Map<String, String> columns = columnTypesOf("supplier_invoices");
+        assertThat(columns)
+                .containsEntry("id", "uuid")
+                .containsEntry("invoice_number", "character varying")
+                .containsEntry("supplier_id", "uuid")
+                .containsEntry("invoice_date", "date")
+                .containsEntry("due_date", "date")
+                .containsEntry("total_amount", "numeric")
+                .containsEntry("paid_amount", "numeric")
+                .containsEntry("status", "character varying")
+                .containsEntry("notes", "text")
+                .containsEntry("created_at", "timestamp with time zone")
+                .containsEntry("updated_at", "timestamp with time zone");
+    }
+
+    @Test
     void goodsReceiptsTablesMatchTheDerivedColumnContract() {
         Map<String, String> headers = columnTypesOf("goods_receipts");
         assertThat(headers)

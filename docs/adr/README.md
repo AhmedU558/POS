@@ -32,3 +32,4 @@ decision is not re-litigated in every story.
 | [ADR-024](ADR-024-story-4-4-supplier-products.md) | Story 4.4 supplier-product associations are a replace-set join |
 | [ADR-025](ADR-025-story-5-1-purchase-order-lifecycle.md) | Story 5.1 purchase orders are a draft-only lifecycle |
 | [ADR-026](ADR-026-story-5-2-goods-receiving.md) | Story 5.2 goods receipts update inventory against a submitted PO |
+| [ADR-027](ADR-027-story-5-3-supplier-invoices.md) | Story 5.3 supplier invoices are independent AP records |
