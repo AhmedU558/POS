@@ -28,6 +28,14 @@ export interface Sale {
   items: SaleItem[];
 }
 
+export interface PaymentMethod {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  active: boolean;
+}
+
 export interface SaleCreateRequest {
   storeId: string;
   terminalId: string;
@@ -45,6 +53,13 @@ async function handleResponse<T>(res: Response): Promise<T> {
   }
   return body.data;
 }
+
+export const paymentMethodsApi = {
+  list: async () => {
+    const res = await apiClient('/payment-methods', { method: 'GET' });
+    return handleResponse<PaymentMethod[]>(res);
+  },
+};
 
 export const salesApi = {
   create: async (body: SaleCreateRequest, idempotencyKey: string) => {

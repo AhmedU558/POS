@@ -207,6 +207,8 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
                 .containsEntry("name", "character varying")
                 .containsEntry("type", "character varying")
                 .containsEntry("is_active", "boolean");
+        assertThat(jdbcTemplate.queryForList("SELECT code FROM payment_methods", String.class))
+                .contains("CASH", "CARD", "STORE_CREDIT", "OTHER");
 
         Map<String, String> keys = columnTypesOf("idempotency_keys");
         assertThat(keys)

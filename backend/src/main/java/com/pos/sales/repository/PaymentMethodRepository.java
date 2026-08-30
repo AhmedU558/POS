@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface PaymentMethodRepository extends JpaRepository<PaymentMethod, UUID> {
 
     Optional<PaymentMethod> findByCode(String code);
+
+    java.util.List<PaymentMethod> findByActiveTrueOrderByCodeAsc();
 }

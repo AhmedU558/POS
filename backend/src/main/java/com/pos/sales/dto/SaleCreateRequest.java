@@ -15,6 +15,6 @@ public record SaleCreateRequest(
         @NotNull UUID registerSessionId,
         UUID customerId,
         @NotEmpty @Valid List<SaleItemRequest> items,
-        @NotNull @Size(min = 1, max = 1) @Valid List<SalePaymentRequest> payments
+        @NotNull @Size(min = 1) @Valid List<SalePaymentRequest> payments
 ) {
 }

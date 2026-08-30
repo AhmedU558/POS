@@ -8,8 +8,11 @@ import com.pos.catalog.repository.ProductRepository;
 import com.pos.common.exception.ApiException;
 import com.pos.common.response.ErrorCode;
 import com.pos.common.security.StoreScopeEvaluator;
+import com.pos.customers.domain.CreditTransactionType;
 import com.pos.customers.domain.Customer;
+import com.pos.customers.dto.CustomerCreditTransactionRequest;
 import com.pos.customers.repository.CustomerRepository;
+import com.pos.customers.service.CustomerCreditService;
 import com.pos.inventory.service.InventoryService;
 import com.pos.organization.domain.Register;
 import com.pos.organization.domain.RegisterSession;
@@ -43,6 +46,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Year;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -58,6 +62,7 @@ public class SaleService {
     private final CashTransactionRepository cashTransactionRepository;
     private final IdempotencyKeyRepository idempotencyKeyRepository;
     private final InventoryService inventoryService;
+    private final CustomerCreditService customerCreditService;
     private final StoreScopeEvaluator storeScopeEvaluator;
     private final UserRepository userRepository;
     private final AuditRecorder auditRecorder;
@@ -71,6 +76,7 @@ public class SaleService {
             CashTransactionRepository cashTransactionRepository,
             IdempotencyKeyRepository idempotencyKeyRepository,
             InventoryService inventoryService,
+            CustomerCreditService customerCreditService,
             StoreScopeEvaluator storeScopeEvaluator,
             UserRepository userRepository,
             AuditRecorder auditRecorder) {
@@ -82,6 +88,7 @@ public class SaleService {
         this.cashTransactionRepository = cashTransactionRepository;
         this.idempotencyKeyRepository = idempotencyKeyRepository;
         this.inventoryService = inventoryService;
+        this.customerCreditService = customerCreditService;
         this.storeScopeEvaluator = storeScopeEvaluator;
         this.userRepository = userRepository;
         this.auditRecorder = auditRecorder;
@@ -137,13 +144,6 @@ public class SaleService {
                     .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Customer not found"));
         }
 
-        SalePaymentRequest paymentRequest = request.payments().getFirst();
-        PaymentMethod method = paymentMethodRepository.findById(paymentRequest.paymentMethodId())
-                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Payment method not found"));
-        if (!method.isActive() || !PaymentMethod.CASH.equals(method.getCode())) {
-            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Only a single CASH payment is allowed");
-        }
-
         Sale sale = new Sale();
         sale.setStore(store);
         sale.setTerminal(register.getTerminal());
@@ -187,12 +187,7 @@ public class SaleService {
         sale.setSubtotal(subtotal);
         sale.setTaxTotal(taxTotal);
         sale.setGrandTotal(grandTotal);
-
-        SalePayment payment = new SalePayment();
-        payment.setPaymentMethod(method);
-        payment.setAmount(grandTotal);
-        payment.setStatus(SalePayment.STATUS_COMPLETED);
-        sale.addPayment(payment);
+        applyPayments(sale, request.payments(), customer, grandTotal);
 
         Sale saved = saleRepository.save(sale);
 
@@ -204,14 +199,7 @@ public class SaleService {
                     saved.getId());
         }
 
-        CashTransaction cash = new CashTransaction();
-        cash.setRegisterSession(session);
-        cash.setTransactionType(CashTransaction.TYPE_SALE);
-        cash.setAmount(saved.getGrandTotal());
-        cash.setReferenceType("Sale");
-        cash.setReferenceId(saved.getId());
-        cash.setCreatedBy(cashier);
-        cashTransactionRepository.save(cash);
+        settleNonInventoryEffects(saved, session, cashier, store);
 
         persistIdempotency(idempotencyKey.trim(), hash, saved, existing);
 
@@ -222,6 +210,76 @@ public class SaleService {
                 saved.getId()));
 
         return SaleResponse.fromEntity(saleRepository.findDetailedById(saved.getId()).orElse(saved));
+    }
+
+    private void applyPayments(Sale sale, List<SalePaymentRequest> payments, Customer customer, BigDecimal grandTotal) {
+        if (payments.size() == 1) {
+            PaymentMethod method = requireActiveMethod(payments.getFirst().paymentMethodId());
+            if (PaymentMethod.CASH.equals(method.getCode())) {
+                addPayment(sale, method, grandTotal);
+                return;
+            }
+        }
+
+        BigDecimal sum = ZERO;
+        for (SalePaymentRequest line : payments) {
+            PaymentMethod method = requireActiveMethod(line.paymentMethodId());
+            if (PaymentMethod.STORE_CREDIT.equals(method.getCode()) && customer == null) {
+                throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Store credit requires a customer");
+            }
+            BigDecimal amount = money(line.amount());
+            addPayment(sale, method, amount);
+            sum = sum.add(amount);
+        }
+        if (sum.compareTo(grandTotal) != 0) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Payment amounts must equal the sale total");
+        }
+    }
+
+    private void settleNonInventoryEffects(Sale saved, RegisterSession session, User cashier, Store store) {
+        BigDecimal cashTotal = ZERO;
+        for (SalePayment payment : saved.getPayments()) {
+            String code = payment.getPaymentMethod().getCode();
+            if (PaymentMethod.CASH.equals(code)) {
+                cashTotal = cashTotal.add(payment.getAmount());
+            } else if (PaymentMethod.STORE_CREDIT.equals(code)) {
+                customerCreditService.post(
+                        saved.getCustomer().getId(),
+                        new CustomerCreditTransactionRequest(
+                                CreditTransactionType.REDEEM,
+                                payment.getAmount(),
+                                store.getCurrencyCode(),
+                                "Sale",
+                                saved.getId()));
+            }
+        }
+        if (cashTotal.compareTo(ZERO) > 0) {
+            CashTransaction cash = new CashTransaction();
+            cash.setRegisterSession(session);
+            cash.setTransactionType(CashTransaction.TYPE_SALE);
+            cash.setAmount(cashTotal);
+            cash.setReferenceType("Sale");
+            cash.setReferenceId(saved.getId());
+            cash.setCreatedBy(cashier);
+            cashTransactionRepository.save(cash);
+        }
+    }
+
+    private PaymentMethod requireActiveMethod(UUID paymentMethodId) {
+        PaymentMethod method = paymentMethodRepository.findById(paymentMethodId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Payment method not found"));
+        if (!method.isActive()) {
+            throw new ApiException(ErrorCode.RESOURCE_INACTIVE, "Payment method is inactive");
+        }
+        return method;
+    }
+
+    private static void addPayment(Sale sale, PaymentMethod method, BigDecimal amount) {
+        SalePayment payment = new SalePayment();
+        payment.setPaymentMethod(method);
+        payment.setAmount(amount);
+        payment.setStatus(SalePayment.STATUS_COMPLETED);
+        sale.addPayment(payment);
     }
 
     private void persistIdempotency(String key, String hash, Sale sale, IdempotencyKey existing) {

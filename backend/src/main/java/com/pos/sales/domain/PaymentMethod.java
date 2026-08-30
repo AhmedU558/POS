@@ -14,6 +14,9 @@ import java.util.UUID;
 public class PaymentMethod {
 
     public static final String CASH = "CASH";
+    public static final String CARD = "CARD";
+    public static final String STORE_CREDIT = "STORE_CREDIT";
+    public static final String OTHER = "OTHER";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -44,6 +47,10 @@ public class PaymentMethod {
 
     public String getName() {
         return name;
+    }
+
+    public String getType() {
+        return type;
     }
 
     public boolean isActive() {

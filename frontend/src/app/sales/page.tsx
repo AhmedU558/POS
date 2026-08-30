@@ -1,12 +1,13 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { getProducts } from '@/lib/api/catalog';
-import { salesApi, Sale } from '@/lib/api/sales';
+import { paymentMethodsApi, salesApi, PaymentMethod, Sale } from '@/lib/api/sales';
 import { Product } from '@/types/catalog';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
 
 interface CartLine {
@@ -27,12 +28,27 @@ export default function PosCheckoutPage() {
   const [terminalId, setTerminalId] = useState('');
   const [registerId, setRegisterId] = useState('');
   const [registerSessionId, setRegisterSessionId] = useState('');
-  const [paymentMethodId, setPaymentMethodId] = useState('');
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [payments, setPayments] = useState<{ paymentMethodId: string; amount: string }[]>([
+    { paymentMethodId: '', amount: '' },
+  ]);
   const [customerId, setCustomerId] = useState('');
   const [completed, setCompleted] = useState<Sale | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    void paymentMethodsApi.list().then((list) => {
+      setMethods(list);
+      const cash = list.find((method) => method.code === 'CASH');
+      if (cash) {
+        setPayments([{ paymentMethodId: cash.id, amount: '' }]);
+      }
+    }).catch((err: unknown) => {
+      setError(err instanceof Error ? err.message : 'Failed to load payment methods');
+    });
+  }, []);
 
   if (!canCreate) {
     return (
@@ -85,7 +101,12 @@ export default function PosCheckoutPage() {
           registerSessionId,
           customerId: customerId || null,
           items: cart.map((line) => ({ productId: line.productId, quantity: Number(line.quantity) })),
-          payments: [{ paymentMethodId, amount: 0 }],
+          payments: payments
+            .filter((line) => line.paymentMethodId)
+            .map((line) => ({
+              paymentMethodId: line.paymentMethodId,
+              amount: Number(line.amount) || 1,
+            })),
         },
         crypto.randomUUID()
       );
@@ -171,7 +192,38 @@ export default function PosCheckoutPage() {
             <Input id="pos-register" label="Register" value={registerId} onChange={(e) => setRegisterId(e.target.value)} required />
             <Input id="pos-session" label="Register session" value={registerSessionId} onChange={(e) => setRegisterSessionId(e.target.value)} required />
             <Input id="pos-customer" label="Customer" value={customerId} onChange={(e) => setCustomerId(e.target.value)} />
-            <Input id="pos-method" label="Cash payment method" value={paymentMethodId} onChange={(e) => setPaymentMethodId(e.target.value)} required />
+            {payments.map((line, index) => (
+              <div key={index}>
+                <Select
+                  id={'pos-method-' + index}
+                  label={index === 0 ? 'Payment method' : 'Payment method ' + (index + 1)}
+                  options={methods.map((method) => ({ value: method.id, label: method.name }))}
+                  value={line.paymentMethodId}
+                  onChange={(e) => setPayments((current) =>
+                    current.map((item, i) => i === index ? { ...item, paymentMethodId: e.target.value } : item)
+                  )}
+                  required
+                />
+                <Input
+                  id={'pos-amount-' + index}
+                  label="Tendered amount"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={line.amount}
+                  onChange={(e) => setPayments((current) =>
+                    current.map((item, i) => i === index ? { ...item, amount: e.target.value } : item)
+                  )}
+                />
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPayments((current) => [...current, { paymentMethodId: '', amount: '' }])}
+            >
+              Add payment
+            </Button>
             <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting || cart.length === 0}>
               Complete sale
             </Button>
@@ -186,6 +238,9 @@ export default function PosCheckoutPage() {
           <p>Discount: {completed.discountTotal}</p>
           <p>Tax: {completed.taxTotal}</p>
           <p>Total: {completed.grandTotal}</p>
+          {completed.payments.map((payment, index) => (
+            <p key={index}>{payment.paymentMethod}: {payment.amount}</p>
+          ))}
         </section>
       )}
     </div>
