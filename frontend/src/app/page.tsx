@@ -44,6 +44,15 @@ export default function Home() {
         </div>
       )}
 
+      {user?.permissions?.includes('PURCHASE_READ') && (
+        <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Purchasing</h2>
+          <Link href="/purchase-orders" style={{ textDecoration: 'none' }}>
+            <Button variant="secondary">Purchase Orders</Button>
+          </Link>
+        </div>
+      )}
+
       {user?.permissions?.includes('SUPPLIER_READ') && (
         <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
           <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Suppliers</h2>
