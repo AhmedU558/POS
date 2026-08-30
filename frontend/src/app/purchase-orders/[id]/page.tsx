@@ -22,6 +22,7 @@ export default function PurchaseOrderDetailPage() {
   const canRead = user?.permissions?.includes('PURCHASE_READ') ?? false;
   const canWrite = user?.permissions?.includes('PURCHASE_WRITE') ?? false;
   const canApprove = user?.permissions?.includes('PURCHASE_APPROVE') ?? false;
+  const canReceive = user?.permissions?.includes('INVENTORY_RECEIVE') ?? false;
 
   const [order, setOrder] = useState<PurchaseOrder | null>(null);
   const [poNumber, setPoNumber] = useState('');
@@ -147,6 +148,14 @@ export default function PurchaseOrderDetailPage() {
                 ))}
               </Tbody>
             </Table>
+          )}
+
+          {canReceive && order.status === 'SUBMITTED' && (
+            <div style={{ marginTop: 'var(--space-6)' }}>
+              <Button type="button" onClick={() => router.push('/purchase-orders/' + id + '/receive')}>
+                Receive
+              </Button>
+            </div>
           )}
 
           {canApprove && isDraft && (
