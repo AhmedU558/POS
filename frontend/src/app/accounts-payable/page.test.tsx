@@ -2,10 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import AccountsPayablePage from './page';
 import * as AuthContext from '@/features/auth/AuthContext';
-import { invoicesApi } from '@/lib/api/accounts-payable';
+import { invoicesApi, paymentsApi } from '@/lib/api/accounts-payable';
 
 vi.mock('@/lib/api/accounts-payable', () => ({
   invoicesApi: { list: vi.fn() },
+  paymentsApi: { overdue: vi.fn(), summary: vi.fn() },
 }));
 
 vi.mock('next/navigation', () => ({
@@ -56,22 +57,29 @@ describe('AccountsPayablePage', () => {
       size: 50,
       number: 0,
     });
+    vi.mocked(paymentsApi.summary).mockResolvedValue({
+      totalInvoiced: 100,
+      paid: 0,
+      outstanding: 100,
+      overdue: 20,
+    });
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it('renders invoice list without payments', async () => {
+  it('renders invoice list with payables summary', async () => {
     renderWithAuth(['AP_READ', 'AP_WRITE']);
     expect(screen.getByText('Create Invoice')).toBeTruthy();
     await waitFor(() => {
       expect(invoicesApi.list).toHaveBeenCalled();
+      expect(paymentsApi.summary).toHaveBeenCalled();
       expect(screen.getByText('INV-100')).toBeTruthy();
-      expect(screen.getByText('100')).toBeTruthy();
+      expect(screen.getByText('Outstanding: 100')).toBeTruthy();
+      expect(screen.getByText('Overdue: 20')).toBeTruthy();
     });
-    expect(screen.queryByText(/record payment/i)).toBeNull();
-    expect(screen.queryByText(/statement/i)).toBeNull();
+    expect(screen.getByLabelText('Overdue only')).toBeTruthy();
   });
 
   it('hides the table without AP_READ', () => {

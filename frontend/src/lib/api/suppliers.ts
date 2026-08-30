@@ -28,6 +28,17 @@ export interface SupplierProduct {
   active: boolean;
 }
 
+export interface SupplierStatementLine {
+  type: 'INVOICE' | 'PAYMENT';
+  date: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  paymentId: string | null;
+  debit: number;
+  credit: number;
+  runningBalance: number;
+}
+
 export interface SupplierRequest {
   supplierCode: string;
   name: string;
@@ -72,6 +83,12 @@ export const suppliersApi = {
   listProducts: async (id: string) => {
     const res = await apiClient('/suppliers/' + id + '/products', { method: 'GET' });
     return handleResponse<SupplierProduct[]>(res);
+  },
+
+  statement: async (id: string, page = 0, size = 50) => {
+    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
+    const res = await apiClient('/suppliers/' + id + '/statement?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedResponse<SupplierStatementLine>>(res);
   },
 
   replaceProducts: async (id: string, productIds: string[]) => {

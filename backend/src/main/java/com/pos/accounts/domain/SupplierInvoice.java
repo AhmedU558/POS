@@ -113,6 +113,13 @@ public class SupplierInvoice {
         return paidAmount;
     }
 
+    public void applyPayment(BigDecimal amount) {
+        this.paidAmount = this.paidAmount.add(amount);
+        if (remainingAmount().compareTo(BigDecimal.ZERO) == 0) {
+            this.status = SupplierInvoiceStatus.PAID;
+        }
+    }
+
     public SupplierInvoiceStatus getStatus() {
         return status;
     }

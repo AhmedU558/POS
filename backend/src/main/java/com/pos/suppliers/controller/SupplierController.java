@@ -2,6 +2,8 @@ package com.pos.suppliers.controller;
 
 import com.pos.common.config.RequestCorrelation;
 import com.pos.common.response.ApiResponse;
+import com.pos.accounts.dto.SupplierStatementLineResponse;
+import com.pos.accounts.service.SupplierStatementService;
 import com.pos.suppliers.dto.SupplierCreateRequest;
 import com.pos.suppliers.dto.SupplierProductResponse;
 import com.pos.suppliers.dto.SupplierProductsReplaceRequest;
@@ -32,10 +34,15 @@ public class SupplierController {
 
     private final SupplierService supplierService;
     private final SupplierProductService supplierProductService;
+    private final SupplierStatementService supplierStatementService;
 
-    public SupplierController(SupplierService supplierService, SupplierProductService supplierProductService) {
+    public SupplierController(
+            SupplierService supplierService,
+            SupplierProductService supplierProductService,
+            SupplierStatementService supplierStatementService) {
         this.supplierService = supplierService;
         this.supplierProductService = supplierProductService;
+        this.supplierStatementService = supplierStatementService;
     }
 
     @GetMapping
@@ -79,5 +86,11 @@ public class SupplierController {
             @PathVariable UUID id,
             @Valid @RequestBody SupplierProductsReplaceRequest request) {
         return ApiResponse.of(supplierProductService.replace(id, request), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/{id}/statement")
+    @PreAuthorize("hasAuthority('AP_READ')") // supplier statement
+    public ApiResponse<Page<SupplierStatementLineResponse>> statement(@PathVariable UUID id, Pageable pageable) {
+        return ApiResponse.of(supplierStatementService.statement(id, pageable), RequestCorrelation.currentId());
     }
 }

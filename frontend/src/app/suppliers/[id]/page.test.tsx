@@ -105,9 +105,16 @@ describe('SupplierProfilePage', () => {
 
     expect(getProducts).not.toHaveBeenCalled();
     expect(screen.queryByText('Save associated products')).toBeNull();
-    expect(screen.queryByText(/statement/i)).toBeNull();
+    expect(screen.queryByText('Statement')).toBeNull();
     expect(screen.queryByText(/outstanding/i)).toBeNull();
     expect(screen.getByText('Save')).toBeTruthy();
+  });
+
+  it('shows the statement action with AP_READ', async () => {
+    renderWithAuth(['SUPPLIER_READ', 'AP_READ']);
+    await waitFor(() => {
+      expect(screen.getByText('Statement')).toBeTruthy();
+    });
   });
 
   it('unlinks a product without PRODUCT_READ', async () => {

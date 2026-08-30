@@ -3,10 +3,11 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { invoicesApi, SupplierInvoice } from '@/lib/api/accounts-payable';
+import { invoicesApi, paymentsApi, SupplierInvoice, SupplierPayment } from '@/lib/api/accounts-payable';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
 
 function statusVariant(status: string) {
   if (status === 'PAID') return 'success';
@@ -20,8 +21,10 @@ export default function InvoiceDetailPage() {
   const { user } = useAuth();
   const canRead = user?.permissions?.includes('AP_READ') ?? false;
   const canWrite = user?.permissions?.includes('AP_WRITE') ?? false;
+  const canPay = user?.permissions?.includes('AP_PAYMENT_CREATE') ?? false;
 
   const [invoice, setInvoice] = useState<SupplierInvoice | null>(null);
+  const [payments, setPayments] = useState<SupplierPayment[]>([]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -36,9 +39,10 @@ export default function InvoiceDetailPage() {
       setIsLoading(false);
       return;
     }
-    invoicesApi.get(id)
-      .then((loaded) => {
+    Promise.all([invoicesApi.get(id), paymentsApi.list(id)])
+      .then(([loaded, history]) => {
         setInvoice(loaded);
+        setPayments(history.content ?? []);
         setInvoiceNumber(loaded.invoiceNumber);
         setInvoiceDate(loaded.invoiceDate);
         setDueDate(loaded.dueDate);
@@ -103,6 +107,11 @@ export default function InvoiceDetailPage() {
         <>
           <p>Supplier: {invoice.supplierName}</p>
           <p>Paid: {invoice.paidAmount} — Outstanding: {invoice.remainingAmount}</p>
+          {canPay && isOpen && (
+            <Button type="button" onClick={() => router.push('/accounts-payable/' + invoice.id + '/pay')} style={{ marginBottom: 'var(--space-4)' }}>
+              Record payment
+            </Button>
+          )}
           <form onSubmit={onSave}>
             <Input id="inv-number" label="Invoice number" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} required disabled={!canWrite || !isOpen} />
             <Input id="inv-date" label="Invoice date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} required disabled={!canWrite || !isOpen} />
@@ -113,6 +122,36 @@ export default function InvoiceDetailPage() {
               <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>Save</Button>
             )}
           </form>
+
+          <section style={{ marginTop: 'var(--space-8)' }}>
+            <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Payment history</h2>
+            {payments.length === 0 ? (
+              <div style={{ padding: 'var(--space-6)', textAlign: 'center', backgroundColor: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
+                No payments recorded.
+              </div>
+            ) : (
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>Date</Th>
+                    <Th>Amount</Th>
+                    <Th>Method</Th>
+                    <Th>Reference</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {payments.map((payment) => (
+                    <Tr key={payment.id}>
+                      <Td>{payment.paymentDate}</Td>
+                      <Td>{payment.amount}</Td>
+                      <Td>{payment.method}</Td>
+                      <Td>{payment.reference ?? '—'}</Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            )}
+          </section>
         </>
       )}
     </div>

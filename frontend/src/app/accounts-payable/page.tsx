@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { invoicesApi, SupplierInvoice } from '@/lib/api/accounts-payable';
+import { invoicesApi, paymentsApi, PayablesSummary, SupplierInvoice } from '@/lib/api/accounts-payable';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Checkbox } from '@/components/ui/Checkbox';
 import { Badge } from '@/components/ui/Badge';
 import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
 
@@ -24,7 +25,9 @@ export default function AccountsPayablePage() {
 
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [invoices, setInvoices] = useState<SupplierInvoice[]>([]);
+  const [summary, setSummary] = useState<PayablesSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,16 +36,20 @@ export default function AccountsPayablePage() {
       return;
     }
     setIsLoading(true);
-    invoicesApi.list(query || undefined, status || undefined)
-      .then((res) => {
+    const invoicesRequest = overdueOnly
+      ? paymentsApi.overdue()
+      : invoicesApi.list(query || undefined, status || undefined);
+    Promise.all([invoicesRequest, paymentsApi.summary()])
+      .then(([res, totals]) => {
         setInvoices(res.content ?? []);
+        setSummary(totals);
         setError(null);
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load invoices');
       })
       .finally(() => setIsLoading(false));
-  }, [canRead, query, status]);
+  }, [canRead, query, status, overdueOnly]);
 
   if (!canRead) {
     return (
@@ -68,6 +75,15 @@ export default function AccountsPayablePage() {
         </div>
       )}
 
+      {summary && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', marginBottom: 'var(--space-6)' }}>
+          <p>Invoiced: {summary.totalInvoiced}</p>
+          <p>Paid: {summary.paid}</p>
+          <p>Outstanding: {summary.outstanding}</p>
+          <p>Overdue: {summary.overdue}</p>
+        </div>
+      )}
+
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
         <div style={{ flex: '1 1 16rem' }}>
           <Input id="inv-search" label="Search" placeholder="Invoice number" value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -85,6 +101,12 @@ export default function AccountsPayablePage() {
             ]}
           />
         </div>
+        <Checkbox
+          id="inv-overdue"
+          label="Overdue only"
+          checked={overdueOnly}
+          onChange={(e) => setOverdueOnly(e.target.checked)}
+        />
       </div>
 
       {isLoading ? (

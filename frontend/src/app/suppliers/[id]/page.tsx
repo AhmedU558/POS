@@ -19,6 +19,7 @@ export default function SupplierProfilePage() {
   const canRead = user?.permissions?.includes('SUPPLIER_READ') ?? false;
   const canWrite = user?.permissions?.includes('SUPPLIER_WRITE') ?? false;
   const canReadProducts = user?.permissions?.includes('PRODUCT_READ') ?? false;
+  const canReadStatement = user?.permissions?.includes('AP_READ') ?? false;
 
   const [supplierCode, setSupplierCode] = useState('');
   const [name, setName] = useState('');
@@ -111,9 +112,16 @@ export default function SupplierProfilePage() {
 
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <Button type="button" variant="secondary" onClick={() => router.push('/suppliers')} style={{ marginBottom: 'var(--space-4)' }}>
-        Back to suppliers
-      </Button>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+        <Button type="button" variant="secondary" onClick={() => router.push('/suppliers')}>
+          Back to suppliers
+        </Button>
+        {canReadStatement && (
+          <Button type="button" variant="secondary" onClick={() => router.push('/suppliers/' + id + '/statement')}>
+            Statement
+          </Button>
+        )}
+      </div>
       <h1>Supplier Profile</h1>
       {isActive ? <Badge variant="success">Active</Badge> : <Badge variant="error">Inactive</Badge>}
 
