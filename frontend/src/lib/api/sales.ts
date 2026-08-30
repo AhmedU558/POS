@@ -124,4 +124,14 @@ export const salesApi = {
     const res = await apiClient('/sales/' + id + '/receipt/reprint', { method: 'POST' });
     return handleResponse<SaleReceipt>(res);
   },
+
+  hold: async (id: string) => {
+    const res = await apiClient('/sales/' + id + '/hold', { method: 'POST' });
+    return handleResponse<Sale>(res);
+  },
+
+  resume: async (id: string, body: { registerSessionId: string; payments: { paymentMethodId: string; amount: number }[] }) => {
+    const res = await apiClient('/sales/' + id + '/resume', { method: 'POST', body: JSON.stringify(body) });
+    return handleResponse<Sale>(res);
+  },
 };

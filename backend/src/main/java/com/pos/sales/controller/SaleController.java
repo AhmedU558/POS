@@ -5,6 +5,7 @@ import com.pos.common.response.ApiResponse;
 import com.pos.sales.dto.SaleCreateRequest;
 import com.pos.sales.dto.SaleReceiptResponse;
 import com.pos.sales.dto.SaleResponse;
+import com.pos.sales.dto.SaleResumeRequest;
 import com.pos.sales.dto.SaleSummaryResponse;
 import com.pos.sales.service.SaleService;
 import jakarta.validation.Valid;
@@ -66,6 +67,20 @@ public class SaleController {
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @Valid @RequestBody SaleCreateRequest request) {
         return ApiResponse.of(saleService.create(request, idempotencyKey), RequestCorrelation.currentId());
+    }
+
+    @PostMapping("/{id}/hold")
+    @PreAuthorize("hasAuthority('SALE_CREATE')")
+    public ApiResponse<SaleResponse> hold(@PathVariable UUID id) {
+        return ApiResponse.of(saleService.hold(id), RequestCorrelation.currentId());
+    }
+
+    @PostMapping("/{id}/resume")
+    @PreAuthorize("hasAuthority('SALE_CREATE')")
+    public ApiResponse<SaleResponse> resume(
+            @PathVariable UUID id,
+            @Valid @RequestBody SaleResumeRequest request) {
+        return ApiResponse.of(saleService.resume(id, request), RequestCorrelation.currentId());
     }
 
     @GetMapping("/{id}")

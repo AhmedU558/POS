@@ -30,6 +30,7 @@ import java.util.UUID;
 public class Sale {
 
     public static final String STATUS_COMPLETED = "COMPLETED";
+    public static final String STATUS_HELD = "HELD";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

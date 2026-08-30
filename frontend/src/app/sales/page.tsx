@@ -119,6 +119,31 @@ export default function PosCheckoutPage() {
     }
   };
 
+  const onHold = async () => {
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const sale = await salesApi.create(
+        {
+          storeId,
+          terminalId,
+          registerId,
+          registerSessionId,
+          customerId: customerId || null,
+          items: cart.map((line) => ({ productId: line.productId, quantity: Number(line.quantity) })),
+          payments: [],
+        },
+        crypto.randomUUID()
+      );
+      setCompleted(sale);
+      setCart([]);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to hold sale');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
@@ -226,6 +251,14 @@ export default function PosCheckoutPage() {
             </Button>
             <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting || cart.length === 0}>
               Complete sale
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isSubmitting || cart.length === 0}
+              onClick={() => void onHold()}
+            >
+              Hold sale
             </Button>
           </form>
         </section>

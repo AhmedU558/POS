@@ -47,9 +47,14 @@ export default function Home() {
       {user?.permissions?.includes('SALE_CREATE') && (
         <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
           <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Point of Sale</h2>
-          <Link href="/sales" style={{ textDecoration: 'none' }}>
-            <Button variant="secondary">POS Checkout</Button>
-          </Link>
+          <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+            <Link href="/sales" style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">POS Checkout</Button>
+            </Link>
+            <Link href="/sales/held" style={{ textDecoration: 'none' }}>
+              <Button variant="secondary">Held Sales</Button>
+            </Link>
+          </div>
         </div>
       )}
 

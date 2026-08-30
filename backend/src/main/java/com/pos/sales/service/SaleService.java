@@ -29,6 +29,7 @@ import com.pos.sales.dto.SaleItemRequest;
 import com.pos.sales.dto.SalePaymentRequest;
 import com.pos.sales.dto.SaleReceiptResponse;
 import com.pos.sales.dto.SaleResponse;
+import com.pos.sales.dto.SaleResumeRequest;
 import com.pos.sales.dto.SaleSummaryResponse;
 import com.pos.sales.repository.CashTransactionRepository;
 import com.pos.sales.repository.IdempotencyKeyRepository;
@@ -211,7 +212,8 @@ public class SaleService {
         sale.setRegisterSession(session);
         sale.setCashier(cashier);
         sale.setCustomer(customer);
-        sale.setStatus(Sale.STATUS_COMPLETED);
+        boolean completing = request.payments() != null && !request.payments().isEmpty();
+        sale.setStatus(completing ? Sale.STATUS_COMPLETED : Sale.STATUS_HELD);
         sale.setDiscountTotal(ZERO);
         sale.setCurrencyCode(store.getCurrencyCode());
         sale.setReceiptNumber(nextReceiptNumber());
@@ -247,10 +249,75 @@ public class SaleService {
         sale.setSubtotal(subtotal);
         sale.setTaxTotal(taxTotal);
         sale.setGrandTotal(grandTotal);
-        applyPayments(sale, request.payments(), customer, grandTotal);
+        if (completing) {
+            applyPayments(sale, request.payments(), customer, grandTotal);
+        }
 
         Sale saved = saleRepository.save(sale);
 
+        if (completing) {
+            completeSettlement(saved, store, session, cashier);
+        }
+
+        persistIdempotency(idempotencyKey.trim(), hash, saved, existing);
+
+        auditRecorder.record(AuditEvent.of(
+                AuditActor.user(cashier.getId()),
+                completing ? "SALE_CREATED" : "SALE_HELD",
+                "Sale",
+                saved.getId()));
+
+        return SaleResponse.fromEntity(saleRepository.findDetailedById(saved.getId()).orElse(saved));
+    }
+
+    @Transactional
+    public SaleResponse hold(UUID id) {
+        Sale sale = requireAccessible(id);
+        if (Sale.STATUS_COMPLETED.equals(sale.getStatus())) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "A completed sale cannot be held");
+        }
+        return SaleResponse.fromEntity(sale);
+    }
+
+    @Transactional
+    public SaleResponse resume(UUID id, SaleResumeRequest request) {
+        Sale sale = requireAccessible(id);
+        if (!Sale.STATUS_HELD.equals(sale.getStatus())) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Only a held sale can be resumed");
+        }
+
+        RegisterSession session = sessionRepository.findByIdForUpdate(request.registerSessionId())
+                .orElseThrow(() -> new ApiException(ErrorCode.REGISTER_SESSION_REQUIRED, "Register session not found"));
+        if (!session.isOpen()) {
+            throw new ApiException(ErrorCode.REGISTER_SESSION_REQUIRED, "Register session is not open");
+        }
+        Register register = session.getRegister();
+        Store store = register.getStore();
+        if (!store.getId().equals(sale.getStore().getId())) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Resume session must belong to the sale store");
+        }
+
+        User cashier = currentUser();
+        sale.setRegisterSession(session);
+        sale.setRegister(register);
+        sale.setTerminal(register.getTerminal());
+        sale.setCashier(cashier);
+        sale.setStatus(Sale.STATUS_COMPLETED);
+        applyPayments(sale, request.payments(), sale.getCustomer(), sale.getGrandTotal());
+
+        Sale saved = saleRepository.save(sale);
+        completeSettlement(saved, store, session, cashier);
+
+        auditRecorder.record(AuditEvent.of(
+                AuditActor.user(cashier.getId()),
+                "SALE_RESUMED",
+                "Sale",
+                saved.getId()));
+
+        return SaleResponse.fromEntity(saleRepository.findDetailedById(saved.getId()).orElse(saved));
+    }
+
+    private void completeSettlement(Sale saved, Store store, RegisterSession session, User cashier) {
         for (SaleItem item : saved.getItems()) {
             inventoryService.deductForSale(
                     store.getId(),
@@ -258,18 +325,7 @@ public class SaleService {
                     item.getQuantity(),
                     saved.getId());
         }
-
         settleNonInventoryEffects(saved, session, cashier, store);
-
-        persistIdempotency(idempotencyKey.trim(), hash, saved, existing);
-
-        auditRecorder.record(AuditEvent.of(
-                AuditActor.user(cashier.getId()),
-                "SALE_CREATED",
-                "Sale",
-                saved.getId()));
-
-        return SaleResponse.fromEntity(saleRepository.findDetailedById(saved.getId()).orElse(saved));
     }
 
     private void applyPayments(Sale sale, List<SalePaymentRequest> payments, Customer customer, BigDecimal grandTotal) {

@@ -38,6 +38,8 @@ specifications at once.
 | [AMD-030](AMD-030-ui-ux-split-tender.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 6.2) |
 | [AMD-031](AMD-031-rest-api-receipts-and-history.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 6.3) |
 | [AMD-032](AMD-032-ui-ux-sales-history.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 6.3) |
+| [AMD-033](AMD-033-rest-api-hold-resume.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 6.4) |
+| [AMD-034](AMD-034-ui-ux-held-sales.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 6.4) |
 
 ## Status values
 
