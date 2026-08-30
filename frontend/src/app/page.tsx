@@ -53,6 +53,15 @@ export default function Home() {
         </div>
       )}
 
+      {user?.permissions?.includes('SALE_READ') && (
+        <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Sales</h2>
+          <Link href="/sales/history" style={{ textDecoration: 'none' }}>
+            <Button variant="secondary">Sales History</Button>
+          </Link>
+        </div>
+      )}
+
       {user?.permissions?.includes('AP_READ') && (
         <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
           <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Accounts Payable</h2>

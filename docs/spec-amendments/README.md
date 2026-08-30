@@ -36,6 +36,8 @@ specifications at once.
 | [AMD-024](AMD-024-ui-ux-supplier-invoices.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 5.3) |
 | [AMD-029](AMD-029-rest-api-payment-methods.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 6.2) |
 | [AMD-030](AMD-030-ui-ux-split-tender.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 6.2) |
+| [AMD-031](AMD-031-rest-api-receipts-and-history.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 6.3) |
+| [AMD-032](AMD-032-ui-ux-sales-history.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 6.3) |
 
 ## Status values
 

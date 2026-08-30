@@ -1,4 +1,5 @@
 import { apiClient } from '../apiClient';
+import { PaginatedSales } from './sales';
 
 export interface PaginatedResponse<T> {
   content: T[];
@@ -98,6 +99,11 @@ export const customersApi = {
     const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
     const res = await apiClient('/customers/' + id + '/credit?' + params.toString(), { method: 'GET' });
     return handleResponse<CustomerCredit>(res);
+  },
+
+  listSales: async (id: string) => {
+    const res = await apiClient('/customers/' + id + '/sales', { method: 'GET' });
+    return handleResponse<PaginatedSales>(res);
   },
 
   postCredit: async (id: string, body: CreditTransactionRequest) => {

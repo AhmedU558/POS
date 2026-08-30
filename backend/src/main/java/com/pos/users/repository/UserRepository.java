@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -32,4 +33,7 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT COUNT(u) > 0 FROM User u JOIN u.stores s WHERE u.id = :userId AND s.id = :storeId")
     boolean hasStoreAccess(@Param("userId") UUID userId, @Param("storeId") UUID storeId);
+
+    @Query("SELECT s.id FROM User u JOIN u.stores s WHERE u.id = :userId")
+    List<UUID> findStoreIds(@Param("userId") UUID userId);
 }

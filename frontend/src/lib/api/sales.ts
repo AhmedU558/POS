@@ -61,6 +61,36 @@ export const paymentMethodsApi = {
   },
 };
 
+export interface SaleSummary {
+  id: string;
+  receiptNumber: string;
+  status: string;
+  grandTotal: number;
+  createdAt: string;
+  customerName: string | null;
+  cashierName: string | null;
+}
+
+export interface SaleReceipt {
+  saleId: string;
+  receiptNumber: string;
+  createdAt: string;
+  storeName: string;
+  cashierName: string | null;
+  customerName: string | null;
+  status: string;
+  subtotal: number;
+  discountTotal: number;
+  taxTotal: number;
+  grandTotal: number;
+  payments: SalePayment[];
+  items: SaleItem[];
+}
+
+export interface PaginatedSales {
+  content: SaleSummary[];
+}
+
 export const salesApi = {
   create: async (body: SaleCreateRequest, idempotencyKey: string) => {
     const res = await apiClient('/sales', {
@@ -74,5 +104,24 @@ export const salesApi = {
   get: async (id: string) => {
     const res = await apiClient('/sales/' + id, { method: 'GET' });
     return handleResponse<Sale>(res);
+  },
+
+  list: async (filters: { query?: string; status?: string; customerId?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (filters.query) params.set('query', filters.query);
+    if (filters.status) params.set('status', filters.status);
+    if (filters.customerId) params.set('customerId', filters.customerId);
+    const res = await apiClient('/sales?' + params.toString(), { method: 'GET' });
+    return handleResponse<PaginatedSales>(res);
+  },
+
+  receipt: async (id: string) => {
+    const res = await apiClient('/sales/' + id + '/receipt', { method: 'GET' });
+    return handleResponse<SaleReceipt>(res);
+  },
+
+  reprint: async (id: string) => {
+    const res = await apiClient('/sales/' + id + '/receipt/reprint', { method: 'POST' });
+    return handleResponse<SaleReceipt>(res);
   },
 };

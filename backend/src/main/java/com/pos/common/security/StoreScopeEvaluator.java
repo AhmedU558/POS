@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.UUID;
 
 @Component("storeScopeEvaluator")
@@ -33,5 +34,17 @@ public class StoreScopeEvaluator {
         }
 
         return userRepository.hasStoreAccess(userDetails.getId(), storeId);
+    }
+
+    public List<UUID> permittedStoreIds() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return List.of();
+        }
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof CustomUserDetails userDetails)) {
+            return List.of();
+        }
+        return userRepository.findStoreIds(userDetails.getId());
     }
 }

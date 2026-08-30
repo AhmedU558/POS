@@ -27,7 +27,9 @@ import com.pos.sales.domain.SalePayment;
 import com.pos.sales.dto.SaleCreateRequest;
 import com.pos.sales.dto.SaleItemRequest;
 import com.pos.sales.dto.SalePaymentRequest;
+import com.pos.sales.dto.SaleReceiptResponse;
 import com.pos.sales.dto.SaleResponse;
+import com.pos.sales.dto.SaleSummaryResponse;
 import com.pos.sales.repository.CashTransactionRepository;
 import com.pos.sales.repository.IdempotencyKeyRepository;
 import com.pos.sales.repository.PaymentMethodRepository;
@@ -36,6 +38,8 @@ import com.pos.users.domain.User;
 import com.pos.users.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,6 +48,7 @@ import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.OffsetDateTime;
 import java.time.Year;
 import java.util.HexFormat;
 import java.util.List;
@@ -95,13 +100,68 @@ public class SaleService {
     }
 
     @Transactional(readOnly = true)
+    public Page<SaleSummaryResponse> search(
+            String query,
+            String status,
+            UUID customerId,
+            UUID cashierId,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            Pageable pageable) {
+        var storeIds = storeScopeEvaluator.permittedStoreIds();
+        if (storeIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        OffsetDateTime fromBound = from == null ? OffsetDateTime.parse("1970-01-01T00:00:00Z") : from;
+        OffsetDateTime toBound = to == null ? OffsetDateTime.parse("9999-12-31T23:59:59Z") : to;
+        return saleRepository.search(
+                        storeIds,
+                        query == null ? "" : query.trim(),
+                        status == null ? "" : status.trim(),
+                        customerId,
+                        cashierId,
+                        fromBound,
+                        toBound,
+                        pageable)
+                .map(SaleSummaryResponse::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SaleSummaryResponse> listForCustomer(UUID customerId, Pageable pageable) {
+        customerRepository.findById(customerId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Customer not found"));
+        return search(null, null, customerId, null, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public SaleReceiptResponse receipt(UUID id) {
+        return SaleReceiptResponse.fromEntity(requireAccessible(id));
+    }
+
+    @Transactional
+    public SaleReceiptResponse reprint(UUID id) {
+        Sale sale = requireAccessible(id);
+        User actor = currentUser();
+        auditRecorder.record(AuditEvent.of(
+                AuditActor.user(actor.getId()),
+                "RECEIPT_REPRINTED",
+                "Sale",
+                sale.getId()));
+        return SaleReceiptResponse.fromEntity(sale);
+    }
+
+    @Transactional(readOnly = true)
     public SaleResponse get(UUID id) {
+        return SaleResponse.fromEntity(requireAccessible(id));
+    }
+
+    private Sale requireAccessible(UUID id) {
         Sale sale = saleRepository.findDetailedById(id)
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Sale not found"));
         if (!storeScopeEvaluator.canAccess(sale.getStore().getId())) {
             throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
         }
-        return SaleResponse.fromEntity(sale);
+        return sale;
     }
 
     @Transactional

@@ -6,6 +6,8 @@ import com.pos.customers.dto.CustomerCreateRequest;
 import com.pos.customers.dto.CustomerResponse;
 import com.pos.customers.dto.CustomerUpdateRequest;
 import com.pos.customers.service.CustomerService;
+import com.pos.sales.dto.SaleSummaryResponse;
+import com.pos.sales.service.SaleService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,9 +28,11 @@ import java.util.UUID;
 public class CustomerController {
 
     private final CustomerService customerService;
+    private final SaleService saleService;
 
-    public CustomerController(CustomerService customerService) {
+    public CustomerController(CustomerService customerService, SaleService saleService) {
         this.customerService = customerService;
+        this.saleService = saleService;
     }
 
     @GetMapping
@@ -44,6 +48,12 @@ public class CustomerController {
     @PreAuthorize("hasAuthority('CUSTOMER_WRITE')") // customers create
     public ApiResponse<CustomerResponse> create(@Valid @RequestBody CustomerCreateRequest request) {
         return ApiResponse.of(customerService.create(request), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/{id}/sales")
+    @PreAuthorize("hasAuthority('CUSTOMER_READ')")
+    public ApiResponse<Page<SaleSummaryResponse>> sales(@PathVariable UUID id, Pageable pageable) {
+        return ApiResponse.of(saleService.listForCustomer(id, pageable), RequestCorrelation.currentId());
     }
 
     @GetMapping("/{id}")
