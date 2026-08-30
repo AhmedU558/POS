@@ -28,3 +28,4 @@ decision is not re-litigated in every story.
 | [ADR-020](ADR-020-story-3-4-alerts-and-reports.md) | Story 3.4 stock alerts and inventory reports |
 | [ADR-021](ADR-021-story-4-1-customer-profiles.md) | Story 4.1 customer profiles are global master data |
 | [ADR-022](ADR-022-story-4-2-store-credit-ledger.md) | Story 4.2 store credit is a customer-scoped immutable ledger |
+| [ADR-023](ADR-023-story-4-3-supplier-profiles.md) | Story 4.3 supplier profiles are global master data |
