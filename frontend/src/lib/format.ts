@@ -18,7 +18,7 @@ export function toNumber(value: Decimal): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-let activeCurrency = 'USD';
+let activeCurrency = 'PKR';
 
 /** Set once from the active store so every screen shows the same currency (SRS store settings). */
 export function setActiveCurrency(code: string | null | undefined) {
@@ -31,16 +31,42 @@ export function getActiveCurrency(): string {
   return activeCurrency;
 }
 
+/**
+ * Currency symbol overrides. Intl.NumberFormat may display "PKR" or "Rs" depending on locale;
+ * we normalise to the symbol the business wants on receipts and screens.
+ */
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  PKR: 'Rs.',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+};
+
+/** Returns the display symbol for a currency code, falling back to the code itself. */
+export function currencySymbol(code: string = activeCurrency): string {
+  return CURRENCY_SYMBOLS[code] ?? code;
+}
+
 export function formatMoney(value: Decimal, currency: string = activeCurrency): string {
+  const num = toNumber(value);
+  const symbol = CURRENCY_SYMBOLS[currency];
+  if (symbol) {
+    // Use our own symbol + Intl number formatting (without currency style) for consistent display.
+    const formatted = new Intl.NumberFormat(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(num);
+    return `${symbol}\u00A0${formatted}`;
+  }
   try {
     return new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency,
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(toNumber(value));
+    }).format(num);
   } catch {
-    return toNumber(value).toFixed(2);
+    return num.toFixed(2);
   }
 }
 

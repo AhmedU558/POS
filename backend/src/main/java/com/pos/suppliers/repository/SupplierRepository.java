@@ -16,7 +16,7 @@ public interface SupplierRepository extends JpaRepository<Supplier, UUID> {
     boolean existsBySupplierCodeAndIdNot(String supplierCode, UUID id);
 
     @Query("SELECT s FROM Supplier s WHERE "
-            + "(:query IS NULL OR LOWER(s.supplierCode) LIKE LOWER(CONCAT('%', :query, '%')) "
+            + "(:query = '' OR LOWER(s.supplierCode) LIKE LOWER(CONCAT('%', :query, '%')) "
             + "OR LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%')) "
             + "OR LOWER(COALESCE(s.phone, '')) LIKE LOWER(CONCAT('%', :query, '%')) "
             + "OR LOWER(COALESCE(s.email, '')) LIKE LOWER(CONCAT('%', :query, '%'))) "

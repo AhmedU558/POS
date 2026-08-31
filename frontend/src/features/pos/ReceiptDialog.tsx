@@ -103,6 +103,8 @@ export function ReceiptDialog({
             </div>
           ))}
         </div>
+
+        <p className="receipt__branding">Powered by Aqvion Labs.com</p>
       </div>
     </Modal>
   );

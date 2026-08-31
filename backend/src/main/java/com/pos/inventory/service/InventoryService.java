@@ -87,7 +87,7 @@ public class InventoryService {
         if (!storeScopeEvaluator.canAccess(storeId)) {
             throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
         }
-        return balanceRepository.searchBalances(storeId, categoryId, query, pageable)
+        return balanceRepository.searchBalances(storeId, categoryId, query == null ? "" : query.trim(), pageable)
                 .map(InventoryBalanceResponse::fromEntity);
     }
 

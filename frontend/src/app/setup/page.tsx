@@ -214,7 +214,7 @@ function StoresCard({
   const [editing, setEditing] = useState<Store | 'new' | null>(null);
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
-  const [currencyCode, setCurrencyCode] = useState('USD');
+  const [currencyCode, setCurrencyCode] = useState('PKR');
   const [timezone, setTimezone] = useState(guessTimezone());
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -224,7 +224,7 @@ function StoresCard({
     setFormError(null);
     setCode(store === 'new' ? '' : store.code);
     setName(store === 'new' ? '' : store.name);
-    setCurrencyCode(store === 'new' ? 'USD' : store.currencyCode);
+    setCurrencyCode(store === 'new' ? 'PKR' : store.currencyCode);
     setTimezone(store === 'new' ? guessTimezone() : store.timezone);
   };
 
@@ -234,7 +234,7 @@ function StoresCard({
       return;
     }
     if (!/^[A-Za-z]{3}$/.test(currencyCode.trim())) {
-      setFormError('Use a three-letter currency code, such as USD or GBP.');
+      setFormError('Use a three-letter currency code, such as PKR, USD or GBP.');
       return;
     }
     setIsSaving(true);
@@ -370,7 +370,7 @@ function StoresCard({
               required
               maxLength={3}
               value={currencyCode}
-              hint="Three-letter code, e.g. USD."
+              hint="Three-letter code, e.g. PKR, USD, GBP."
               onChange={(event) => setCurrencyCode(event.target.value.toUpperCase())}
             />
             <Input

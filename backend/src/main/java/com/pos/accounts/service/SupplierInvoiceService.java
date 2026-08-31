@@ -40,7 +40,7 @@ public class SupplierInvoiceService {
 
     @Transactional(readOnly = true)
     public Page<SupplierInvoiceResponse> search(String query, SupplierInvoiceStatus status, Pageable pageable) {
-        return invoiceRepository.search(blankToNull(query), status, pageable)
+        return invoiceRepository.search(query == null ? "" : query.trim(), status, pageable)
                 .map(SupplierInvoiceResponse::fromEntity);
     }
 

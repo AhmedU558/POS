@@ -24,7 +24,7 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, UU
 
     @EntityGraph(attributePaths = "supplier")
     @Query("SELECT o FROM PurchaseOrder o WHERE "
-            + "(:query IS NULL OR LOWER(o.poNumber) LIKE LOWER(CONCAT('%', :query, '%'))) "
+            + "(:query = '' OR LOWER(o.poNumber) LIKE LOWER(CONCAT('%', :query, '%'))) "
             + "AND (:status IS NULL OR o.status = :status)")
     Page<PurchaseOrder> search(
             @Param("query") String query,

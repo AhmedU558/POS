@@ -53,7 +53,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> searchProducts(String query, UUID categoryId, UUID brandId, Boolean isActive, Pageable pageable) {
-        return productRepository.searchProducts(query, categoryId, brandId, isActive, pageable)
+        return productRepository.searchProducts(query == null ? "" : query.trim(), categoryId, brandId, isActive, pageable)
                 .map(ProductResponse::fromEntity);
     }
 

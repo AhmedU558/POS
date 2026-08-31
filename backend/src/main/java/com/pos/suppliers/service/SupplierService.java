@@ -32,7 +32,7 @@ public class SupplierService {
 
     @Transactional(readOnly = true)
     public Page<SupplierResponse> search(String query, Boolean isActive, Pageable pageable) {
-        return supplierRepository.search(blankToNull(query), isActive, pageable).map(SupplierResponse::fromEntity);
+        return supplierRepository.search(query == null ? "" : query.trim(), isActive, pageable).map(SupplierResponse::fromEntity);
     }
 
     @Transactional(readOnly = true)
