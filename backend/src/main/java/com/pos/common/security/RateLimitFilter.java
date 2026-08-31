@@ -24,11 +24,12 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final ConcurrentHashMap<String, TokenBucket> buckets = new ConcurrentHashMap<>();
     
     // Config: 100 requests per minute per IP
-    private final int MAX_TOKENS = 100;
+    private final int MAX_TOKENS;
     private final long REFILL_RATE_MS = 60000;
 
-    public RateLimitFilter(ObjectMapper objectMapper) {
+    public RateLimitFilter(ObjectMapper objectMapper, @org.springframework.beans.factory.annotation.Value("${app.security.rate-limit.max-tokens:1000}") int maxTokens) {
         this.objectMapper = objectMapper;
+        this.MAX_TOKENS = maxTokens;
     }
 
     @Override

@@ -161,7 +161,7 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
                 .containsEntry("discount_total", "numeric")
                 .containsEntry("tax_total", "numeric")
                 .containsEntry("grand_total", "numeric")
-                .containsEntry("currency_code", "character")
+                .containsEntry("currency_code", "character varying")
                 .containsEntry("created_at", "timestamp with time zone");
 
         Map<String, String> items = columnTypesOf("sale_items");
@@ -316,7 +316,7 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
                 .containsEntry("id", "uuid")
                 .containsEntry("customer_id", "uuid")
                 .containsEntry("balance", "numeric")
-                .containsEntry("currency_code", "character")
+                .containsEntry("currency_code", "character varying")
                 .containsEntry("status", "character varying")
                 .containsEntry("created_at", "timestamp with time zone")
                 .containsEntry("updated_at", "timestamp with time zone");
