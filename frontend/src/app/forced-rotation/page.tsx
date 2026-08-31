@@ -1,175 +1,135 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { apiClient } from '@/lib/apiClient';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Field';
+import { Alert } from '@/components/ui/States';
 
+/**
+ * Mandatory password change on first sign-in.
+ *
+ * The initial password was chosen by an operator and travelled through a pipeline and at least
+ * one person before reaching its holder (ADR-013), so it is treated as compromised and must be
+ * replaced before anything else can be done.
+ */
 export default function ForcedRotationPage() {
+  const { refreshAuth, logout } = useAuth();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { refreshAuth, logout } = useAuth();
+  const mismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
 
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match.');
+      setError('The two new passwords do not match.');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setError('The new password must be different from the current one.');
       return;
     }
 
     setIsLoading(true);
-
     try {
-      const res = await apiClient('/auth/change-password', {
+      const response = await apiClient('/auth/change-password', {
         method: 'POST',
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-
-      if (res.ok) {
-        // Successful rotation, refresh auth to remove passwordChangeRequired state
+      if (response.ok) {
         await refreshAuth();
-      } else {
-        const body = await res.json();
-        setError(body.error?.message || 'Failed to change password. Please check requirements and try again.');
+        return;
       }
-    } catch (err) {
-      setError('Network error. Please check your connection.');
+      const body = await response.json().catch(() => ({}));
+      setError(body.error?.message || 'That password was not accepted. Try a longer one with a mix of characters.');
+    } catch {
+      setError('Cannot reach the server. Check the connection and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      backgroundColor: 'var(--color-surface-sunken)',
-      padding: 'var(--space-4)'
-    }}>
-      <div style={{
-        backgroundColor: 'var(--color-surface)',
-        padding: 'var(--space-8)',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-md)',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <h1 style={{
-          fontSize: 'var(--font-size-heading-sm)',
-          fontWeight: 'var(--font-weight-semibold)',
-          marginBottom: 'var(--space-2)',
-          textAlign: 'center'
-        }}>Action Required</h1>
-        <p style={{
-          fontSize: 'var(--font-size-small)',
-          color: 'var(--color-foreground-muted)',
-          textAlign: 'center',
-          marginBottom: 'var(--space-6)'
-        }}>
-          For security reasons, you must change your password before continuing.
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'var(--color-surface-sunken)',
+        padding: 'var(--space-4)',
+      }}
+    >
+      <main
+        style={{
+          width: '100%',
+          maxWidth: '26rem',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-md)',
+          padding: 'var(--space-8)',
+        }}
+      >
+        <h1 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-2)' }}>
+          Choose a new password
+        </h1>
+        <p className="text-muted" style={{ marginBottom: 'var(--space-6)' }}>
+          Your account was set up with a temporary password. Replace it before you carry on.
         </p>
 
-        {error && (
-          <div style={{
-            backgroundColor: 'var(--color-error-surface)',
-            color: 'var(--color-error)',
-            padding: 'var(--space-3)',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: 'var(--space-4)',
-            fontSize: 'var(--font-size-small)'
-          }}>
-            {error}
-          </div>
-        )}
+        <form onSubmit={handleSubmit} className="stack" noValidate>
+          {error && <Alert tone="error">{error}</Alert>}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <label htmlFor="currentPassword" style={{ display: 'block', fontSize: 'var(--font-size-small)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>Current Password</label>
-            <input id="currentPassword" type={showPassword ? 'text' : 'password'} required value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              disabled={isLoading}
-              style={{
-                width: '100%', height: 'var(--control-height)', padding: '0 var(--space-3)',
-                border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-body)'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <label htmlFor="newPassword" style={{ display: 'block', fontSize: 'var(--font-size-small)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>New Password</label>
-            <input id="newPassword" type={showPassword ? 'text' : 'password'} required value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              disabled={isLoading}
-              style={{
-                width: '100%', height: 'var(--control-height)', padding: '0 var(--space-3)',
-                border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-body)'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: 'var(--space-6)' }}>
-            <label htmlFor="confirmPassword" style={{ display: 'block', fontSize: 'var(--font-size-small)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>Confirm New Password</label>
-            <input id="confirmPassword" type={showPassword ? 'text' : 'password'} required value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              disabled={isLoading}
-              style={{
-                width: '100%', height: 'var(--control-height)', padding: '0 var(--space-3)',
-                border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', fontSize: 'var(--font-size-body)'
-              }}
-            />
-            <div style={{ marginTop: 'var(--space-2)', textAlign: 'right' }}>
-               <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-                style={{
-                  background: 'none', border: 'none', cursor: 'pointer',
-                  fontSize: 'var(--font-size-small)', color: 'var(--color-foreground-muted)'
-                }}
-              >
-                {showPassword ? 'Hide Passwords' : 'Show Passwords'}
-              </button>
-            </div>
-          </div>
-
-          <button
-            type="submit"
+          <Input
+            id="current-password"
+            label="Current password"
+            required
+            type="password"
+            autoComplete="current-password"
+            autoFocus
+            value={currentPassword}
             disabled={isLoading}
-            style={{
-              width: '100%', height: 'var(--control-height)', backgroundColor: 'var(--color-primary)',
-              color: 'var(--color-primary-foreground)', border: 'none', borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-medium)',
-              cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.7 : 1,
-              marginBottom: 'var(--space-3)'
-            }}
-          >
-            {isLoading ? 'Updating...' : 'Change Password'}
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => logout()}
+            onChange={(event) => setCurrentPassword(event.target.value)}
+          />
+          <Input
+            id="new-password"
+            label="New password"
+            required
+            type="password"
+            autoComplete="new-password"
+            value={newPassword}
             disabled={isLoading}
-            style={{
-              width: '100%', height: 'var(--control-height)', backgroundColor: 'transparent',
-              color: 'var(--color-foreground-muted)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--font-size-body)', fontWeight: 'var(--font-weight-medium)',
-              cursor: isLoading ? 'not-allowed' : 'pointer'
-            }}
-          >
-            Cancel & Logout
-          </button>
+            hint="At least 12 characters. A memorable phrase works well."
+            onChange={(event) => setNewPassword(event.target.value)}
+          />
+          <Input
+            id="confirm-password"
+            label="Confirm new password"
+            required
+            type="password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            disabled={isLoading}
+            error={mismatch ? 'The two passwords do not match.' : undefined}
+            onChange={(event) => setConfirmPassword(event.target.value)}
+          />
+
+          <Button type="submit" block size="lg" isLoading={isLoading} disabled={mismatch}>
+            Set new password
+          </Button>
+          <Button variant="ghost" block onClick={() => void logout()} disabled={isLoading}>
+            Sign out instead
+          </Button>
         </form>
-      </div>
+      </main>
     </div>
   );
 }
-

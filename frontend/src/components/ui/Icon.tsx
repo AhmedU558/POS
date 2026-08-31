@@ -44,7 +44,9 @@ export type IconName =
   | 'store'
   | 'box'
   | 'clock'
-  | 'cash';
+  | 'cash'
+  | 'eye'
+  | 'eye-off';
 
 const PATHS: Record<IconName, React.ReactNode> = {
   dashboard: (
@@ -220,6 +222,18 @@ const PATHS: Record<IconName, React.ReactNode> = {
       <rect x="2" y="6" width="20" height="12" rx="2" />
       <circle cx="12" cy="12" r="2.5" />
       <path d="M6 12h.01M18 12h.01" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  'eye-off': (
+    <>
+      <path d="M10.6 6.2A9.9 9.9 0 0 1 12 6c6.4 0 10 6 10 6a18 18 0 0 1-3.2 3.9M6.6 6.7A18 18 0 0 0 2 12s3.6 6 10 6a9.7 9.7 0 0 0 4-.8" />
+      <path d="m9.9 9.9a3 3 0 0 0 4.2 4.2M3 3l18 18" />
     </>
   ),
 };

@@ -1,184 +1,151 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { useAuth } from '@/features/auth/AuthContext';
 import { apiClient } from '@/lib/apiClient';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Field';
+import { Icon } from '@/components/ui/Icon';
+import { Alert } from '@/components/ui/States';
 
+/**
+ * Sign in.
+ *
+ * Errors are deliberately vague about which half was wrong (UI/UX Specification 9.2), and the
+ * lockout and rate-limit responses are given plain wording so a cashier locked out mid-shift
+ * knows to fetch a manager rather than keep retrying.
+ */
 export default function LoginPage() {
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { login } = useAuth();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setError(null);
     setIsLoading(true);
 
     try {
-      const res = await apiClient('/auth/login', {
+      const response = await apiClient('/auth/login', {
         method: 'POST',
         requiresAuth: false,
         body: JSON.stringify({ username, password }),
       });
+      const body = await response.json().catch(() => ({}));
 
-      const body = await res.json();
-
-      if (res.ok) {
+      if (response.ok) {
         login(body.data);
-      } else {
-        // Map backend errors safely to avoid leaking sensitive details (SCR-001)
-        if (res.status === 401) {
-          setError('Invalid username or password.');
-        } else if (res.status === 429) {
-          setError('Too many attempts. Please try again later.');
-        } else {
-          setError(body.error?.message || 'Login failed. Please try again.');
-        }
+        return;
       }
-    } catch (err) {
-      setError('Network error. Please check your connection.');
+
+      if (response.status === 401) {
+        setError('That username and password do not match. Check both and try again.');
+      } else if (response.status === 429) {
+        setError('Too many attempts. Wait a minute before trying again.');
+      } else if (response.status === 423) {
+        setError('This account is locked. Ask an administrator to unlock it.');
+      } else {
+        setError(body.error?.message || 'Could not sign in. Try again in a moment.');
+      }
+    } catch {
+      setError('Cannot reach the server. Check the connection and try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      backgroundColor: 'var(--color-surface-sunken)',
-      padding: 'var(--space-4)'
-    }}>
-      <div style={{
-        backgroundColor: 'var(--color-surface)',
-        padding: 'var(--space-8)',
-        borderRadius: 'var(--radius-lg)',
-        boxShadow: 'var(--shadow-md)',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <h1 style={{
-          fontSize: 'var(--font-size-heading)',
-          fontWeight: 'var(--font-weight-semibold)',
-          marginBottom: 'var(--space-6)',
-          textAlign: 'center'
-        }}>Sign In</h1>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'var(--color-surface-sunken)',
+        padding: 'var(--space-4)',
+      }}
+    >
+      <main
+        style={{
+          width: '100%',
+          maxWidth: '24rem',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-md)',
+          padding: 'var(--space-8)',
+        }}
+      >
+        <div className="stack" style={{ alignItems: 'center', marginBottom: 'var(--space-6)' }}>
+          <span className="shell__brand-mark" style={{ width: '2.5rem', height: '2.5rem', fontSize: 'var(--font-size-body)' }}>
+            PO
+          </span>
+          <h1 style={{ fontSize: 'var(--font-size-heading-sm)' }}>Sign in to POS Manager</h1>
+        </div>
 
-        {error && (
-          <div style={{
-            backgroundColor: 'var(--color-error-surface)',
-            color: 'var(--color-error)',
-            padding: 'var(--space-3)',
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: 'var(--space-4)',
-            fontSize: 'var(--font-size-small)'
-          }}>
-            {error}
-          </div>
-        )}
+        <form onSubmit={handleSubmit} className="stack" noValidate>
+          {error && <Alert tone="error">{error}</Alert>}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 'var(--space-4)' }}>
-            <label htmlFor="username" style={{
-              display: 'block',
-              fontSize: 'var(--font-size-small)',
-              fontWeight: 'var(--font-weight-medium)',
-              marginBottom: 'var(--space-2)'
-            }}>Username</label>
-            <input id="username" type="text"
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={isLoading}
-              style={{
-                width: '100%',
-                height: 'var(--control-height)',
-                padding: '0 var(--space-3)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-md)',
-                fontSize: 'var(--font-size-body)'
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: 'var(--space-6)' }}>
-            <label htmlFor="password" style={{
-              display: 'block',
-              fontSize: 'var(--font-size-small)',
-              fontWeight: 'var(--font-weight-medium)',
-              marginBottom: 'var(--space-2)'
-            }}>Password</label>
-            <div style={{ position: 'relative' }}>
-              <input id="password" type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                style={{
-                  width: '100%',
-                  height: 'var(--control-height)',
-                  padding: '0 var(--space-3)',
-                  paddingRight: 'var(--space-10)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)',
-                  fontSize: 'var(--font-size-body)'
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                tabIndex={-1}
-                style={{
-                  position: 'absolute',
-                  right: 'var(--space-2)',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: 'var(--font-size-small)',
-                  color: 'var(--color-foreground-muted)'
-                }}
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-            <div style={{ textAlign: 'right', marginTop: 'var(--space-2)' }}>
-              <a href="#" style={{
-                fontSize: 'var(--font-size-small)',
-                color: 'var(--color-primary)',
-                textDecoration: 'none'
-              }}>Forgot password?</a>
-            </div>
-          </div>
-
-          <button
-            type="submit"
+          <Input
+            id="username"
+            label="Username"
+            required
+            autoComplete="username"
+            autoFocus
+            value={username}
             disabled={isLoading}
-            style={{
-              width: '100%',
-              height: 'var(--control-height)',
-              backgroundColor: 'var(--color-primary)',
-              color: 'var(--color-primary-foreground)',
-              border: 'none',
-              borderRadius: 'var(--radius-md)',
-              fontSize: 'var(--font-size-body)',
-              fontWeight: 'var(--font-weight-medium)',
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-              opacity: isLoading ? 0.7 : 1
-            }}
-          >
-            {isLoading ? 'Signing in...' : 'Sign In'}
-          </button>
+            onChange={(event) => setUsername(event.target.value)}
+          />
+
+          <div style={{ position: 'relative' }}>
+            <Input
+              id="password"
+              label="Password"
+              required
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              value={password}
+              disabled={isLoading}
+              onChange={(event) => setPassword(event.target.value)}
+              style={{ paddingRight: 'var(--space-12)' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((current) => !current)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              style={{
+                position: 'absolute',
+                right: 'var(--space-2)',
+                top: '1.85rem',
+                minHeight: 0,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--color-foreground-muted)',
+                display: 'flex',
+                padding: 'var(--space-2)',
+              }}
+            >
+              <Icon name={showPassword ? 'eye-off' : 'eye'} size={18} />
+            </button>
+          </div>
+
+          <Button type="submit" block size="lg" isLoading={isLoading}>
+            Sign in
+          </Button>
+
+          {/*
+            No self-service password reset exists in the API, so the screen says who to ask rather
+            than offering a link that goes nowhere — the previous page linked to "#".
+          */}
+          <p className="text-small text-muted text-center">
+            Forgotten your password? An administrator can reset it for you.
+          </p>
         </form>
-      </div>
+      </main>
     </div>
   );
 }
-

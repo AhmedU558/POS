@@ -62,8 +62,8 @@ describe('Authentication Flow', () => {
 
     const user = userEvent.setup();
     await user.type(screen.getByLabelText(/Username/i), 'testuser');
-    await user.type(screen.getByLabelText(/Password/i), 'pass123');
-    await user.click(screen.getByRole('button', { name: /Sign In/i }));
+    await user.type(screen.getByLabelText('Password'), 'pass123');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     await waitFor(() => {
       expect(localStorage.getItem('accessToken')).toBe('acc1');
@@ -79,12 +79,12 @@ describe('Authentication Flow', () => {
     );
 
     // Initial state: user sees the rotation screen
-    expect(screen.getByText(/Action Required/i)).not.toBeNull();
+    expect(screen.getByText(/Choose a new password/i)).not.toBeNull();
 
     const user = userEvent.setup();
-    await user.type(screen.getByLabelText(/Current Password/i), 'oldPass');
-    await user.type(screen.getByLabelText(/^New Password/i), 'newPass');
-    await user.type(screen.getByLabelText(/Confirm New Password/i), 'newPass');
+    await user.type(screen.getByLabelText('Current password'), 'oldPass');
+    await user.type(screen.getByLabelText('New password'), 'newPass');
+    await user.type(screen.getByLabelText('Confirm new password'), 'newPass');
 
     vi.mocked(fetch).mockResolvedValueOnce(
       new Response(null, { status: 204 })
@@ -95,7 +95,7 @@ describe('Authentication Flow', () => {
       new Response(JSON.stringify({ data: { username: 'test' } }), { status: 200 })
     );
 
-    await user.click(screen.getByRole('button', { name: /Change Password/i }));
+    await user.click(screen.getByRole('button', { name: 'Set new password' }));
 
     await waitFor(() => {
       // It should call /change-password, then /me

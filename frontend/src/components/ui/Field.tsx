@@ -23,14 +23,22 @@ export function Field({ id, label, hint, error, required, children, className }:
   return (
     <div className={['field', className ?? ''].filter(Boolean).join(' ')}>
       {label && (
-        <label className="field__label" htmlFor={id}>
-          {label}
+        /*
+         * The asterisk sits outside the <label> deliberately. Inside it, it becomes part of the
+         * accessible name — the field announces as "Password star" — and no longer matches the
+         * label a person would look for. Requiredness reaches assistive technology through the
+         * control's own `required` attribute instead.
+         */
+        <span className="field__label-row">
+          <label className="field__label" htmlFor={id}>
+            {label}
+          </label>
           {required && (
             <span className="field__required" aria-hidden="true">
               *
             </span>
           )}
-        </label>
+        </span>
       )}
       {children}
       {hint && !error && (
