@@ -269,7 +269,7 @@ export default function PointOfSalePage() {
   }
 
   return (
-    <div className="pos">
+    <main className="pos">
       <header className="pos__topbar">
         <div className="row">
           <Link href="/" className="btn btn--ghost btn--sm" aria-label="Leave the till">
@@ -543,7 +543,7 @@ export default function PointOfSalePage() {
           focusScan();
         }}
       />
-    </div>
+    </main>
   );
 }
 
