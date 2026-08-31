@@ -259,6 +259,63 @@ public class InventoryService {
     }
 
     @Transactional
+    public void deductForOnlineOrder(UUID storeId, UUID productId, BigDecimal quantity, UUID orderId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
+        User currentUser = currentUser();
+
+        InventoryBalance balance = balanceRepository.findByProductIdAndStoreIdForUpdate(productId, storeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.INSUFFICIENT_STOCK, "Required stock is unavailable"));
+        if (balance.getQuantity().compareTo(quantity) < 0) {
+            throw new ApiException(ErrorCode.INSUFFICIENT_STOCK, "Required stock is unavailable for product " + product.getSku());
+        }
+
+        balance.addQuantity(quantity.negate());
+        balanceRepository.save(balance);
+
+        InventoryTransaction tx = new InventoryTransaction(
+                product,
+                store,
+                TransactionType.ONLINE_ORDER,
+                quantity.negate(),
+                "Online Order Fulfill",
+                currentUser
+        );
+        tx.assignReference("OnlineOrder", orderId);
+        transactionRepository.save(tx);
+        syncLowStockAlert(store, product, balance.getQuantity());
+    }
+
+    @Transactional
+    public void restoreForOnlineOrder(UUID storeId, UUID productId, BigDecimal quantity, UUID orderId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
+        User currentUser = currentUser();
+
+        InventoryBalance balance = balanceRepository.findByProductIdAndStoreIdForUpdate(productId, storeId)
+                .orElse(new InventoryBalance(product, store));
+
+        balance.addQuantity(quantity);
+        balanceRepository.save(balance);
+
+        InventoryTransaction tx = new InventoryTransaction(
+                product,
+                store,
+                TransactionType.ONLINE_ORDER,
+                quantity,
+                "Online Order Cancel",
+                currentUser
+        );
+        tx.assignReference("OnlineOrder", orderId);
+        transactionRepository.save(tx);
+        syncLowStockAlert(store, product, balance.getQuantity());
+    }
+
+    @Transactional
     public void addForReturn(UUID storeId, UUID productId, BigDecimal quantity, UUID saleReturnId) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));

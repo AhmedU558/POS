@@ -39,6 +39,7 @@ public class OnlineOrderService {
     private final StoreScopeEvaluator storeScopeEvaluator;
     private final UserRepository userRepository;
     private final AuditRecorder auditRecorder;
+    private final com.pos.inventory.service.InventoryService inventoryService;
 
     public OnlineOrderService(
             OnlineOrderRepository orderRepository,
@@ -47,7 +48,8 @@ public class OnlineOrderService {
             ProductRepository productRepository,
             StoreScopeEvaluator storeScopeEvaluator,
             UserRepository userRepository,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            com.pos.inventory.service.InventoryService inventoryService) {
         this.orderRepository = orderRepository;
         this.storeRepository = storeRepository;
         this.customerRepository = customerRepository;
@@ -55,6 +57,7 @@ public class OnlineOrderService {
         this.storeScopeEvaluator = storeScopeEvaluator;
         this.userRepository = userRepository;
         this.auditRecorder = auditRecorder;
+        this.inventoryService = inventoryService;
     }
 
     @Transactional(readOnly = true)
@@ -143,6 +146,12 @@ public class OnlineOrderService {
             throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Only pending orders can be confirmed");
         }
         order.setStatus(OnlineOrder.STATUS_CONFIRMED);
+        
+        // Reserve inventory on confirm
+        for (OnlineOrderItem item : order.getItems()) {
+            inventoryService.deductForOnlineOrder(order.getStore().getId(), item.getProduct().getId(), item.getQuantity(), order.getId());
+        }
+        
         orderRepository.save(order);
 
         auditRecorder.record(AuditEvent.of(
@@ -158,6 +167,14 @@ public class OnlineOrderService {
         if (order.getStatus().equals(OnlineOrder.STATUS_FULFILLED) || order.getStatus().equals(OnlineOrder.STATUS_REFUNDED)) {
             throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Cannot cancel a fulfilled or refunded order");
         }
+        
+        // If it was confirmed, we need to release the reserved inventory
+        if (order.getStatus().equals(OnlineOrder.STATUS_CONFIRMED)) {
+            for (OnlineOrderItem item : order.getItems()) {
+                inventoryService.restoreForOnlineOrder(order.getStore().getId(), item.getProduct().getId(), item.getQuantity(), order.getId());
+            }
+        }
+        
         order.setStatus(OnlineOrder.STATUS_CANCELLED);
         orderRepository.save(order);
 
@@ -191,6 +208,12 @@ public class OnlineOrderService {
             throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Only fulfilled orders can be refunded");
         }
         order.setStatus(OnlineOrder.STATUS_REFUNDED);
+        
+        // Return inventory
+        for (OnlineOrderItem item : order.getItems()) {
+            inventoryService.restoreForOnlineOrder(order.getStore().getId(), item.getProduct().getId(), item.getQuantity(), order.getId());
+        }
+        
         orderRepository.save(order);
 
         auditRecorder.record(AuditEvent.of(

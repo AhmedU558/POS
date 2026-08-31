@@ -5,5 +5,6 @@ public enum TransactionType {
     SALE,
     RECEIPT,
     TRANSFER,
-    RETURN
+    RETURN,
+    ONLINE_ORDER
 }
