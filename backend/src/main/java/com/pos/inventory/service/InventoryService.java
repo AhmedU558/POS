@@ -264,7 +264,7 @@ public class InventoryService {
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
-        User currentUser = currentUser();
+        User currentUser = getCurrentUser();
 
         InventoryBalance balance = balanceRepository.findByProductIdAndStoreIdForUpdate(productId, storeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.INSUFFICIENT_STOCK, "Required stock is unavailable"));
@@ -294,7 +294,7 @@ public class InventoryService {
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
-        User currentUser = currentUser();
+        User currentUser = getCurrentUser();
 
         InventoryBalance balance = balanceRepository.findByProductIdAndStoreIdForUpdate(productId, storeId)
                 .orElse(new InventoryBalance(product, store));
