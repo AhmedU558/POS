@@ -89,7 +89,6 @@ export function Modal({ open, onClose, title, description, children, footer, wid
         }
       }}
     >
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
         className={['modal', wide ? 'modal--wide' : ''].filter(Boolean).join(' ')}
         role="dialog"
