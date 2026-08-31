@@ -156,9 +156,10 @@ public class InventoryService {
     }
 
     @Transactional(readOnly = true)
-    public Page<InventoryReportRow> reportInventory(UUID storeId, boolean lowStockOnly, Pageable pageable) {
+    public Page<InventoryReportRow> reportInventory(UUID storeId, boolean lowStockOnly, UUID categoryId, String query, Pageable pageable) {
         requireReadableStore(storeId);
-        return balanceRepository.searchReportBalances(storeId, lowStockOnly, pageable)
+        String safeQuery = query == null ? "" : query.trim();
+        return balanceRepository.searchReportBalances(storeId, lowStockOnly, categoryId, safeQuery, pageable)
                 .map(InventoryReportRow::fromEntity);
     }
 

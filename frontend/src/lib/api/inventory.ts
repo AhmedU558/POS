@@ -119,7 +119,7 @@ export const inventoryApi = {
 
   acknowledgeAlert: (id: string) => patch<StockAlert>(`/inventory/alerts/${id}/acknowledge`),
 
-  getInventoryReport: (params: { storeId: string; page?: number; size?: number; lowStockOnly?: boolean }) =>
+  getInventoryReport: (params: { storeId: string; page?: number; size?: number; lowStockOnly?: boolean; categoryId?: string; query?: string }) =>
     get<Page<InventoryReportRow>>(`/reports/inventory${query({ ...params })}`),
 
   getMovementReport: (params: { storeId: string; page?: number; size?: number; productId?: string }) =>

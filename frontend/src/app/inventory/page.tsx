@@ -61,20 +61,10 @@ export default function InventoryPage() {
           page,
           size: PAGE_SIZE,
           lowStockOnly,
+          categoryId: categoryId || undefined,
+          query: debouncedTerm || undefined,
         });
-        /*
-         * The report endpoint has no text or category filter, so narrowing is applied to the page
-         * in hand. Search without the report permission goes to the balances endpoint instead,
-         * which does filter server-side.
-         */
-        const filtered = debouncedTerm
-          ? report.content.filter(
-              (row) =>
-                row.productName.toLowerCase().includes(debouncedTerm.toLowerCase()) ||
-                row.sku.toLowerCase().includes(debouncedTerm.toLowerCase())
-            )
-          : report.content;
-        setRows({ ...report, content: filtered });
+        setRows(report);
       } else {
         const balances = await inventoryApi.getBalances({
           storeId: activeStoreId,
@@ -169,17 +159,15 @@ export default function InventoryPage() {
               onChange={(event) => setTerm(event.target.value)}
               fieldClassName="toolbar__search"
             />
-            {!canReport && (
-              <Select
-                id="inventory-category"
-                label="Category"
-                placeholder="All categories"
-                value={categoryId}
-                onChange={(event) => setCategoryId(event.target.value)}
-                options={categories.map((category) => ({ value: category.id, label: category.name }))}
-                fieldClassName="toolbar__filter"
-              />
-            )}
+            <Select
+              id="inventory-category"
+              label="Category"
+              placeholder="All categories"
+              value={categoryId}
+              onChange={(event) => setCategoryId(event.target.value)}
+              options={categories.map((category) => ({ value: category.id, label: category.name }))}
+              fieldClassName="toolbar__filter"
+            />
             {canReport && (
               <Checkbox
                 id="inventory-low-only"

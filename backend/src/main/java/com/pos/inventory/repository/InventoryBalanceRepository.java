@@ -48,9 +48,14 @@ public interface InventoryBalanceRepository extends JpaRepository<InventoryBalan
     List<InventoryBalance> findBelowMinimum(@Param("storeId") UUID storeId);
 
     @EntityGraph(attributePaths = {"product", "store"})
-    @Query("SELECT ib FROM InventoryBalance ib WHERE ib.store.id = :storeId AND (:lowStockOnly = false OR ib.quantity <= ib.product.minStock)")
+    @Query("SELECT ib FROM InventoryBalance ib WHERE ib.store.id = :storeId " +
+           "AND (:lowStockOnly = false OR ib.quantity <= ib.product.minStock) " +
+           "AND (:categoryId IS NULL OR ib.product.category.id = :categoryId) " +
+           "AND (:query = '' OR LOWER(ib.product.name) LIKE LOWER(CONCAT('%', :query, '%')) OR LOWER(ib.product.sku) LIKE LOWER(CONCAT('%', :query, '%')))")
     Page<InventoryBalance> searchReportBalances(
             @Param("storeId") UUID storeId,
             @Param("lowStockOnly") boolean lowStockOnly,
+            @Param("categoryId") UUID categoryId,
+            @Param("query") String query,
             Pageable pageable);
 }

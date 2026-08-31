@@ -412,7 +412,7 @@ public class SaleService {
                 customerCreditService.post(
                         saved.getCustomer().getId(),
                         new CustomerCreditTransactionRequest(
-                                CreditTransactionType.REDEEM,
+                                CreditTransactionType.ISSUE,
                                 payment.getAmount(),
                                 store.getCurrencyCode(),
                                 "Sale",
