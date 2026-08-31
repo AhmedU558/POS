@@ -67,6 +67,15 @@ export default function Home() {
         </div>
       )}
 
+      {user?.permissions?.includes('REGISTER_OPEN') && (
+        <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Register</h2>
+          <Link href="/register" style={{ textDecoration: 'none' }}>
+            <Button variant="secondary">Open Register</Button>
+          </Link>
+        </div>
+      )}
+
       {user?.permissions?.includes('AP_READ') && (
         <div style={{ marginTop: 'var(--space-8)', padding: 'var(--space-4)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)' }}>
           <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Accounts Payable</h2>

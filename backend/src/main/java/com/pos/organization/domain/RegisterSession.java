@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
@@ -43,6 +44,9 @@ public class RegisterSession {
     @Column(nullable = false, length = 30)
     private String status = STATUS_OPEN;
 
+    @Column(name = "opening_cash", precision = 19, scale = 4)
+    private BigDecimal openingCash;
+
     public RegisterSession() {
     }
 
@@ -58,12 +62,36 @@ public class RegisterSession {
         return cashier;
     }
 
+    public void setRegister(Register register) {
+        this.register = register;
+    }
+
+    public void setCashier(User cashier) {
+        this.cashier = cashier;
+    }
+
+    public OffsetDateTime getOpenedAt() {
+        return openedAt;
+    }
+
     public OffsetDateTime getClosedAt() {
         return closedAt;
     }
 
     public String getStatus() {
         return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public BigDecimal getOpeningCash() {
+        return openingCash;
+    }
+
+    public void setOpeningCash(BigDecimal openingCash) {
+        this.openingCash = openingCash;
     }
 
     public boolean isOpen() {

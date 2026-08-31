@@ -37,6 +37,7 @@ public final class PermissionCode {
     public static final String PAYMENT_READ = "PAYMENT_READ";
     public static final String RECEIPT_READ = "RECEIPT_READ";
     public static final String RECEIPT_REPRINT = "RECEIPT_REPRINT";
+    public static final String REGISTER_OPEN = "REGISTER_OPEN";
 
     public static final Set<String> IDENTITY =
             Set.of(USER_READ, USER_WRITE, USER_ADMIN, ROLE_READ, ROLE_WRITE);

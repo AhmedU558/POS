@@ -15,4 +15,8 @@ public interface RegisterSessionRepository extends JpaRepository<RegisterSession
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM RegisterSession s JOIN FETCH s.register r JOIN FETCH r.store JOIN FETCH r.terminal WHERE s.id = :id")
     Optional<RegisterSession> findByIdForUpdate(@Param("id") UUID id);
+    boolean existsByRegister_IdAndStatus(UUID registerId, String status);
+
+    @Query("SELECT s FROM RegisterSession s JOIN FETCH s.register r JOIN FETCH r.store JOIN FETCH r.terminal JOIN FETCH s.cashier WHERE s.id = :id")
+    Optional<RegisterSession> findDetailedById(@Param("id") UUID id);
 }
