@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { notFound, useSearchParams } from 'next/navigation';
+import { notFound, useSearchParams, useParams } from 'next/navigation';
 import { SaleReceipt, salesApi } from '@/lib/api/sales';
 import { ThermalReceiptDocument } from '@/features/pos/ThermalReceiptDocument';
 
 
-export default function ReceiptPage({ params }: { params: { saleId: string } }) {
+export default function ReceiptPage() {
+  const params = useParams();
+  const saleId = params?.saleId as string;
   const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,9 +18,10 @@ export default function ReceiptPage({ params }: { params: { saleId: string } }) 
 
   useEffect(() => {
     async function loadReceipt() {
+      if (!saleId) return;
       try {
         setLoading(true);
-        const data = await salesApi.receipt(params.saleId);
+        const data = await salesApi.receipt(saleId);
         setReceipt(data);
       } catch (err: any) {
         if (err.status === 404) {
@@ -31,7 +34,7 @@ export default function ReceiptPage({ params }: { params: { saleId: string } }) 
       }
     }
     loadReceipt();
-  }, [params.saleId]);
+  }, [saleId]);
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading receipt...</div>;
@@ -50,6 +53,16 @@ export default function ReceiptPage({ params }: { params: { saleId: string } }) 
   if (!receipt) {
     return null;
   }
+
+  // Handle auto-print safely
+  useEffect(() => {
+    if (receipt && searchParams.get('print') === 'true') {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [receipt, searchParams]);
 
   return (
     <div className="receipt-page">
