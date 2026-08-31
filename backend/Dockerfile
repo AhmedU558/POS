@@ -14,8 +14,9 @@ RUN mvn -B -q clean package -DskipTests
 # Runtime stage ---------------------------------------------------------------
 FROM eclipse-temurin:21-jre-alpine AS runtime
 
-# Never run the API as root (SAD section 30).
-RUN addgroup -S pos && adduser -S pos -G pos
+# Never run the API as root (SAD section 30). wget is used by the compose healthcheck.
+RUN apk add --no-cache wget \
+    && addgroup -S pos && adduser -S pos -G pos
 WORKDIR /app
 
 COPY --from=build /build/target/*.jar app.jar
