@@ -10,7 +10,7 @@ import { Page, emptyPage } from '@/lib/api/http';
 import { errorMessage, formatDate, formatDateTime, formatMoney, formatQuantity } from '@/lib/format';
 import { P, hasAnyPermission, hasPermission } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { Card, CardBody, CardHeader, Metric } from '@/components/ui/Card';
+import { Card, CardHeader, Metric } from '@/components/ui/Card';
 import { Checkbox, Input, Select } from '@/components/ui/Field';
 import { StatusBadge } from '@/components/ui/Badge';
 import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';

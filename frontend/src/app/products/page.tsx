@@ -11,7 +11,6 @@ import { errorMessage, formatMoney, formatQuantity } from '@/lib/format';
 import { P, hasPermission } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { SearchInput, Select } from '@/components/ui/Field';
 import { ActiveBadge } from '@/components/ui/Badge';
 import { Pagination, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';

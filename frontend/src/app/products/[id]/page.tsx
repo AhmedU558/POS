@@ -149,7 +149,8 @@ export default function ProductDetailPage() {
        * availability is changed through the explicit control below so it is never a side effect
        * of editing a price.
        */
-      const { isActive: _ignored, ...update } = formToCreateRequest(values);
+      const { isActive, ...update } = formToCreateRequest(values);
+      void isActive;
       const saved = await updateProduct(id, update);
       setProduct(saved);
       setValues(productToForm(saved));
