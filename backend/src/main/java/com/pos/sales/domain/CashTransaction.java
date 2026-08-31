@@ -24,6 +24,7 @@ public class CashTransaction {
     public static final String TYPE_SALE = "SALE";
     public static final String TYPE_CASH_IN = "CASH_IN";
     public static final String TYPE_CASH_OUT = "CASH_OUT";
+    public static final String TYPE_REFUND = "REFUND";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)

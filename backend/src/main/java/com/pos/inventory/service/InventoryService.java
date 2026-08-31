@@ -259,6 +259,36 @@ public class InventoryService {
     }
 
     @Transactional
+    public void addForReturn(UUID storeId, UUID productId, BigDecimal quantity, UUID saleReturnId) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
+        User currentUser = getCurrentUser();
+
+        InventoryBalance balance = balanceRepository
+                .findByProductIdAndStoreIdForUpdate(product.getId(), store.getId())
+                .orElseGet(() -> {
+                    return new InventoryBalance(product, store);
+                });
+
+        balance.addQuantity(quantity);
+        balanceRepository.save(balance);
+
+        InventoryTransaction ret = new InventoryTransaction(
+                product,
+                store,
+                TransactionType.RETURN,
+                quantity,
+                null,
+                currentUser
+        );
+        ret.assignReference("SaleReturn", saleReturnId);
+        transactionRepository.save(ret);
+        syncLowStockAlert(store, product, balance.getQuantity());
+    }
+
+    @Transactional
     public InventoryBalanceResponse receiveStock(InventoryReceiptRequest request) {
         Store store = storeRepository.findById(request.storeId())
                 .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Store not found"));
