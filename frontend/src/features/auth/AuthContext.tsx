@@ -13,12 +13,18 @@ export interface User {
   storeIds: string[];
 }
 
+export interface LoginSession {
+  accessToken: string;
+  refreshToken: string;
+  passwordChangeRequired?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   passwordChangeRequired: boolean;
-  login: (data: any) => void;
+  login: (data: LoginSession) => void;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
 }
@@ -60,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = (data: any) => {
+  const login = (data: LoginSession) => {
     setTokens(data.accessToken, data.refreshToken);
     setIsAuthenticated(true);
     setPasswordChangeRequired(!!data.passwordChangeRequired);

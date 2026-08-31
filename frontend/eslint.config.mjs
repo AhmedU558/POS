@@ -13,6 +13,13 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      // Screens load store-scoped data from the REST API after mount (JWT in localStorage).
+      // The React Compiler rule treats that as an anti-pattern; it is how this client is built.
+      "react-hooks/set-state-in-effect": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

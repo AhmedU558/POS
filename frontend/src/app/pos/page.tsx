@@ -141,22 +141,6 @@ export default function PointOfSalePage() {
     }
   }, [term, cart, focusScan, toast]);
 
-  // F2 returns to the scan field and F4 takes payment, from anywhere on the screen.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'F2') {
-        event.preventDefault();
-        focusScan();
-      }
-      if (event.key === 'F4' && cart.lines.length > 0 && !pricedSale) {
-        event.preventDefault();
-        void startPayment();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  });
-
   const startPayment = async () => {
     if (!session || cart.lines.length === 0) return;
     setIsPricing(true);
@@ -180,6 +164,22 @@ export default function PointOfSalePage() {
       setIsPricing(false);
     }
   };
+
+  // F2 returns to the scan field and F4 takes payment, from anywhere on the screen.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'F2') {
+        event.preventDefault();
+        focusScan();
+      }
+      if (event.key === 'F4' && cart.lines.length > 0 && !pricedSale) {
+        event.preventDefault();
+        void startPayment();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
 
   const settle = async (payments: SalePaymentRequest[], cashTendered: number | null) => {
     if (!pricedSale || !session) return;
