@@ -42,6 +42,8 @@ specifications at once.
 | [AMD-034](AMD-034-ui-ux-held-sales.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 6.4) |
 | [AMD-035](AMD-035-rest-api-open-register.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 7.1) |
 | [AMD-036](AMD-036-ui-ux-open-register.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 7.1) |
+| [AMD-037](AMD-037-rest-api-register-cash.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 7.2) |
+| [AMD-038](AMD-038-ui-ux-register-cash.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 7.2) |
 
 ## Status values
 

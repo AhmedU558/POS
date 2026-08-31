@@ -20,6 +20,15 @@ async function handleResponse<T>(res: Response): Promise<T> {
   return body.data;
 }
 
+export interface CashMovement {
+  id: string;
+  registerSessionId: string;
+  transactionType: string;
+  amount: number;
+  reason: string | null;
+  createdAt: string;
+}
+
 export const registerSessionsApi = {
   open: async (registerId: string, openingCash: number) => {
     const res = await apiClient('/registers/' + registerId + '/sessions/open', {
@@ -32,5 +41,21 @@ export const registerSessionsApi = {
   get: async (id: string) => {
     const res = await apiClient('/register-sessions/' + id, { method: 'GET' });
     return handleResponse<RegisterSession>(res);
+  },
+
+  cashIn: async (id: string, amount: number, reason?: string) => {
+    const res = await apiClient('/register-sessions/' + id + '/cash-in', {
+      method: 'POST',
+      body: JSON.stringify({ amount, reason: reason || null }),
+    });
+    return handleResponse<CashMovement>(res);
+  },
+
+  cashOut: async (id: string, amount: number, reason?: string) => {
+    const res = await apiClient('/register-sessions/' + id + '/cash-out', {
+      method: 'POST',
+      body: JSON.stringify({ amount, reason: reason || null }),
+    });
+    return handleResponse<CashMovement>(res);
   },
 };

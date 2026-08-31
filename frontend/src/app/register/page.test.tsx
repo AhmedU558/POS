@@ -5,7 +5,7 @@ import * as AuthContext from '@/features/auth/AuthContext';
 import { registerSessionsApi } from '@/lib/api/register-sessions';
 
 vi.mock('@/lib/api/register-sessions', () => ({
-  registerSessionsApi: { open: vi.fn(), get: vi.fn() },
+  registerSessionsApi: { open: vi.fn(), get: vi.fn(), cashIn: vi.fn(), cashOut: vi.fn() },
 }));
 
 function renderWithAuth(permissions: string[]) {
@@ -42,14 +42,22 @@ describe('RegisterOpenPage', () => {
       openedAt: '2026-08-31T00:00:00Z',
       closedAt: null,
     });
+    vi.mocked(registerSessionsApi.cashIn).mockResolvedValue({
+      id: 'm1',
+      registerSessionId: 'sess-1',
+      transactionType: 'CASH_IN',
+      amount: 20,
+      reason: 'Float',
+      createdAt: '2026-08-31T00:00:00Z',
+    });
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  it('opens a session and displays API opening cash', async () => {
-    renderWithAuth(['REGISTER_OPEN']);
+  it('opens a session and records cash-in from the API', async () => {
+    renderWithAuth(['REGISTER_OPEN', 'REGISTER_CASH']);
     fireEvent.change(screen.getByLabelText('Register'), { target: { value: 'reg-1' } });
     fireEvent.change(screen.getByLabelText('Opening cash'), { target: { value: '150' } });
     fireEvent.click(screen.getByText('Open register'));
@@ -59,6 +67,13 @@ describe('RegisterOpenPage', () => {
       expect(screen.getByText('Session sess-1')).toBeTruthy();
       expect(screen.getByText('Opening cash: 150')).toBeTruthy();
       expect(screen.getByText('Status: OPEN')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText('Cash amount'), { target: { value: '20' } });
+    fireEvent.click(screen.getByText('Cash in'));
+    await waitFor(() => {
+      expect(registerSessionsApi.cashIn).toHaveBeenCalledWith('sess-1', 20, '');
+      expect(screen.getByText('CASH_IN: 20')).toBeTruthy();
     });
   });
 

@@ -9,10 +9,14 @@ import { Input } from '@/components/ui/Input';
 export default function RegisterOpenPage() {
   const { user } = useAuth();
   const canOpen = user?.permissions?.includes('REGISTER_OPEN') ?? false;
+  const canCash = user?.permissions?.includes('REGISTER_CASH') ?? false;
 
   const [registerId, setRegisterId] = useState('');
   const [openingCash, setOpeningCash] = useState('0');
   const [session, setSession] = useState<RegisterSession | null>(null);
+  const [cashAmount, setCashAmount] = useState('');
+  const [cashReason, setCashReason] = useState('');
+  const [lastMovement, setLastMovement] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -33,6 +37,26 @@ export default function RegisterOpenPage() {
       setSession(await registerSessionsApi.open(registerId, Number(openingCash)));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to open register');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const moveCash = async (direction: 'in' | 'out') => {
+    if (!session) {
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const movement = direction === 'in'
+        ? await registerSessionsApi.cashIn(session.id, Number(cashAmount), cashReason)
+        : await registerSessionsApi.cashOut(session.id, Number(cashAmount), cashReason);
+      setLastMovement(movement.transactionType + ': ' + movement.amount);
+      setCashAmount('');
+      setCashReason('');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to record cash movement');
     } finally {
       setIsSubmitting(false);
     }
@@ -72,6 +96,21 @@ export default function RegisterOpenPage() {
           <p>Session {session.id}</p>
           <p>Status: {session.status}</p>
           <p>Opening cash: {session.openingCash}</p>
+          {canCash && (
+            <form onSubmit={(e) => e.preventDefault()} style={{ marginTop: 'var(--space-4)' }}>
+              <Input id="reg-cash-amount" label="Cash amount" type="number" min="0" step="any" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} required />
+              <Input id="reg-cash-reason" label="Reason" value={cashReason} onChange={(e) => setCashReason(e.target.value)} />
+              <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
+                <Button type="button" onClick={() => void moveCash('in')} isLoading={isSubmitting} disabled={isSubmitting}>
+                  Cash in
+                </Button>
+                <Button type="button" variant="secondary" onClick={() => void moveCash('out')} isLoading={isSubmitting} disabled={isSubmitting}>
+                  Cash out
+                </Button>
+              </div>
+            </form>
+          )}
+          {lastMovement && <p>{lastMovement}</p>}
         </section>
       )}
     </div>

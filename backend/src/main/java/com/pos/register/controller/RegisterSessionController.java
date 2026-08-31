@@ -2,6 +2,8 @@ package com.pos.register.controller;
 
 import com.pos.common.config.RequestCorrelation;
 import com.pos.common.response.ApiResponse;
+import com.pos.register.dto.CashMovementRequest;
+import com.pos.register.dto.CashMovementResponse;
 import com.pos.register.dto.RegisterSessionOpenRequest;
 import com.pos.register.dto.RegisterSessionResponse;
 import com.pos.register.service.RegisterSessionService;
@@ -38,5 +40,21 @@ public class RegisterSessionController {
     @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN')")
     public ApiResponse<RegisterSessionResponse> get(@PathVariable UUID id) {
         return ApiResponse.of(registerSessionService.get(id), RequestCorrelation.currentId());
+    }
+
+    @PostMapping("/register-sessions/{id}/cash-in")
+    @PreAuthorize("hasAuthority('REGISTER_CASH')")
+    public ApiResponse<CashMovementResponse> cashIn(
+            @PathVariable UUID id,
+            @Valid @RequestBody CashMovementRequest request) {
+        return ApiResponse.of(registerSessionService.cashIn(id, request), RequestCorrelation.currentId());
+    }
+
+    @PostMapping("/register-sessions/{id}/cash-out")
+    @PreAuthorize("hasAuthority('REGISTER_CASH')")
+    public ApiResponse<CashMovementResponse> cashOut(
+            @PathVariable UUID id,
+            @Valid @RequestBody CashMovementRequest request) {
+        return ApiResponse.of(registerSessionService.cashOut(id, request), RequestCorrelation.currentId());
     }
 }

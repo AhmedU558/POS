@@ -10,8 +10,12 @@ import com.pos.organization.domain.Register;
 import com.pos.organization.domain.RegisterSession;
 import com.pos.organization.repository.RegisterRepository;
 import com.pos.organization.repository.RegisterSessionRepository;
+import com.pos.register.dto.CashMovementRequest;
+import com.pos.register.dto.CashMovementResponse;
 import com.pos.register.dto.RegisterSessionOpenRequest;
 import com.pos.register.dto.RegisterSessionResponse;
+import com.pos.sales.domain.CashTransaction;
+import com.pos.sales.repository.CashTransactionRepository;
 import com.pos.users.domain.User;
 import com.pos.users.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -27,6 +31,7 @@ public class RegisterSessionService {
 
     private final RegisterRepository registerRepository;
     private final RegisterSessionRepository sessionRepository;
+    private final CashTransactionRepository cashTransactionRepository;
     private final UserRepository userRepository;
     private final StoreScopeEvaluator storeScopeEvaluator;
     private final AuditRecorder auditRecorder;
@@ -34,11 +39,13 @@ public class RegisterSessionService {
     public RegisterSessionService(
             RegisterRepository registerRepository,
             RegisterSessionRepository sessionRepository,
+            CashTransactionRepository cashTransactionRepository,
             UserRepository userRepository,
             StoreScopeEvaluator storeScopeEvaluator,
             AuditRecorder auditRecorder) {
         this.registerRepository = registerRepository;
         this.sessionRepository = sessionRepository;
+        this.cashTransactionRepository = cashTransactionRepository;
         this.userRepository = userRepository;
         this.storeScopeEvaluator = storeScopeEvaluator;
         this.auditRecorder = auditRecorder;
@@ -89,6 +96,55 @@ public class RegisterSessionService {
                 saved.getId()));
 
         return RegisterSessionResponse.fromEntity(sessionRepository.findDetailedById(saved.getId()).orElse(saved));
+    }
+
+    @Transactional
+    public CashMovementResponse cashIn(UUID sessionId, CashMovementRequest request) {
+        return recordMovement(sessionId, request, CashTransaction.TYPE_CASH_IN, "CASH_IN_RECORDED");
+    }
+
+    @Transactional
+    public CashMovementResponse cashOut(UUID sessionId, CashMovementRequest request) {
+        return recordMovement(sessionId, request, CashTransaction.TYPE_CASH_OUT, "CASH_OUT_RECORDED");
+    }
+
+    private CashMovementResponse recordMovement(
+            UUID sessionId,
+            CashMovementRequest request,
+            String type,
+            String auditAction) {
+        RegisterSession session = sessionRepository.findByIdForUpdate(sessionId)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Register session not found"));
+        if (!storeScopeEvaluator.canAccess(session.getRegister().getStore().getId())) {
+            throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
+        }
+        if (!session.isOpen()) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Register session is closed");
+        }
+
+        User actor = currentUser();
+        CashTransaction transaction = new CashTransaction();
+        transaction.setRegisterSession(session);
+        transaction.setTransactionType(type);
+        transaction.setAmount(request.amount().setScale(4, RoundingMode.HALF_UP));
+        transaction.setReason(blankToNull(request.reason()));
+        transaction.setCreatedBy(actor);
+        CashTransaction saved = cashTransactionRepository.save(transaction);
+
+        auditRecorder.record(AuditEvent.of(
+                AuditActor.user(actor.getId()),
+                auditAction,
+                "CashTransaction",
+                saved.getId()));
+
+        return CashMovementResponse.fromEntity(saved, session.getId());
+    }
+
+    private static String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private User currentUser() {

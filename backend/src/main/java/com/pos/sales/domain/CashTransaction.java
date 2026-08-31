@@ -22,6 +22,8 @@ import java.util.UUID;
 public class CashTransaction {
 
     public static final String TYPE_SALE = "SALE";
+    public static final String TYPE_CASH_IN = "CASH_IN";
+    public static final String TYPE_CASH_OUT = "CASH_OUT";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -57,6 +59,26 @@ public class CashTransaction {
     public CashTransaction() {
     }
 
+    public UUID getId() {
+        return id;
+    }
+
+    public String getTransactionType() {
+        return transactionType;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
+
     public void setRegisterSession(RegisterSession registerSession) {
         this.registerSession = registerSession;
     }
@@ -67,6 +89,10 @@ public class CashTransaction {
 
     public void setAmount(BigDecimal amount) {
         this.amount = amount;
+    }
+
+    public void setReason(String reason) {
+        this.reason = reason;
     }
 
     public void setReferenceType(String referenceType) {
