@@ -6,7 +6,7 @@ import { P } from '@/lib/permissions';
  *
  * Structured around what a store does rather than around the API surface: a manager looks for
  * "Purchases", not for "goods receipts" and "purchase orders" as separate top-level ideas. The
- * hierarchy follows UI/UX Specification section 5.
+ * hierarchy follows UI/UX Specification section 5, restructured for a professional POS layout.
  *
  * `permissions` lists the codes that make an item worth showing. An item is shown when the user
  * holds any one of them, so a cashier who can sell but not report still sees a coherent menu
@@ -29,27 +29,26 @@ export interface NavSection {
 
 export const NAV_SECTIONS: readonly NavSection[] = [
   {
-    label: 'Sell',
+    label: 'POS',
     items: [
-      { label: 'Dashboard', href: '/', icon: 'dashboard', permissions: [] },
-      { label: 'Point of Sale', href: '/pos', icon: 'pos', permissions: [P.SALE_CREATE] },
+      { label: 'New Sale', href: '/pos', icon: 'pos', permissions: [P.SALE_CREATE] },
       {
-        label: 'Sales',
-        href: '/sales',
+        label: 'Held Sales',
+        href: '/sales/held',
         icon: 'reports',
         permissions: [P.SALE_READ],
-        match: ['/sales'],
       },
       {
-        label: 'Register',
-        href: '/register',
-        icon: 'register',
-        permissions: [P.REGISTER_OPEN, P.REGISTER_READ, P.REGISTER_CLOSE, P.REGISTER_CASH],
+        label: 'Sales History',
+        href: '/sales/history',
+        icon: 'reports',
+        permissions: [P.SALE_READ],
+        match: ['/sales/history', '/sales'],
       },
     ],
   },
   {
-    label: 'Stock',
+    label: 'Inventory',
     items: [
       {
         label: 'Products',
@@ -59,42 +58,33 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         match: ['/products', '/categories', '/brands', '/units'],
       },
       {
-        label: 'Inventory',
+        label: 'Stock',
         href: '/inventory',
         icon: 'inventory',
         permissions: [P.INVENTORY_READ],
-        match: ['/inventory'],
+      },
+      {
+        label: 'Receive Stock',
+        href: '/inventory/receive',
+        icon: 'inventory',
+        permissions: [P.INVENTORY_RECEIVE],
+      },
+      {
+        label: 'Batches & Expiry',
+        href: '/inventory/batches',
+        icon: 'inventory',
+        permissions: [P.INVENTORY_READ],
+      },
+      {
+        label: 'Alerts',
+        href: '/inventory/alerts',
+        icon: 'inventory',
+        permissions: [P.INVENTORY_READ],
       },
     ],
   },
   {
-    label: 'Buy',
-    items: [
-      {
-        label: 'Suppliers',
-        href: '/suppliers',
-        icon: 'suppliers',
-        permissions: [P.SUPPLIER_READ],
-        match: ['/suppliers'],
-      },
-      {
-        label: 'Purchase orders',
-        href: '/purchase-orders',
-        icon: 'purchases',
-        permissions: [P.PURCHASE_READ],
-        match: ['/purchase-orders'],
-      },
-      {
-        label: 'Bills to pay',
-        href: '/accounts-payable',
-        icon: 'payables',
-        permissions: [P.AP_READ],
-        match: ['/accounts-payable'],
-      },
-    ],
-  },
-  {
-    label: 'Manage',
+    label: 'Customers',
     items: [
       {
         label: 'Customers',
@@ -103,6 +93,42 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permissions: [P.CUSTOMER_READ],
         match: ['/customers'],
       },
+    ],
+  },
+  {
+    label: 'Suppliers',
+    items: [
+      {
+        label: 'Suppliers',
+        href: '/suppliers',
+        icon: 'suppliers',
+        permissions: [P.SUPPLIER_READ],
+        match: ['/suppliers'],
+      },
+    ],
+  },
+  {
+    label: 'Purchasing',
+    items: [
+      {
+        label: 'Purchase Orders',
+        href: '/purchase-orders',
+        icon: 'purchases',
+        permissions: [P.PURCHASE_READ],
+        match: ['/purchase-orders'],
+      },
+      {
+        label: 'Bills to Pay',
+        href: '/accounts-payable',
+        icon: 'payables',
+        permissions: [P.AP_READ],
+        match: ['/accounts-payable'],
+      },
+    ],
+  },
+  {
+    label: 'Accounts',
+    items: [
       {
         label: 'Expenses',
         href: '/expenses',
@@ -110,6 +136,22 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permissions: [P.EXPENSE_READ],
         match: ['/expenses'],
       },
+    ],
+  },
+  {
+    label: 'Register',
+    items: [
+      {
+        label: 'Register',
+        href: '/register',
+        icon: 'register',
+        permissions: [P.REGISTER_OPEN, P.REGISTER_READ, P.REGISTER_CLOSE, P.REGISTER_CASH],
+      },
+    ],
+  },
+  {
+    label: 'Reports',
+    items: [
       {
         label: 'Reports',
         href: '/reports',
@@ -117,13 +159,26 @@ export const NAV_SECTIONS: readonly NavSection[] = [
         permissions: [P.REPORT_SALES, P.REPORT_INVENTORY, P.REPORT_FINANCE, P.REPORT_CASH],
         match: ['/reports'],
       },
+    ],
+  },
+  {
+    label: 'Settings',
+    items: [
       {
-        label: 'Setup',
+        label: 'Store Setup',
         href: '/setup',
         icon: 'settings',
         permissions: [P.STORE_READ, P.STORE_WRITE, P.TERMINAL_READ, P.REGISTER_READ],
         match: ['/setup'],
       },
+      {
+        label: 'FBR Integration',
+        href: '/settings/fbr',
+        icon: 'settings',
+        permissions: [P.STORE_WRITE],
+        match: ['/settings/fbr'],
+      },
+      { label: 'Dashboard', href: '/', icon: 'dashboard', permissions: [] },
     ],
   },
 ];

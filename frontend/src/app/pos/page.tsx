@@ -270,16 +270,13 @@ export default function PointOfSalePage() {
 
   return (
     <main className="pos">
+      {/* ---- Top bar ---- */}
       <header className="pos__topbar">
         <div className="row">
           <Link href="/" className="btn btn--ghost btn--sm" aria-label="Leave the till">
             <Icon name="arrow-left" size={18} />
             Exit
           </Link>
-          {/*
-            A Cashier holds no STORE_READ, so the store's name is not resolvable for them and the
-            chip is omitted rather than showing the word "Store" as if it were one.
-          */}
           {activeStore && (
             <span className="context-chip">
               <Icon name="store" size={16} />
@@ -296,7 +293,9 @@ export default function PointOfSalePage() {
         </div>
       </header>
 
+      {/* ---- Two-pane body ---- */}
       <div className="pos__body">
+        {/* ---- Left: product catalog ---- */}
         <section className="pos__catalog" aria-label="Products">
           <form
             className="pos__scan"
@@ -308,7 +307,7 @@ export default function PointOfSalePage() {
             <SearchInput
               id="pos-scan"
               ref={scanRef}
-              placeholder="Scan a barcode, or search by name or SKU"
+              placeholder="Scan barcode or search by name / SKU"
               value={term}
               onChange={(event) => setTerm(event.target.value)}
               autoFocus
@@ -357,28 +356,27 @@ export default function PointOfSalePage() {
               />
             ) : (
               results.map((product) => (
-                <button
+                <ProductTile
                   key={product.id}
-                  type="button"
-                  className="product-tile"
-                  onClick={() => {
+                  product={product}
+                  onAdd={() => {
                     cart.add(product);
                     focusScan();
                   }}
-                >
-                  <span className="product-tile__name">{product.name}</span>
-                  <span className="product-tile__sku">{product.sku}</span>
-                  <span className="product-tile__price">{formatMoney(product.sellingPrice)}</span>
-                </button>
+                />
               ))
             )}
           </div>
         </section>
 
+        {/* ---- Right: cart ---- */}
         <section className="pos__cart" aria-label="Current sale">
           <header className="pos__cart-header">
             <span className="pos__cart-title">
-              Cart {cart.lines.length > 0 && <span className="text-muted">({formatQuantity(cart.estimate.itemCount)})</span>}
+              Cart{' '}
+              {cart.lines.length > 0 && (
+                <span className="text-muted">({formatQuantity(cart.estimate.itemCount)})</span>
+              )}
             </span>
             {cart.lines.length > 0 && (
               <Button variant="ghost" size="sm" icon="trash" onClick={() => setClearPrompt(true)}>
@@ -387,6 +385,19 @@ export default function PointOfSalePage() {
             )}
           </header>
 
+          {/* Customer selector */}
+          <div className="pos__customer-bar">
+            <button
+              type="button"
+              className="btn btn--secondary btn--sm btn--block"
+              onClick={() => setCustomerOpen(true)}
+            >
+              <Icon name="customers" size={16} />
+              {customer ? customer.name : 'Add customer (optional)'}
+            </button>
+          </div>
+
+          {/* Cart items */}
           <div className="pos__cart-lines">
             {cart.lines.length === 0 ? (
               <EmptyState
@@ -438,7 +449,7 @@ export default function PointOfSalePage() {
                     {canDiscount && (
                       <input
                         className="control"
-                        style={{ width: '7rem', height: '2.25rem', minHeight: 0 }}
+                        style={{ width: '7rem', height: 'var(--touch-target-min)', minHeight: 0 }}
                         type="number"
                         min="0"
                         step="0.01"
@@ -461,12 +472,8 @@ export default function PointOfSalePage() {
             )}
           </div>
 
+          {/* Totals + actions */}
           <div className="pos__totals">
-            <button type="button" className="btn btn--secondary btn--block" onClick={() => setCustomerOpen(true)}>
-              <Icon name="customers" size={16} />
-              {customer ? customer.name : 'Add customer (optional)'}
-            </button>
-
             <div className="total-row">
               <span className="total-row__label">Subtotal</span>
               <span className="total-row__value">{formatMoney(cart.estimate.subtotal)}</span>
@@ -487,16 +494,21 @@ export default function PointOfSalePage() {
             </div>
 
             <div className="pos__actions">
-              <Button
-                variant="primary"
-                size="lg"
+              <button
+                type="button"
                 className="btn--pay"
-                disabled={cart.lines.length === 0}
-                isLoading={isPricing}
+                disabled={cart.lines.length === 0 || isPricing}
                 onClick={() => void startPayment()}
               >
-                Pay {cart.lines.length > 0 && formatMoney(cart.estimate.grandTotal)}
-              </Button>
+                {isPricing ? (
+                  'Processing…'
+                ) : (
+                  <>
+                    <Icon name="pos" size={22} />
+                    Pay {cart.lines.length > 0 && formatMoney(cart.estimate.grandTotal)}
+                  </>
+                )}
+              </button>
               <Button variant="secondary" disabled={cart.lines.length === 0 || isPricing} onClick={() => void hold()}>
                 Hold
               </Button>
@@ -552,6 +564,35 @@ export default function PointOfSalePage() {
     </main>
   );
 }
+
+/* ================================================================ Product tile */
+
+function ProductTile({ product, onAdd }: { product: Product; onAdd: () => void }) {
+  return (
+    <button
+      type="button"
+      className="product-tile"
+      onClick={onAdd}
+    >
+      <div className="product-tile__icon">
+        <Icon name="products" size={20} />
+      </div>
+      <div className="product-tile__body">
+        <span className="product-tile__name">{product.name}</span>
+        <span className="product-tile__sku">{product.sku}</span>
+      </div>
+      <div className="product-tile__footer">
+        <span className="product-tile__price">{formatMoney(product.sellingPrice)}</span>
+        {!product.isActive && (
+          <span className="product-tile__stock product-tile__stock--out">Inactive</span>
+        )}
+      </div>
+    </button>
+  );
+}
+
+
+/* ================================================================ No register */
 
 /** The one thing standing between a cashier and a sale, said plainly with the way out. */
 function NoOpenRegister() {

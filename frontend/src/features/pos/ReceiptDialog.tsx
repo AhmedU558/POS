@@ -6,10 +6,12 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 
 /**
- * The receipt.
+ * Thermal-receipt-style receipt dialog.
  *
  * Every figure comes from the sale the server settled, including the payments — nothing here is
  * recomputed, so what the customer is handed matches what was recorded.
+ *
+ * Designed for 58mm/80mm thermal printers when printed via window.print().
  */
 export function ReceiptDialog({
   receipt,
@@ -32,11 +34,11 @@ export function ReceiptDialog({
       footer={
         <>
           <Button variant="secondary" icon="print" onClick={() => window.print()}>
-            Print
+            Print Receipt
           </Button>
           {onNextSale ? (
             <Button onClick={onNextSale} size="lg">
-              Next sale
+              Next Sale
             </Button>
           ) : (
             <Button onClick={onClose}>Close</Button>
@@ -45,6 +47,7 @@ export function ReceiptDialog({
       }
     >
       <div className="receipt stack">
+        {/* ---- Change due (prominent for cashier) ---- */}
         {changeDue !== null && changeDue > 0.004 && (
           <div className="change-due">
             <span className="change-due__label">Change due</span>
@@ -52,6 +55,7 @@ export function ReceiptDialog({
           </div>
         )}
 
+        {/* ---- Store header ---- */}
         <div className="receipt__header">
           <p className="receipt__store">{receipt.storeName}</p>
           <p className="text-small text-muted">{formatDateTime(receipt.createdAt)}</p>
@@ -62,6 +66,7 @@ export function ReceiptDialog({
           {receipt.customerName && <p className="text-small">Customer: {receipt.customerName}</p>}
         </div>
 
+        {/* ---- Line items ---- */}
         <div>
           {receipt.items.map((item) => (
             <div className="receipt__line" key={`${item.productId}-${item.sku}`}>
@@ -74,6 +79,7 @@ export function ReceiptDialog({
           ))}
         </div>
 
+        {/* ---- Totals ---- */}
         <div className="receipt__totals">
           <div className="receipt__line">
             <span className="text-muted">Subtotal</span>
@@ -95,6 +101,7 @@ export function ReceiptDialog({
           </div>
         </div>
 
+        {/* ---- Payments ---- */}
         <div className="receipt__totals">
           {receipt.payments.map((payment, index) => (
             <div className="receipt__line" key={index}>
@@ -104,6 +111,10 @@ export function ReceiptDialog({
           ))}
         </div>
 
+        {/* ---- FBR section (renders only when real FBR data exists) ---- */}
+        <FbrSection receipt={receipt} />
+
+        {/* ---- Branding ---- */}
         <p className="receipt__branding">Powered by Aqvion Labs.com</p>
       </div>
     </Modal>
@@ -113,4 +124,50 @@ export function ReceiptDialog({
 /** Payments come back as method codes; a receipt should not read STORE_CREDIT. */
 function methodLabel(code: string): string {
   return code.charAt(0) + code.slice(1).toLowerCase().replace(/_/g, ' ');
+}
+
+/**
+ * FBR integration section.
+ *
+ * This renders only when the receipt carries real FBR data from the backend. The QR code and
+ * invoice number are printed as part of the thermal receipt. When FBR integration is not
+ * configured, nothing is rendered — no fake data is fabricated.
+ */
+function FbrSection({ receipt }: { receipt: SaleReceipt }) {
+  // The receipt type would carry fbrInvoiceNumber and fbrQrCode when FBR integration is active.
+  // These fields are populated server-side after successful FBR submission.
+  const fbrData = receipt as SaleReceipt & {
+    fbrInvoiceNumber?: string | null;
+    fbrQrCode?: string | null;
+  };
+
+  if (!fbrData.fbrInvoiceNumber && !fbrData.fbrQrCode) {
+    return null;
+  }
+
+  return (
+    <div className="receipt__fbr">
+      {fbrData.fbrInvoiceNumber && (
+        <p className="text-small">
+          <strong>FBR Invoice #:</strong> {fbrData.fbrInvoiceNumber}
+        </p>
+      )}
+      {fbrData.fbrQrCode && (
+        <div className="receipt__fbr-qr">
+          {/* The QR code URL/data comes from the actual FBR response. Rendered as an image
+              so it prints on thermal printers. */}
+          <img
+            src={fbrData.fbrQrCode}
+            alt="FBR verification QR code"
+            width={120}
+            height={120}
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </div>
+      )}
+      <p className="text-small text-muted" style={{ marginTop: 'var(--space-1)' }}>
+        Verify at FBR
+      </p>
+    </div>
+  );
 }

@@ -56,9 +56,9 @@ function ShellFrame({ pathname, children }: { pathname: string; children: React.
       <aside className={['shell__sidebar', navOpen ? 'shell__sidebar--open' : ''].filter(Boolean).join(' ')}>
         <Link href="/" className="shell__brand">
           <span className="shell__brand-mark" aria-hidden="true">
-            PO
+            AQ
           </span>
-          <span className="shell__brand-name">POS Manager</span>
+          <span className="shell__brand-name">Aqvion POS</span>
         </Link>
         <nav className="shell__nav" aria-label="Main">
           {sections.map((section) => (

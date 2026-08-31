@@ -5,7 +5,11 @@
  * product grid on the left and a permanently visible cart on the right. The cart never scrolls
  * out of view and the totals never move, because a cashier reads the total dozens of times an
  * hour and must not have to hunt for it.
+ *
+ * Redesigned for commercial POS: dense, touchscreen-first, cashier-optimised.
  */
+
+/* ================================================================ Shell */
 
 .pos {
   display: grid;
@@ -19,17 +23,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding: var(--space-2) var(--space-4);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
-  min-height: 3.25rem;
+  min-height: 3rem;
   flex-wrap: wrap;
+}
+
+.pos__topbar .row {
+  gap: var(--space-2);
 }
 
 .pos__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 24rem;
+  grid-template-columns: minmax(0, 1fr) 26rem;
   min-height: 0;
 }
 
@@ -40,19 +48,21 @@
   }
 }
 
-/* ---------------------------------------------------------------- Left pane */
+/* ================================================================ Left pane — catalog */
 
 .pos__catalog {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   gap: var(--space-3);
 }
 
+/* ---- Search ---- */
+
 .pos__scan {
   display: flex;
-  gap: var(--space-3);
+  gap: var(--space-2);
   align-items: center;
 }
 
@@ -60,23 +70,31 @@
   flex: 1 1 auto;
 }
 
-/* The scan field is the anchor of the whole screen; it is visually the loudest control. */
+/* The scan field is the anchor of the whole screen: visually the loudest control. */
 .pos__scan .control {
   height: var(--control-height-pos);
   font-size: var(--font-size-body-lg);
   border-width: 2px;
   border-color: var(--color-primary);
+  border-radius: var(--radius-md);
 }
+
+.pos__scan .control:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 20%, transparent);
+}
+
+/* ---- Category chips ---- */
 
 .pos__categories {
   display: flex;
   gap: var(--space-2);
   overflow-x: auto;
   padding-bottom: var(--space-1);
+  scrollbar-width: thin;
 }
 
 .pos__category {
-  padding: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -85,51 +103,87 @@
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   white-space: nowrap;
-  min-height: var(--control-height-sm);
+  min-height: var(--touch-target-min);
+  display: flex;
+  align-items: center;
+  transition: all var(--duration-fast) var(--easing-standard);
 }
 
 .pos__category:hover {
-  border-color: var(--color-border-strong);
+  border-color: var(--color-primary);
   color: var(--color-foreground);
+  background: var(--color-info-surface);
 }
 
 .pos__category[aria-pressed="true"] {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: var(--color-primary-foreground);
+  font-weight: var(--font-weight-semibold);
 }
+
+/* ---- Product grid ---- */
 
 .pos__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(var(--product-tile-min), 1fr));
+  gap: var(--space-2);
   overflow-y: auto;
   align-content: start;
   padding-bottom: var(--space-4);
 }
 
+/* ---- Product tiles ---- */
+
 .product-tile {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   gap: var(--space-2);
-  min-height: 6.5rem;
+  min-height: 7.5rem;
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   cursor: pointer;
   text-align: left;
-  transition: border-color var(--duration-fast) var(--easing-standard);
+  transition: border-color var(--duration-fast) var(--easing-standard),
+              box-shadow var(--duration-fast) var(--easing-standard);
+  position: relative;
+  overflow: hidden;
 }
 
 .product-tile:hover:not(:disabled) {
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.product-tile:active:not(:disabled) {
+  background: var(--color-info-surface);
 }
 
 .product-tile:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
+}
+
+.product-tile__icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-sunken);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-foreground-subtle);
+  flex-shrink: 0;
+}
+
+.product-tile__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
 }
 
 .product-tile__name {
@@ -139,30 +193,57 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-size: var(--font-size-body);
 }
 
 .product-tile__sku {
-  font-size: var(--font-size-small);
+  font-size: 0.6875rem;
   color: var(--color-foreground-subtle);
   font-family: var(--font-mono);
+}
+
+.product-tile__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: auto;
 }
 
 .product-tile__price {
   font-weight: var(--font-weight-semibold);
   color: var(--color-money);
   font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--font-size-body);
 }
 
 .product-tile__stock {
-  font-size: var(--font-size-small);
-  color: var(--color-foreground-muted);
+  font-size: 0.6875rem;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-weight: var(--font-weight-medium);
 }
 
-/* ---------------------------------------------------------------- Cart pane */
+.product-tile__stock--ok {
+  background: var(--color-success-surface);
+  color: var(--color-success);
+}
+
+.product-tile__stock--low {
+  background: var(--color-warning-surface);
+  color: var(--color-warning);
+}
+
+.product-tile__stock--out {
+  background: var(--color-error-surface);
+  color: var(--color-error);
+}
+
+/* ================================================================ Right pane — cart */
 
 .pos__cart {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   background: var(--color-surface);
   border-left: 1px solid var(--color-border);
   min-height: 0;
@@ -171,24 +252,36 @@
 @media (max-width: 1023px) {
   .pos__cart {
     border-left: none;
-    border-top: 1px solid var(--color-border);
-    max-height: 60vh;
+    border-top: 2px solid var(--color-border-strong);
+    max-height: 55vh;
   }
 }
+
+/* ---- Cart header ---- */
 
 .pos__cart-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
+  min-height: var(--touch-target-min);
 }
 
 .pos__cart-title {
   font-size: var(--font-size-body-lg);
   font-weight: var(--font-weight-semibold);
 }
+
+/* ---- Customer bar ---- */
+
+.pos__customer-bar {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* ---- Cart lines ---- */
 
 .pos__cart-lines {
   overflow-y: auto;
@@ -198,20 +291,21 @@
 .cart-line {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
+  align-items: center;
 }
 
 .cart-line__name {
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-tight);
+  font-size: var(--font-size-body);
 }
 
 .cart-line__meta {
   font-size: var(--font-size-small);
   color: var(--color-foreground-muted);
-  margin-top: 2px;
 }
 
 .cart-line__total {
@@ -219,6 +313,7 @@
   color: var(--color-money);
   font-variant-numeric: tabular-nums lining-nums;
   white-space: nowrap;
+  font-size: var(--font-size-body);
 }
 
 .cart-line__controls {
@@ -226,8 +321,9 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: var(--space-1);
 }
+
+/* ---- Quantity stepper ---- */
 
 .qty-stepper {
   display: inline-flex;
@@ -239,8 +335,8 @@
 }
 
 .qty-stepper__button {
-  width: 2.25rem;
-  min-height: 2.25rem;
+  width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
   border: none;
   background: var(--color-surface-raised);
   color: var(--color-foreground);
@@ -250,10 +346,15 @@
   justify-content: center;
   font-size: var(--font-size-body-lg);
   line-height: 1;
+  transition: background var(--duration-instant) var(--easing-standard);
 }
 
 .qty-stepper__button:hover:not(:disabled) {
   background: var(--color-surface-sunken);
+}
+
+.qty-stepper__button:active:not(:disabled) {
+  background: var(--color-border);
 }
 
 .qty-stepper__button:disabled {
@@ -263,8 +364,8 @@
 
 .qty-stepper__input {
   width: 3.5rem;
-  min-height: 2.25rem;
-  height: 2.25rem;
+  min-height: var(--touch-target-min);
+  height: var(--touch-target-min);
   border: none;
   border-left: 1px solid var(--color-border);
   border-right: 1px solid var(--color-border);
@@ -273,11 +374,15 @@
   color: var(--color-foreground);
   font-variant-numeric: tabular-nums;
   padding: 0 var(--space-1);
+  font-size: var(--font-size-body);
+  font-weight: var(--font-weight-semibold);
 }
 
+/* ---- Totals footer ---- */
+
 .pos__totals {
-  border-top: 1px solid var(--color-border);
-  padding: var(--space-4);
+  border-top: 2px solid var(--color-border-strong);
+  padding: var(--space-3);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -290,6 +395,7 @@
   justify-content: space-between;
   gap: var(--space-4);
   font-variant-numeric: tabular-nums lining-nums;
+  font-size: var(--font-size-body);
 }
 
 .total-row__label {
@@ -309,11 +415,13 @@
 }
 
 .total-row--grand .total-row__value {
-  font-size: 1.5rem;
+  font-size: var(--font-size-pos-total);
   font-weight: var(--font-weight-semibold);
   color: var(--color-money);
   letter-spacing: -0.02em;
 }
+
+/* ---- Actions ---- */
 
 .pos__actions {
   display: grid;
@@ -322,11 +430,39 @@
   margin-top: var(--space-2);
 }
 
+/* Pay button — the most important control on screen */
 .pos__actions .btn--pay {
   grid-column: 1 / -1;
+  height: var(--control-height-pos-lg);
+  font-size: var(--font-size-body-lg);
+  font-weight: var(--font-weight-semibold);
+  background: var(--color-pay);
+  color: var(--color-pay-foreground);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  letter-spacing: -0.01em;
+  transition: background var(--duration-fast) var(--easing-standard);
 }
 
-/* ---------------------------------------------------------------- Payment */
+.pos__actions .btn--pay:hover:not(:disabled) {
+  background: var(--color-pay-hover);
+}
+
+.pos__actions .btn--pay:active:not(:disabled) {
+  transform: scale(0.99);
+}
+
+.pos__actions .btn--pay:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ================================================================ Payment dialog */
 
 .tender-grid {
   display: grid;
@@ -342,6 +478,8 @@
   cursor: pointer;
   font-weight: var(--font-weight-medium);
   font-variant-numeric: tabular-nums;
+  min-height: var(--touch-target-min);
+  transition: border-color var(--duration-fast) var(--easing-standard);
 }
 
 .tender-chip:hover {
@@ -362,6 +500,8 @@
   cursor: pointer;
   font-weight: var(--font-weight-medium);
   text-align: center;
+  min-height: var(--touch-target-min);
+  transition: all var(--duration-fast) var(--easing-standard);
 }
 
 .method-option[aria-pressed="true"] {
@@ -370,11 +510,13 @@
   color: var(--color-primary);
 }
 
+/* ================================================================ Change due */
+
 .change-due {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   background: var(--color-success-surface);
   color: var(--color-success);
@@ -387,19 +529,22 @@
 }
 
 .change-due__label {
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-body-lg);
 }
 
 .change-due__value {
-  font-size: 1.75rem;
+  font-size: 2rem;
   font-weight: var(--font-weight-semibold);
   letter-spacing: -0.02em;
 }
 
-/* ---------------------------------------------------------------- Receipt */
+/* ================================================================ Receipt */
 
 .receipt {
   font-variant-numeric: tabular-nums lining-nums;
+  max-width: 22rem;
+  margin: 0 auto;
 }
 
 .receipt__header {
@@ -418,12 +563,27 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-1) 0;
+  font-size: var(--font-size-body);
 }
 
 .receipt__totals {
   border-top: 1px dashed var(--color-border-strong);
   margin-top: var(--space-3);
   padding-top: var(--space-3);
+}
+
+.receipt__fbr {
+  border-top: 1px dashed var(--color-border-strong);
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  text-align: center;
+}
+
+.receipt__fbr-qr {
+  display: inline-block;
+  padding: var(--space-2);
+  background: #fff;
+  border-radius: var(--radius-sm);
 }
 
 .receipt__branding {
@@ -435,6 +595,8 @@
   color: var(--color-foreground-subtle);
   letter-spacing: 0.02em;
 }
+
+/* ================================================================ Print */
 
 @media print {
   .pos__topbar,
@@ -455,5 +617,31 @@
     box-shadow: none;
     max-width: none;
     max-height: none;
+  }
+
+  .receipt {
+    max-width: var(--receipt-width-80mm);
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .receipt__store {
+    font-size: 14px;
+  }
+
+  .receipt__line {
+    font-size: 11px;
+  }
+
+  .receipt__branding {
+    font-size: 9px;
+    border-top: 1px dashed #ccc;
+  }
+
+  .receipt__fbr-qr img,
+  .receipt__fbr-qr canvas,
+  .receipt__fbr-qr svg {
+    max-width: 40mm;
+    height: auto;
   }
 }
