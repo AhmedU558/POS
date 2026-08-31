@@ -1,4 +1,4 @@
-package com.pos.sales.domain;
+package com.pos.quotations.domain;
 
 import com.pos.catalog.entity.Product;
 import jakarta.persistence.Column;
@@ -15,16 +15,16 @@ import java.math.BigDecimal;
 import java.util.UUID;
 
 @Entity
-@Table(name = "sale_items")
-public class SaleItem {
+@Table(name = "quotation_items")
+public class QuotationItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "sale_id", nullable = false)
-    private Sale sale;
+    @JoinColumn(name = "quotation_id", nullable = false)
+    private Quotation quotation;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "product_id", nullable = false)
@@ -40,27 +40,21 @@ public class SaleItem {
     private BigDecimal discountAmount = BigDecimal.ZERO;
 
     @Column(name = "tax_amount", nullable = false, precision = 19, scale = 4)
-    private BigDecimal taxAmount;
+    private BigDecimal taxAmount = BigDecimal.ZERO;
 
     @Column(name = "line_total", nullable = false, precision = 19, scale = 4)
     private BigDecimal lineTotal;
-
-    @Column(name = "batch_id")
-    private UUID batchId;
-
-    public SaleItem() {
-    }
 
     public UUID getId() {
         return id;
     }
 
-    public Sale getSale() {
-        return sale;
+    public Quotation getQuotation() {
+        return quotation;
     }
 
-    public void setSale(Sale sale) {
-        this.sale = sale;
+    public void setQuotation(Quotation quotation) {
+        this.quotation = quotation;
     }
 
     public Product getProduct() {
@@ -109,13 +103,5 @@ public class SaleItem {
 
     public void setLineTotal(BigDecimal lineTotal) {
         this.lineTotal = lineTotal;
-    }
-
-    public UUID getBatchId() {
-        return batchId;
-    }
-
-    public void setBatchId(UUID batchId) {
-        this.batchId = batchId;
     }
 }
