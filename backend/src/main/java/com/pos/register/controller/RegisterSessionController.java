@@ -39,6 +39,18 @@ public class RegisterSessionController {
         return ApiResponse.of(registerSessionService.open(id, request), RequestCorrelation.currentId());
     }
 
+    /**
+     * The caller's own open session, or a null payload when they have none.
+     *
+     * <p>Mapped above {@code /register-sessions/{id}} deliberately: "current" is a literal path
+     * segment and must not be parsed as a session identifier.
+     */
+    @GetMapping("/register-sessions/current")
+    @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN', 'SALE_CREATE')")
+    public ApiResponse<RegisterSessionResponse> current() {
+        return ApiResponse.of(registerSessionService.currentForCashier(), RequestCorrelation.currentId());
+    }
+
     @GetMapping("/register-sessions/{id}/summary")
     @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN')")
     public ApiResponse<RegisterSessionSummaryResponse> summary(@PathVariable UUID id) {

@@ -72,6 +72,27 @@ public class RegisterSessionService {
         return RegisterSessionResponse.fromEntity(session);
     }
 
+    /**
+     * The session the caller currently has open, or null when they have none.
+     *
+     * <p>Opening a session is the only place its identifier is issued, so without this lookup a
+     * refreshed browser leaves the cashier locked out of a drawer that is still open — and the
+     * register cannot be reopened, because a register may hold only one open session.
+     *
+     * <p>Absence is a normal state, not an error, so it is reported as a null payload rather than
+     * a 404: a till that has not been opened yet is exactly what the POS screen expects to find
+     * at the start of a shift.
+     */
+    @Transactional(readOnly = true)
+    public RegisterSessionResponse currentForCashier() {
+        User cashier = currentUser();
+        return sessionRepository
+                .findCurrentForCashier(cashier.getId(), RegisterSession.STATUS_OPEN)
+                .filter(session -> storeScopeEvaluator.canAccess(session.getRegister().getStore().getId()))
+                .map(RegisterSessionResponse::fromEntity)
+                .orElse(null);
+    }
+
     @Transactional(readOnly = true)
     public RegisterSessionSummaryResponse summary(UUID id) {
         RegisterSession session = sessionRepository.findDetailedById(id)

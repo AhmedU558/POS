@@ -48,6 +48,7 @@ specifications at once.
 | [AMD-040](AMD-040-ui-ux-session-summary.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 7.3) |
 | [AMD-041](AMD-041-rest-api-register-close.md) | POS REST API Specification | **Approved** 2026-08-31 (Story 7.4) |
 | [AMD-042](AMD-042-ui-ux-register-close.md) | POS UI/UX and Screen Architecture Specification | **Approved** 2026-08-31 (Story 7.4) |
+| [AMD-043](AMD-043-rest-api-current-register-session.md) | POS REST API Specification | **Approved** 2026-08-31 (Product UX completion pass) |
 
 ## Status values
 
