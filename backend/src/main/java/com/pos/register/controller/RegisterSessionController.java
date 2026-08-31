@@ -6,6 +6,7 @@ import com.pos.register.dto.CashMovementRequest;
 import com.pos.register.dto.CashMovementResponse;
 import com.pos.register.dto.RegisterSessionOpenRequest;
 import com.pos.register.dto.RegisterSessionResponse;
+import com.pos.register.dto.RegisterSessionSummaryResponse;
 import com.pos.register.service.RegisterSessionService;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -34,6 +35,12 @@ public class RegisterSessionController {
             @PathVariable UUID id,
             @Valid @RequestBody RegisterSessionOpenRequest request) {
         return ApiResponse.of(registerSessionService.open(id, request), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/register-sessions/{id}/summary")
+    @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN')")
+    public ApiResponse<RegisterSessionSummaryResponse> summary(@PathVariable UUID id) {
+        return ApiResponse.of(registerSessionService.summary(id), RequestCorrelation.currentId());
     }
 
     @GetMapping("/register-sessions/{id}")

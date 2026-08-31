@@ -14,6 +14,7 @@ import com.pos.register.dto.CashMovementRequest;
 import com.pos.register.dto.CashMovementResponse;
 import com.pos.register.dto.RegisterSessionOpenRequest;
 import com.pos.register.dto.RegisterSessionResponse;
+import com.pos.register.dto.RegisterSessionSummaryResponse;
 import com.pos.sales.domain.CashTransaction;
 import com.pos.sales.repository.CashTransactionRepository;
 import com.pos.users.domain.User;
@@ -23,6 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.UUID;
 
@@ -59,6 +61,42 @@ public class RegisterSessionService {
             throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
         }
         return RegisterSessionResponse.fromEntity(session);
+    }
+
+    @Transactional(readOnly = true)
+    public RegisterSessionSummaryResponse summary(UUID id) {
+        RegisterSession session = sessionRepository.findDetailedById(id)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Register session not found"));
+        if (!storeScopeEvaluator.canAccess(session.getRegister().getStore().getId())) {
+            throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
+        }
+        return toSummary(session);
+    }
+
+    private RegisterSessionSummaryResponse toSummary(RegisterSession session) {
+        BigDecimal opening = money(session.getOpeningCash() == null ? BigDecimal.ZERO : session.getOpeningCash());
+        BigDecimal cashIn = money(cashTransactionRepository.sumAmount(session.getId(), CashTransaction.TYPE_CASH_IN));
+        BigDecimal cashOut = money(cashTransactionRepository.sumAmount(session.getId(), CashTransaction.TYPE_CASH_OUT));
+        BigDecimal cashSales = money(cashTransactionRepository.sumAmount(session.getId(), CashTransaction.TYPE_SALE));
+        BigDecimal expected = money(opening.add(cashIn).subtract(cashOut).add(cashSales));
+        return new RegisterSessionSummaryResponse(
+                session.getId(),
+                session.getRegister().getId(),
+                session.getRegister().getStore().getId(),
+                session.getRegister().getTerminal().getId(),
+                session.getCashier().getId(),
+                session.getStatus(),
+                opening,
+                cashIn,
+                cashOut,
+                cashSales,
+                expected,
+                session.getOpenedAt(),
+                session.getClosedAt());
+    }
+
+    private static BigDecimal money(BigDecimal value) {
+        return value.setScale(4, RoundingMode.HALF_UP);
     }
 
     @Transactional

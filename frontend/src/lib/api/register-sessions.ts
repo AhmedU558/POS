@@ -12,12 +12,14 @@ export interface RegisterSession {
   closedAt: string | null;
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || 'An unexpected error occurred');
-  }
-  return body.data;
+export interface RegisterSessionSummary {
+  id: string;
+  openingCash: number;
+  cashInTotal: number;
+  cashOutTotal: number;
+  cashSalesTotal: number;
+  expectedCash: number;
+  status: string;
 }
 
 export interface CashMovement {
@@ -27,6 +29,14 @@ export interface CashMovement {
   amount: number;
   reason: string | null;
   createdAt: string;
+}
+
+async function handleResponse<T>(res: Response): Promise<T> {
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error?.message || 'An unexpected error occurred');
+  }
+  return body.data;
 }
 
 export const registerSessionsApi = {
@@ -41,6 +51,11 @@ export const registerSessionsApi = {
   get: async (id: string) => {
     const res = await apiClient('/register-sessions/' + id, { method: 'GET' });
     return handleResponse<RegisterSession>(res);
+  },
+
+  summary: async (id: string) => {
+    const res = await apiClient('/register-sessions/' + id + '/summary', { method: 'GET' });
+    return handleResponse<RegisterSessionSummary>(res);
   },
 
   cashIn: async (id: string, amount: number, reason?: string) => {

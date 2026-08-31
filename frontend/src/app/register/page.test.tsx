@@ -5,7 +5,7 @@ import * as AuthContext from '@/features/auth/AuthContext';
 import { registerSessionsApi } from '@/lib/api/register-sessions';
 
 vi.mock('@/lib/api/register-sessions', () => ({
-  registerSessionsApi: { open: vi.fn(), get: vi.fn(), cashIn: vi.fn(), cashOut: vi.fn() },
+  registerSessionsApi: { open: vi.fn(), get: vi.fn(), summary: vi.fn(), cashIn: vi.fn(), cashOut: vi.fn() },
 }));
 
 function renderWithAuth(permissions: string[]) {
@@ -42,6 +42,15 @@ describe('RegisterOpenPage', () => {
       openedAt: '2026-08-31T00:00:00Z',
       closedAt: null,
     });
+    vi.mocked(registerSessionsApi.summary).mockResolvedValue({
+      id: 'sess-1',
+      openingCash: 150,
+      cashInTotal: 20,
+      cashOutTotal: 0,
+      cashSalesTotal: 0,
+      expectedCash: 170,
+      status: 'OPEN',
+    });
     vi.mocked(registerSessionsApi.cashIn).mockResolvedValue({
       id: 'm1',
       registerSessionId: 'sess-1',
@@ -67,6 +76,7 @@ describe('RegisterOpenPage', () => {
       expect(screen.getByText('Session sess-1')).toBeTruthy();
       expect(screen.getByText('Opening cash: 150')).toBeTruthy();
       expect(screen.getByText('Status: OPEN')).toBeTruthy();
+      expect(screen.getByText('Expected cash: 170')).toBeTruthy();
     });
 
     fireEvent.change(screen.getByLabelText('Cash amount'), { target: { value: '20' } });

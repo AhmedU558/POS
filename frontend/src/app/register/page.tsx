@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/features/auth/AuthContext';
-import { registerSessionsApi, RegisterSession } from '@/lib/api/register-sessions';
+import { registerSessionsApi, RegisterSession, RegisterSessionSummary } from '@/lib/api/register-sessions';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -14,6 +14,7 @@ export default function RegisterOpenPage() {
   const [registerId, setRegisterId] = useState('');
   const [openingCash, setOpeningCash] = useState('0');
   const [session, setSession] = useState<RegisterSession | null>(null);
+  const [summary, setSummary] = useState<RegisterSessionSummary | null>(null);
   const [cashAmount, setCashAmount] = useState('');
   const [cashReason, setCashReason] = useState('');
   const [lastMovement, setLastMovement] = useState<string | null>(null);
@@ -34,7 +35,9 @@ export default function RegisterOpenPage() {
     setIsSubmitting(true);
     setError(null);
     try {
-      setSession(await registerSessionsApi.open(registerId, Number(openingCash)));
+      const opened = await registerSessionsApi.open(registerId, Number(openingCash));
+      setSession(opened);
+      setSummary(await registerSessionsApi.summary(opened.id));
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to open register');
     } finally {
@@ -53,6 +56,7 @@ export default function RegisterOpenPage() {
         ? await registerSessionsApi.cashIn(session.id, Number(cashAmount), cashReason)
         : await registerSessionsApi.cashOut(session.id, Number(cashAmount), cashReason);
       setLastMovement(movement.transactionType + ': ' + movement.amount);
+      setSummary(await registerSessionsApi.summary(session.id));
       setCashAmount('');
       setCashReason('');
     } catch (err: unknown) {
@@ -96,6 +100,14 @@ export default function RegisterOpenPage() {
           <p>Session {session.id}</p>
           <p>Status: {session.status}</p>
           <p>Opening cash: {session.openingCash}</p>
+          {summary && (
+            <>
+              <p>Cash in: {summary.cashInTotal}</p>
+              <p>Cash out: {summary.cashOutTotal}</p>
+              <p>Cash sales: {summary.cashSalesTotal}</p>
+              <p>Expected cash: {summary.expectedCash}</p>
+            </>
+          )}
           {canCash && (
             <form onSubmit={(e) => e.preventDefault()} style={{ marginTop: 'var(--space-4)' }}>
               <Input id="reg-cash-amount" label="Cash amount" type="number" min="0" step="any" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} required />
