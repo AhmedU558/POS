@@ -7,7 +7,7 @@ import com.pos.finance.domain.Budget;
 import com.pos.finance.domain.BudgetLine;
 import com.pos.finance.domain.Expense;
 import com.pos.finance.dto.BudgetVarianceReportResponse;
-import com.pos.finance.dto.InventoryReportResponse;
+
 import com.pos.finance.dto.SalesReportResponse;
 import com.pos.finance.repository.BudgetRepository;
 import com.pos.finance.repository.ExpenseRepository;
@@ -88,12 +88,5 @@ public class ReportService {
         return List.of();
     }
 
-    @Transactional(readOnly = true)
-    public List<InventoryReportResponse> getInventory(UUID storeId) {
-        if (!storeScopeEvaluator.canAccess(storeId)) {
-            throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
-        }
-        // Minimal implementation
-        return List.of();
-    }
+
 }

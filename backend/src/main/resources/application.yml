@@ -13,6 +13,11 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        generate_statistics: true
+        session:
+          events:
+            log:
+              LOG_QUERIES_SLOWER_THAN_MS: 50
     show-sql: false
   flyway:
     enabled: true

@@ -1,7 +1,7 @@
 package com.pos.finance.controller;
 
 import com.pos.finance.dto.BudgetVarianceReportResponse;
-import com.pos.finance.dto.InventoryReportResponse;
+
 import com.pos.finance.dto.SalesReportResponse;
 import com.pos.finance.service.ReportService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -70,26 +70,7 @@ public class ReportController {
         return ResponseEntity.ok(List.of());
     }
 
-    @GetMapping("/inventory")
-    @PreAuthorize("hasAuthority('REPORT_INVENTORY')")
-    public ResponseEntity<List<InventoryReportResponse>> getInventory(
-            @RequestParam UUID storeId) {
-        return ResponseEntity.ok(reportService.getInventory(storeId));
-    }
 
-    @GetMapping("/inventory/movements")
-    @PreAuthorize("hasAuthority('REPORT_INVENTORY')")
-    public ResponseEntity<List<Object>> getInventoryMovements(
-            @RequestParam UUID storeId) {
-        return ResponseEntity.ok(List.of());
-    }
-
-    @GetMapping("/inventory/expiry")
-    @PreAuthorize("hasAuthority('REPORT_INVENTORY')")
-    public ResponseEntity<List<Object>> getInventoryExpiry(
-            @RequestParam UUID storeId) {
-        return ResponseEntity.ok(List.of());
-    }
 
     @GetMapping("/payables")
     @PreAuthorize("hasAuthority('REPORT_FINANCE')")
