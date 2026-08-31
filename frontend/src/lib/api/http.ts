@@ -108,6 +108,45 @@ export async function get<T>(path: string): Promise<T> {
   return unwrap<T>(await apiClient(path, { method: 'GET' }));
 }
 
+/*
+ * A few controllers return their payload directly instead of inside the `data` envelope that
+ * REST API Specification section 5.1 requires — the expense and finance-report endpoints among
+ * them. Rather than pretend they are enveloped and read `undefined`, those calls come through
+ * here. Errors still use the standard error body, so failures are handled identically.
+ */
+async function unwrapBare<T>(response: Response): Promise<T> {
+  if (response.status === 204) {
+    return undefined as T;
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const error = (body as ErrorBody).error;
+    throw new ApiError(
+      response.status,
+      error?.message || defaultMessageFor(response.status),
+      error?.code,
+      readFieldErrors(body as ErrorBody)
+    );
+  }
+  return body as T;
+}
+
+export async function getBare<T>(path: string): Promise<T> {
+  return unwrapBare<T>(await apiClient(path, { method: 'GET' }));
+}
+
+export async function postBare<T>(path: string, body?: unknown): Promise<T> {
+  return unwrapBare<T>(
+    await apiClient(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) })
+  );
+}
+
+export async function patchBare<T>(path: string, body?: unknown): Promise<T> {
+  return unwrapBare<T>(
+    await apiClient(path, { method: 'PATCH', body: body === undefined ? undefined : JSON.stringify(body) })
+  );
+}
+
 export async function post<T>(path: string, body?: unknown, headers?: Record<string, string>): Promise<T> {
   return unwrap<T>(
     await apiClient(path, {
