@@ -20,4 +20,7 @@ public interface PromotionRepository extends JpaRepository<Promotion, UUID> {
     
     @Query("SELECT p FROM Promotion p WHERE p.store.id IN :storeIds")
     Page<Promotion> search(@Param("storeIds") List<UUID> storeIds, Pageable pageable);
+
+    @Query("SELECT p FROM Promotion p LEFT JOIN FETCH p.rules WHERE p.store.id = :storeId AND p.active = true AND p.startDate <= :now AND p.endDate >= :now ORDER BY p.priority DESC")
+    List<Promotion> findActiveByStore(@Param("storeId") UUID storeId, @Param("now") java.time.OffsetDateTime now);
 }

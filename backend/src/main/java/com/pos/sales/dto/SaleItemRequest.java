@@ -8,6 +8,7 @@ import java.util.UUID;
 
 public record SaleItemRequest(
         @NotNull UUID productId,
-        @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity
+        @NotNull @DecimalMin(value = "0", inclusive = false) BigDecimal quantity,
+        @DecimalMin(value = "0") BigDecimal discountAmount
 ) {
 }

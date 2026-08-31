@@ -43,6 +43,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.OffsetDateTime;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -72,6 +73,7 @@ public class SaleService {
     private final StoreScopeEvaluator storeScopeEvaluator;
     private final UserRepository userRepository;
     private final AuditRecorder auditRecorder;
+    private final com.pos.promotions.repository.PromotionRepository promotionRepository;
 
     public SaleService(
             SaleRepository saleRepository,
@@ -85,7 +87,8 @@ public class SaleService {
             CustomerCreditService customerCreditService,
             StoreScopeEvaluator storeScopeEvaluator,
             UserRepository userRepository,
-            AuditRecorder auditRecorder) {
+            AuditRecorder auditRecorder,
+            com.pos.promotions.repository.PromotionRepository promotionRepository) {
         this.saleRepository = saleRepository;
         this.sessionRepository = sessionRepository;
         this.paymentMethodRepository = paymentMethodRepository;
@@ -98,6 +101,7 @@ public class SaleService {
         this.storeScopeEvaluator = storeScopeEvaluator;
         this.userRepository = userRepository;
         this.auditRecorder = auditRecorder;
+        this.promotionRepository = promotionRepository;
     }
 
     @Transactional(readOnly = true)
@@ -218,8 +222,14 @@ public class SaleService {
         sale.setCurrencyCode(store.getCurrencyCode());
         sale.setReceiptNumber(nextReceiptNumber());
 
+        boolean hasManualDiscountPermission = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("SALE_DISCOUNT"));
+
+        List<com.pos.promotions.domain.Promotion> activePromotions = promotionRepository.findActiveByStore(store.getId(), OffsetDateTime.now());
+
         BigDecimal subtotal = ZERO;
         BigDecimal taxTotal = ZERO;
+        BigDecimal totalDiscount = ZERO;
         for (SaleItemRequest line : request.items()) {
             Product product = productRepository.findById(line.productId())
                     .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Product not found"));
@@ -228,25 +238,52 @@ public class SaleService {
             }
             BigDecimal unitPrice = money(product.getSellingPrice());
             BigDecimal lineSubtotal = money(unitPrice.multiply(line.quantity()));
-            BigDecimal taxAmount = money(lineSubtotal.multiply(product.getTaxRate()));
-            BigDecimal lineTotal = money(lineSubtotal.add(taxAmount));
+
+            BigDecimal lineDiscount = ZERO;
+            
+            if (line.discountAmount() != null && line.discountAmount().compareTo(ZERO) > 0) {
+                if (!hasManualDiscountPermission) {
+                    throw new ApiException(ErrorCode.ACCESS_DENIED, "Manual discounts require SALE_DISCOUNT permission");
+                }
+                lineDiscount = money(line.discountAmount());
+            } else {
+                for (com.pos.promotions.domain.Promotion p : activePromotions) {
+                    BigDecimal promoDiscount = calculatePromotionDiscount(p, product, lineSubtotal);
+                    if (promoDiscount.compareTo(ZERO) > 0) {
+                        lineDiscount = lineDiscount.add(promoDiscount);
+                        if (!p.isStackable()) {
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            if (lineDiscount.compareTo(lineSubtotal) > 0) {
+                lineDiscount = lineSubtotal;
+            }
+
+            BigDecimal lineAfterDiscount = lineSubtotal.subtract(lineDiscount);
+            BigDecimal taxAmount = money(lineAfterDiscount.multiply(product.getTaxRate()));
+            BigDecimal lineTotal = money(lineAfterDiscount.add(taxAmount));
 
             SaleItem item = new SaleItem();
             item.setProduct(product);
             item.setQuantity(line.quantity());
             item.setUnitPrice(unitPrice);
-            item.setDiscountAmount(ZERO);
+            item.setDiscountAmount(lineDiscount);
             item.setTaxAmount(taxAmount);
             item.setLineTotal(lineTotal);
             sale.addItem(item);
 
             subtotal = subtotal.add(lineSubtotal);
+            totalDiscount = totalDiscount.add(lineDiscount);
             taxTotal = taxTotal.add(taxAmount);
         }
 
-        BigDecimal grandTotal = money(subtotal.add(taxTotal));
+        BigDecimal grandTotal = money(subtotal.subtract(totalDiscount).add(taxTotal));
 
         sale.setSubtotal(subtotal);
+        sale.setDiscountTotal(totalDiscount);
         sale.setTaxTotal(taxTotal);
         sale.setGrandTotal(grandTotal);
         if (completing) {
@@ -445,5 +482,36 @@ public class SaleService {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new ApiException(ErrorCode.AUTHENTICATION_REQUIRED, "User not found"));
+    }
+
+    private BigDecimal calculatePromotionDiscount(com.pos.promotions.domain.Promotion p, Product product, BigDecimal lineSubtotal) {
+        boolean eligible = true;
+        if (!p.getRules().isEmpty()) {
+            eligible = false;
+            for (com.pos.promotions.domain.PromotionRule rule : p.getRules()) {
+                if (rule.getRuleType().equals(com.pos.promotions.domain.PromotionRule.RULE_MIN_AMOUNT)) {
+                    if (lineSubtotal.compareTo(new BigDecimal(rule.getRuleValue())) >= 0) {
+                        eligible = true;
+                    }
+                } else if (rule.getRuleType().equals(com.pos.promotions.domain.PromotionRule.RULE_SPECIFIC_PRODUCT)) {
+                    if (product.getId().toString().equals(rule.getRuleValue())) {
+                        eligible = true;
+                    }
+                } else if (rule.getRuleType().equals(com.pos.promotions.domain.PromotionRule.RULE_SPECIFIC_CATEGORY)) {
+                    if (product.getCategory() != null && product.getCategory().getId().toString().equals(rule.getRuleValue())) {
+                        eligible = true;
+                    }
+                }
+            }
+        }
+        
+        if (!eligible) return ZERO;
+
+        if (p.getType().equals(com.pos.promotions.domain.Promotion.TYPE_PERCENTAGE)) {
+            return money(lineSubtotal.multiply(p.getDiscountValue()).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP));
+        } else if (p.getType().equals(com.pos.promotions.domain.Promotion.TYPE_FIXED_AMOUNT)) {
+            return money(p.getDiscountValue());
+        }
+        return ZERO;
     }
 }
