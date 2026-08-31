@@ -367,11 +367,15 @@ public class SaleService {
         }
         settleNonInventoryEffects(saved, session, cashier, store);
         
-        fbrIntegrationService.submitSale(saved).ifPresent(fbrData -> {
-            saved.setFbrInvoiceNumber(fbrData.invoiceNumber());
-            saved.setFbrQrCode(fbrData.qrCode());
-            saleRepository.save(saved);
-        });
+        var fbrResult = fbrIntegrationService.submitSale(saved);
+        saved.setFbrProviderCode(fbrResult.providerCode());
+        saved.setFbrEnvironment(fbrResult.environment());
+        saved.setFbrStatus(fbrResult.status());
+        saved.setFbrRequestId(fbrResult.requestId());
+        saved.setFbrInvoiceNumber(fbrResult.invoiceNumber());
+        saved.setFbrQrCode(fbrResult.qrCode());
+        saved.setFbrErrorMessage(fbrResult.errorMessage());
+        saleRepository.save(saved);
     }
 
     private void applyPayments(Sale sale, List<SalePaymentRequest> payments, Customer customer, BigDecimal grandTotal) {

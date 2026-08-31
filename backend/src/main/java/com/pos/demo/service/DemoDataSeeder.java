@@ -139,16 +139,70 @@ public class DemoDataSeeder {
                         store);
 
         Unit each = demoUnit("EA", "Each");
-        Category drinks = demoCategory("Demo — Drinks");
-        Category snacks = demoCategory("Demo — Snacks");
+        Unit kg = demoUnit("KG", "Kilogram");
+        Unit g = demoUnit("G", "Gram");
+        Unit l = demoUnit("L", "Liter");
+        Unit ml = demoUnit("ML", "Milliliter");
+
+        Category grocery = demoCategory("Grocery");
+        Category beverages = demoCategory("Beverages");
+        Category dairy = demoCategory("Dairy");
+        Category snacks = demoCategory("Snacks");
+        Category personal = demoCategory("Personal Care");
+        Category household = demoCategory("Household");
 
         List<Product> products =
                 List.of(
-                        demoProduct("DEMO-COLA", "Cola 330ml", drinks, each, "0.55", "1.20", "5000112637922"),
-                        demoProduct("DEMO-WATER", "Still Water 500ml", drinks, each, "0.25", "0.80", "5000112637939"),
-                        demoProduct("DEMO-COFFEE", "Ground Coffee 250g", drinks, each, "3.10", "5.99", "5000112637946"),
-                        demoProduct("DEMO-CRISPS", "Salted Crisps 40g", snacks, each, "0.35", "0.95", "5000112637953"),
-                        demoProduct("DEMO-CHOC", "Chocolate Bar 45g", snacks, each, "0.40", "1.10", "5000112637960"));
+                        // Grocery
+                        demoProduct("GROC-RICE-BAS-5", "Basmati Rice 5kg", grocery, kg, "1200", "1500", "89640001001", "https://images.unsplash.com/photo-1586201375761-83865001e8ac?w=400&q=80"),
+                        demoProduct("GROC-RICE-SUP-5", "Super Kernel Rice 5kg", grocery, kg, "1400", "1750", "89640001002", "https://images.unsplash.com/photo-1536304929831-ee1ca9d44906?w=400&q=80"),
+                        demoProduct("GROC-SUGAR-1", "Sugar 1kg", grocery, kg, "120", "145", "89640001003", "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80"),
+                        demoProduct("GROC-FLOUR-10", "Flour 10kg", grocery, kg, "1100", "1350", "89640001004", "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&q=80"),
+                        demoProduct("GROC-OIL-1", "Cooking Oil 1L", grocery, l, "450", "520", "89640001005", "https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=400&q=80"),
+                        demoProduct("GROC-TEA-950", "Tea 950g", grocery, g, "1000", "1250", "89640001006", "https://images.unsplash.com/photo-1597481499750-3e6b22637e12?w=400&q=80"),
+                        demoProduct("GROC-SALT-800", "Salt 800g", grocery, g, "40", "60", "89640001007", "https://images.unsplash.com/photo-1518118014377-ce645f7c3dc9?w=400&q=80"),
+                        demoProduct("GROC-LENTIL-1", "Red Lentils 1kg", grocery, kg, "280", "340", "89640001008", "https://images.unsplash.com/photo-1515543904379-3d757efa72e1?w=400&q=80"),
+                        
+                        // Beverages
+                        demoProduct("BEV-COKE-15", "Coca-Cola 1.5L", beverages, l, "110", "140", "89640002001", "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80"),
+                        demoProduct("BEV-PEPSI-15", "Pepsi 1.5L", beverages, l, "110", "140", "89640002002", "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80"),
+                        demoProduct("BEV-7UP-15", "7UP 1.5L", beverages, l, "110", "140", "89640002003", "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80"),
+                        demoProduct("BEV-WATER-15", "Mineral Water 1.5L", beverages, l, "50", "70", "89640002004", "https://images.unsplash.com/photo-1548839140-29a749e1bc4c?w=400&q=80"),
+                        demoProduct("BEV-ROOH-800", "Rooh Afza 800ml", beverages, ml, "320", "390", "89640002005", "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80"),
+                        demoProduct("BEV-JUICE-1", "Apple Juice 1L", beverages, l, "180", "220", "89640002006", "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80"),
+
+                        // Dairy
+                        demoProduct("DAIRY-MILK-1", "Milk 1L", dairy, l, "150", "180", "89640003001", "https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400&q=80"),
+                        demoProduct("DAIRY-YOGURT-500", "Yogurt 500g", dairy, g, "100", "130", "89640003002", "https://images.unsplash.com/photo-1571212515416-faff01ce072a?w=400&q=80"),
+                        demoProduct("DAIRY-BUTTER-200", "Butter 200g", dairy, g, "250", "310", "89640003003", "https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?w=400&q=80"),
+                        demoProduct("DAIRY-CHEESE-200", "Cheese 200g", dairy, g, "400", "500", "89640003004", "https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400&q=80"),
+                        demoProduct("DAIRY-CREAM-200", "Cream 200ml", dairy, ml, "130", "160", "89640003005", "https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&q=80"),
+
+                        // Snacks
+                        demoProduct("SNACK-LAYS-40", "Lays Chips 40g", snacks, each, "40", "50", "89640004001", "https://images.unsplash.com/photo-1566478989037-e924e50b0a1b?w=400&q=80"),
+                        demoProduct("SNACK-KURKURE-40", "Kurkure 40g", snacks, each, "40", "50", "89640004002", "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?w=400&q=80"),
+                        demoProduct("SNACK-BISCUIT-100", "Biscuits 100g", snacks, each, "25", "35", "89640004003", "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=400&q=80"),
+                        demoProduct("SNACK-CHOC-45", "Chocolate 45g", snacks, each, "80", "100", "89640004004", "https://images.unsplash.com/photo-1548907040-4baa42d10919?w=400&q=80"),
+                        demoProduct("SNACK-NIMCO-150", "Nimco Mix 150g", snacks, each, "100", "130", "89640004005", "https://images.unsplash.com/photo-1599599810769-bcde5a160d32?w=400&q=80"),
+                        demoProduct("SNACK-POPCORN-50", "Popcorn 50g", snacks, each, "30", "40", "89640004006", "https://images.unsplash.com/photo-1572196284554-4e32738f152d?w=400&q=80"),
+                        demoProduct("SNACK-CANDY-ROLL", "Candy Roll", snacks, each, "15", "20", "89640004007", "https://images.unsplash.com/photo-1582058091505-f87a2e55a40f?w=400&q=80"),
+
+                        // Personal Care
+                        demoProduct("CARE-SHAMPOO-200", "Shampoo 200ml", personal, ml, "350", "420", "89640005001", "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=400&q=80"),
+                        demoProduct("CARE-SOAP-100", "Soap 100g", personal, each, "65", "85", "89640005002", "https://images.unsplash.com/photo-1600857062241-98e5dba7f214?w=400&q=80"),
+                        demoProduct("CARE-PASTE-100", "Toothpaste 100g", personal, each, "120", "150", "89640005003", "https://images.unsplash.com/photo-1559166632-15bb1f70e7a1?w=400&q=80"),
+                        demoProduct("CARE-BRUSH", "Toothbrush", personal, each, "70", "90", "89640005004", "https://images.unsplash.com/photo-1614713567794-6b996f26487e?w=400&q=80"),
+                        demoProduct("CARE-FACEWASH-100", "Face Wash 100ml", personal, ml, "280", "340", "89640005005", "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400&q=80"),
+                        demoProduct("CARE-HANDWASH-250", "Hand Wash 250ml", personal, ml, "190", "230", "89640005006", "https://images.unsplash.com/photo-1584305584852-6b931dc3b5bc?w=400&q=80"),
+                        demoProduct("CARE-LOTION-100", "Body Lotion 100ml", personal, ml, "310", "380", "89640005007", "https://images.unsplash.com/photo-1615397323385-234b3e404b8b?w=400&q=80"),
+
+                        // Household
+                        demoProduct("HOUSE-DETERGENT-1", "Laundry Detergent 1kg", household, kg, "350", "430", "89640006001", "https://images.unsplash.com/photo-1585834888877-628f328905b1?w=400&q=80"),
+                        demoProduct("HOUSE-DISHWASH-500", "Dishwashing Liquid 500ml", household, ml, "160", "210", "89640006002", "https://images.unsplash.com/photo-1585834888877-628f328905b1?w=400&q=80"),
+                        demoProduct("HOUSE-CLEANER-1", "Floor Cleaner 1L", household, l, "280", "340", "89640006003", "https://images.unsplash.com/photo-1585834888877-628f328905b1?w=400&q=80"),
+                        demoProduct("HOUSE-TISSUE-150", "Tissue Box 150s", household, each, "130", "170", "89640006004", "https://images.unsplash.com/photo-1584820927498-cafeec11b518?w=400&q=80"),
+                        demoProduct("HOUSE-TOILET-500", "Toilet Cleaner 500ml", household, ml, "180", "220", "89640006005", "https://images.unsplash.com/photo-1585834888877-628f328905b1?w=400&q=80")
+                );
 
         int stocked = 0;
         for (Product product : products) {
@@ -290,7 +344,8 @@ public class DemoDataSeeder {
             Unit unit,
             String cost,
             String price,
-            String barcode) {
+            String barcode,
+            String imageUrl) {
         Optional<Product> existing = productRepository.findBySku(sku);
         if (existing.isPresent()) {
             return existing.get();
@@ -308,6 +363,7 @@ public class DemoDataSeeder {
         product.setTrackBatch(false);
         product.setTrackExpiry(false);
         product.setActive(true);
+        product.setImageUrl(imageUrl);
         Product saved = productRepository.save(product);
 
         // A product with no barcode can be searched but not scanned, which is half the till.

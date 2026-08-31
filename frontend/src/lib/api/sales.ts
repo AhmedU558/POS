@@ -78,6 +78,9 @@ export interface SaleReceipt {
   receiptNumber: string;
   createdAt: string;
   storeName: string;
+  storeAddress?: string | null;
+  storeContact?: string | null;
+  terminalName?: string | null;
   cashierName: string | null;
   customerName: string | null;
   status: string;
@@ -85,6 +88,10 @@ export interface SaleReceipt {
   discountTotal: number;
   taxTotal: number;
   grandTotal: number;
+  tenderedAmount?: number;
+  changeAmount?: number;
+  fbrStatus?: string;
+  fbrStatusLabel?: string;
   fbrInvoiceNumber?: string | null;
   fbrQrCode?: string | null;
   payments: SalePayment[];

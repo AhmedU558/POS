@@ -1,9 +1,8 @@
 package com.pos.sales.service;
 
 import com.pos.sales.domain.Sale;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import java.util.Optional;
 
 /**
  * FBR Integration Service boundary.
@@ -14,19 +13,44 @@ import java.util.Optional;
 @Service
 public class FbrIntegrationService {
 
-    public record FbrData(String invoiceNumber, String qrCode) {}
+    private final FbrProvider provider;
+
+    @Autowired
+    public FbrIntegrationService(@Autowired(required = false) FbrProvider provider) {
+        this.provider = provider;
+    }
+
+    public record FbrSubmissionResult(
+        String providerCode,
+        String environment,
+        String status,
+        String requestId,
+        String invoiceNumber,
+        String qrCode,
+        String errorMessage
+    ) {}
 
     /**
      * Submits a sale to the FBR integration.
      * 
      * @param sale The completed sale to submit.
-     * @return Optional FbrData if successful, Optional.empty() if not configured or failed.
+     * @return Structured FbrSubmissionResult.
      */
-    public Optional<FbrData> submitSale(Sale sale) {
+    public FbrSubmissionResult submitSale(Sale sale) {
+        if (provider != null && provider.isConfigured()) {
+            return provider.submitInvoice(sale);
+        }
+
         // Architecture boundary: Real integration goes here.
-        // For now, FBR configuration is just a frontend shell, and we are strictly forbidden
-        // from generating fake FBR invoice numbers or QR codes.
-        // Returning empty preserves the sale normally and signals the UI to show "Not connected".
-        return Optional.empty();
+        // Returning NOT_CONFIGURED safely without credentials.
+        return new FbrSubmissionResult(
+                null,
+                null,
+                "NOT_CONFIGURED",
+                null,
+                null,
+                null,
+                null
+        );
     }
 }

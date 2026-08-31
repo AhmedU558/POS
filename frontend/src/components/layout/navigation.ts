@@ -193,7 +193,7 @@ export function isNavItemActive(item: NavItem, pathname: string): boolean {
 }
 
 /** Routes that render their own full-screen layout and must not be wrapped in the shell. */
-export const BARE_ROUTES = ['/login', '/forced-rotation', '/pos'] as const;
+export const BARE_ROUTES = ['/login', '/forced-rotation', '/pos', '/sales/receipt'] as const;
 
 export function isBareRoute(pathname: string): boolean {
   return BARE_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));

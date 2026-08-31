@@ -1,0 +1,165 @@
+/*
+ * Dedicated styling for thermal receipts.
+ * Designed to render perfectly in browser print preview.
+ */
+
+ .receipt-page {
+  background-color: var(--color-background);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.thermal-receipt {
+  background-color: #ffffff;
+  color: #000000;
+  font-family: monospace;
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 1rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.thermal-receipt.receipt-58mm {
+  width: 58mm; /* roughly 220px */
+}
+
+.thermal-receipt.receipt-80mm {
+  width: 80mm; /* roughly 300px */
+}
+
+.thermal-receipt__header {
+  text-align: center;
+  margin-bottom: 1rem;
+}
+
+.thermal-receipt__store {
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 0 0 0.25rem 0;
+}
+
+.thermal-receipt__header p {
+  margin: 0.1rem 0;
+}
+
+.thermal-receipt__items {
+  border-top: 1px dashed #000;
+  border-bottom: 1px dashed #000;
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+}
+
+.thermal-receipt__line-item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.thermal-receipt__item-name {
+  width: 100%;
+  margin-bottom: 0.1rem;
+}
+
+.thermal-receipt__item-price {
+  padding-left: 1rem;
+  color: #444;
+}
+
+.thermal-receipt__totals {
+  border-bottom: 1px dashed #000;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.thermal-receipt__total-line {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+
+.thermal-receipt__grand-total {
+  font-weight: bold;
+  font-size: 1.1em;
+  margin-top: 0.2rem;
+}
+
+.thermal-receipt__change {
+  font-weight: bold;
+}
+
+.thermal-receipt__fbr {
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed #000;
+}
+
+.thermal-receipt__fbr p {
+  margin: 0.2rem 0;
+}
+
+.thermal-receipt__fbr-qr {
+  margin: 0.5rem auto;
+  display: flex;
+  justify-content: center;
+}
+
+.thermal-receipt__fbr-qr img {
+  max-width: 120px;
+  max-height: 120px;
+}
+
+.thermal-receipt__fbr-status {
+  text-align: center;
+  margin-top: 1rem;
+  font-style: italic;
+}
+
+.thermal-receipt__footer {
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 0.5rem;
+  font-size: 0.9em;
+}
+
+/* 
+ * Print stylesheet overrides.
+ * This ensures ONLY the receipt is printed when window.print() is called on this route.
+ * We remove padding, shadow, background, and force the correct width.
+ */
+@media print {
+  @page {
+    margin: 0;
+  }
+  
+  body, html {
+    margin: 0;
+    padding: 0;
+    background-color: #fff;
+  }
+  
+  .receipt-page {
+    padding: 0;
+    justify-content: flex-start;
+    background-color: transparent;
+  }
+  
+  .thermal-receipt {
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+    /* Ensure the browser treats the exact width */
+    max-width: 100%;
+  }
+
+  .thermal-receipt.receipt-58mm {
+    width: 58mm;
+  }
+
+  .thermal-receipt.receipt-80mm {
+    width: 80mm;
+  }
+}
