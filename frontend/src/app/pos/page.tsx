@@ -276,10 +276,16 @@ export default function PointOfSalePage() {
             <Icon name="arrow-left" size={18} />
             Exit
           </Link>
-          <span className="context-chip">
-            <Icon name="store" size={16} />
-            <span className="context-chip__value">{activeStore?.name ?? 'Store'}</span>
-          </span>
+          {/*
+            A Cashier holds no STORE_READ, so the store's name is not resolvable for them and the
+            chip is omitted rather than showing the word "Store" as if it were one.
+          */}
+          {activeStore && (
+            <span className="context-chip">
+              <Icon name="store" size={16} />
+              <span className="context-chip__value">{activeStore.name}</span>
+            </span>
+          )}
           <Badge variant="success">Till open</Badge>
         </div>
         <div className="row">
