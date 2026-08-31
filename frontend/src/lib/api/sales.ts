@@ -1,4 +1,4 @@
-import { apiClient } from '../apiClient';
+import { Page, get, post, query } from './http';
 
 export interface SaleItem {
   productId: string;
@@ -12,6 +12,7 @@ export interface SaleItem {
 }
 
 export interface SalePayment {
+  /** The payment method's code, e.g. CASH — not its display name. */
   paymentMethod: string;
   amount: number;
 }
@@ -36,30 +37,31 @@ export interface PaymentMethod {
   active: boolean;
 }
 
+export const CASH = 'CASH';
+export const STORE_CREDIT = 'STORE_CREDIT';
+
+export interface SaleItemRequest {
+  productId: string;
+  quantity: number;
+  /** Requires SALE_DISCOUNT. Omitted entirely when zero so the server applies promotions instead. */
+  discountAmount?: number;
+}
+
+export interface SalePaymentRequest {
+  paymentMethodId: string;
+  amount: number;
+}
+
 export interface SaleCreateRequest {
   storeId: string;
   terminalId: string;
   registerId: string;
   registerSessionId: string;
   customerId?: string | null;
-  items: { productId: string; quantity: number }[];
-  payments: { paymentMethodId: string; amount: number }[];
+  items: SaleItemRequest[];
+  /** Empty or omitted creates the sale as HELD; otherwise it is settled immediately. */
+  payments?: SalePaymentRequest[];
 }
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || 'An unexpected error occurred');
-  }
-  return body.data;
-}
-
-export const paymentMethodsApi = {
-  list: async () => {
-    const res = await apiClient('/payment-methods', { method: 'GET' });
-    return handleResponse<PaymentMethod[]>(res);
-  },
-};
 
 export interface SaleSummary {
   id: string;
@@ -87,51 +89,41 @@ export interface SaleReceipt {
   items: SaleItem[];
 }
 
-export interface PaginatedSales {
-  content: SaleSummary[];
+export interface SaleSearchParams {
+  query?: string;
+  status?: string;
+  customerId?: string;
+  cashierId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  size?: number;
+  sort?: string;
 }
 
+export const paymentMethodsApi = {
+  list: () => get<PaymentMethod[]>('/payment-methods'),
+};
+
 export const salesApi = {
-  create: async (body: SaleCreateRequest, idempotencyKey: string) => {
-    const res = await apiClient('/sales', {
-      method: 'POST',
-      headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify(body),
-    });
-    return handleResponse<Sale>(res);
-  },
+  /**
+   * The Idempotency-Key is required by the API and is what stops a double-click, a flaky
+   * connection or a retry from charging the customer twice.
+   */
+  create: (body: SaleCreateRequest, idempotencyKey: string) =>
+    post<Sale>('/sales', body, { 'Idempotency-Key': idempotencyKey }),
 
-  get: async (id: string) => {
-    const res = await apiClient('/sales/' + id, { method: 'GET' });
-    return handleResponse<Sale>(res);
-  },
+  get: (id: string) => get<Sale>(`/sales/${id}`),
 
-  list: async (filters: { query?: string; status?: string; customerId?: string } = {}) => {
-    const params = new URLSearchParams();
-    if (filters.query) params.set('query', filters.query);
-    if (filters.status) params.set('status', filters.status);
-    if (filters.customerId) params.set('customerId', filters.customerId);
-    const res = await apiClient('/sales?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedSales>(res);
-  },
+  search: (params: SaleSearchParams = {}) => get<Page<SaleSummary>>(`/sales${query({ ...params })}`),
 
-  receipt: async (id: string) => {
-    const res = await apiClient('/sales/' + id + '/receipt', { method: 'GET' });
-    return handleResponse<SaleReceipt>(res);
-  },
+  receipt: (id: string) => get<SaleReceipt>(`/sales/${id}/receipt`),
 
-  reprint: async (id: string) => {
-    const res = await apiClient('/sales/' + id + '/receipt/reprint', { method: 'POST' });
-    return handleResponse<SaleReceipt>(res);
-  },
+  reprint: (id: string) => post<SaleReceipt>(`/sales/${id}/receipt/reprint`),
 
-  hold: async (id: string) => {
-    const res = await apiClient('/sales/' + id + '/hold', { method: 'POST' });
-    return handleResponse<Sale>(res);
-  },
+  hold: (id: string) => post<Sale>(`/sales/${id}/hold`),
 
-  resume: async (id: string, body: { registerSessionId: string; payments: { paymentMethodId: string; amount: number }[] }) => {
-    const res = await apiClient('/sales/' + id + '/resume', { method: 'POST', body: JSON.stringify(body) });
-    return handleResponse<Sale>(res);
-  },
+  /** Settles a held sale. Payments must total the sale's grand total. */
+  resume: (id: string, body: { registerSessionId: string; payments: SalePaymentRequest[] }) =>
+    post<Sale>(`/sales/${id}/resume`, body),
 };

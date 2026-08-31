@@ -1,172 +1,428 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/AuthContext';
-import { inventoryApi, InventoryBatch, InventoryReportRow, InventoryTransaction } from '@/lib/api/inventory';
+import { useStoreContext } from '@/features/session/StoreContext';
+import { InventoryBatch, InventoryReportRow, InventoryTransaction, inventoryApi } from '@/lib/api/inventory';
+import { SaleSummary, salesApi } from '@/lib/api/sales';
+import { Page, emptyPage } from '@/lib/api/http';
+import { errorMessage, formatDate, formatDateTime, formatMoney, formatQuantity } from '@/lib/format';
+import { P, hasAnyPermission, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardBody, CardHeader, Metric } from '@/components/ui/Card';
+import { Checkbox, Input, Select } from '@/components/ui/Field';
+import { StatusBadge } from '@/components/ui/Badge';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { Alert, EmptyState, ErrorState, LoadingState, PermissionRequired } from '@/components/ui/States';
 
-type ReportKind = 'stock' | 'movements' | 'expiry';
+type ReportKey = 'sales' | 'stock' | 'movements' | 'expiry';
 
-export default function InventoryReportsPage() {
+/**
+ * Reports.
+ *
+ * Only reports backed by a working endpoint appear here. The finance report endpoints
+ * (`/reports/sales`, `/reports/profit-loss`, `/reports/cash-flow`, `/reports/payables`,
+ * `/reports/cash-registers`, and the sales breakdowns) are stubs that return an empty list, so
+ * putting a screen in front of them would show an empty table and call it a report. The sales
+ * report below is built from the sales history endpoint, which holds real data.
+ */
+export default function ReportsPage() {
   const { user } = useAuth();
-  const storeId = user?.storeIds?.[0];
-  const canReport = user?.permissions?.includes('REPORT_INVENTORY') ?? false;
+  const { activeStoreId, activeStore } = useStoreContext();
 
-  const [kind, setKind] = useState<ReportKind>('stock');
-  const [lowStockOnly, setLowStockOnly] = useState(false);
-  const [days, setDays] = useState(7);
-  const [stock, setStock] = useState<InventoryReportRow[]>([]);
-  const [movements, setMovements] = useState<InventoryTransaction[]>([]);
-  const [expiry, setExpiry] = useState<InventoryBatch[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const canSales = hasPermission(user?.permissions, P.SALE_READ);
+  const canInventory = hasPermission(user?.permissions, P.REPORT_INVENTORY);
+  const canAny = hasAnyPermission(user?.permissions, [P.SALE_READ, P.REPORT_INVENTORY]);
 
-  useEffect(() => {
-    if (!canReport || !storeId) {
-      return;
-    }
-    const load =
-      kind === 'stock'
-        ? inventoryApi.getInventoryReport(storeId, 0, 50, lowStockOnly).then((res) => setStock(res.content ?? []))
-        : kind === 'movements'
-          ? inventoryApi.getMovementReport(storeId).then((res) => setMovements(res.content ?? []))
-          : inventoryApi.getExpiryReport(storeId, 0, 50, days).then((res) => setExpiry(res.content ?? []));
-    load.catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : 'Failed to load report');
-    });
-  }, [canReport, storeId, kind, lowStockOnly, days]);
+  const [report, setReport] = useState<ReportKey>(canSales ? 'sales' : 'stock');
 
-  if (!canReport) {
+  if (!canAny) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Inventory Reports</h1>
-        <p role="status">Access is restricted. You do not have permission to view inventory reports.</p>
+      <div className="page">
+        <PermissionRequired permission={P.REPORT_INVENTORY} action="Viewing reports" />
       </div>
     );
   }
 
-  if (!storeId) {
-    return <div style={{ padding: 'var(--space-6)' }}>No store context available.</div>;
-  }
+  const options = [
+    ...(canSales ? [{ value: 'sales', label: 'Sales' }] : []),
+    ...(canInventory
+      ? [
+          { value: 'stock', label: 'Stock on hand' },
+          { value: 'movements', label: 'Stock movements' },
+          { value: 'expiry', label: 'Expiring stock' },
+        ]
+      : []),
+  ];
 
   return (
-    <div style={{ padding: 'var(--space-6)' }}>
-      <h1>Inventory Reports</h1>
+    <div className="page">
+      <PageHeader
+        title="Reports"
+        description={`What has been happening in ${activeStore?.name ?? 'your store'}.`}
+      />
 
-      {error && (
-        <div role="alert" style={{ marginTop: 'var(--space-4)', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', margin: 'var(--space-4) 0' }}>
-        <div>
-          <label htmlFor="report-kind" style={{ display: 'block', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>Report</label>
-          <select id="report-kind" value={kind} onChange={(e) => setKind(e.target.value as ReportKind)} style={selectStyle}>
-            <option value="stock">Current stock</option>
-            <option value="movements">Stock movements</option>
-            <option value="expiry">Expiry</option>
-          </select>
-        </div>
-        {kind === 'stock' && (
-          <label htmlFor="low-stock-only" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-            <input id="low-stock-only" type="checkbox" checked={lowStockOnly} onChange={(e) => setLowStockOnly(e.target.checked)} />
-            Low stock only
-          </label>
-        )}
-        {kind === 'expiry' && (
-          <div>
-            <label htmlFor="report-days" style={{ display: 'block', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>Window (days)</label>
-            <select id="report-days" value={days} onChange={(e) => setDays(Number(e.target.value))} style={selectStyle}>
-              <option value={7}>7</option>
-              <option value={30}>30</option>
-            </select>
-          </div>
-        )}
+      <div className="toolbar">
+        <Select
+          id="report-kind"
+          label="Report"
+          placeholder={null}
+          value={report}
+          onChange={(event) => setReport(event.target.value as ReportKey)}
+          options={options}
+          fieldClassName="toolbar__filter"
+        />
       </div>
 
-      {kind === 'stock' && (
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={th}>Product</th>
-              <th style={{ ...th, textAlign: 'right' }}>Quantity</th>
-              <th style={{ ...th, textAlign: 'right' }}>Minimum</th>
-              <th style={th}>Below minimum</th>
-            </tr>
-          </thead>
-          <tbody>
-            {stock.map((row) => (
-              <tr key={row.productId}>
-                <td style={td}>{row.productName} ({row.sku})</td>
-                <td style={{ ...td, textAlign: 'right' }}>{row.quantity}</td>
-                <td style={{ ...td, textAlign: 'right' }}>{row.minStock}</td>
-                <td style={td}>{row.belowMinimum ? 'Yes' : 'No'}</td>
-              </tr>
-            ))}
-            {stock.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center' }}>No inventory rows.</td></tr>}
-          </tbody>
-        </table>
+      {report === 'sales' && <SalesReport />}
+      {report !== 'sales' && !activeStoreId && (
+        <Card>
+          <EmptyState
+            icon="store"
+            title="No store selected"
+            body="Inventory reports are per store."
+            action={{ label: 'Go to setup', href: '/setup' }}
+          />
+        </Card>
       )}
+      {report === 'stock' && activeStoreId && <StockReport storeId={activeStoreId} />}
+      {report === 'movements' && activeStoreId && <MovementsReport storeId={activeStoreId} />}
+      {report === 'expiry' && activeStoreId && <ExpiryReport storeId={activeStoreId} />}
+    </div>
+  );
+}
 
-      {kind === 'movements' && (
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={th}>Product</th>
-              <th style={th}>Type</th>
-              <th style={{ ...th, textAlign: 'right' }}>Quantity</th>
-              <th style={th}>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            {movements.map((row) => (
-              <tr key={row.id}>
-                <td style={td}>{row.productName}</td>
-                <td style={td}>{row.transactionType}</td>
-                <td style={{ ...td, textAlign: 'right' }}>{row.quantity}</td>
-                <td style={td}>{row.reason || '—'}</td>
-              </tr>
-            ))}
-            {movements.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center' }}>No movements.</td></tr>}
-          </tbody>
-        </table>
-      )}
+/**
+ * Takings over a date range.
+ *
+ * Every figure comes from a sale the server priced and settled; this view adds them up for the
+ * chosen window. It does not price anything itself.
+ */
+function SalesReport() {
+  const [from, setFrom] = useState(daysAgo(7));
+  const [to, setTo] = useState(today());
+  const [sales, setSales] = useState<Page<SaleSummary>>(emptyPage(200));
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-      {kind === 'expiry' && (
-        <table style={tableStyle}>
-          <thead>
-            <tr>
-              <th style={th}>Product</th>
-              <th style={th}>Batch</th>
-              <th style={th}>Expiry date</th>
-              <th style={th}>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expiry.map((row) => (
-              <tr key={row.id}>
-                <td style={td}>{row.productName} ({row.sku})</td>
-                <td style={td}>{row.batchNumber}</td>
-                <td style={td}>{row.expirationDate ?? '—'}</td>
-                <td style={td}>{row.status}</td>
-              </tr>
-            ))}
-            {expiry.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center' }}>No expiring batches.</td></tr>}
-          </tbody>
-        </table>
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setSales(
+        await salesApi.search({
+          status: 'COMPLETED',
+          from: new Date(`${from}T00:00:00`).toISOString(),
+          to: new Date(`${to}T23:59:59.999`).toISOString(),
+          size: 200,
+          sort: 'createdAt,desc',
+        })
+      );
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [from, to]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const taken = sales.content.reduce((total, sale) => total + Number(sale.grandTotal ?? 0), 0);
+  const average = sales.content.length > 0 ? taken / sales.content.length : 0;
+  const truncated = sales.totalElements > sales.content.length;
+
+  return (
+    <div className="stack-lg stack">
+      <div className="toolbar">
+        <Input
+          id="sales-report-from"
+          label="From"
+          type="date"
+          value={from}
+          onChange={(event) => setFrom(event.target.value)}
+          fieldClassName="toolbar__filter"
+        />
+        <Input
+          id="sales-report-to"
+          label="To"
+          type="date"
+          value={to}
+          onChange={(event) => setTo(event.target.value)}
+          fieldClassName="toolbar__filter"
+        />
+      </div>
+
+      {error ? (
+        <ErrorState message={error} onRetry={() => void load()} />
+      ) : isLoading ? (
+        <LoadingState label="Adding up sales…" />
+      ) : (
+        <>
+          <div className="metric-grid">
+            <Metric label="Taken" value={formatMoney(taken)} meta={`${formatDate(from)} to ${formatDate(to)}`} />
+            <Metric label="Sales" value={sales.content.length} meta="Completed transactions" />
+            <Metric label="Average sale" value={formatMoney(average)} />
+          </div>
+
+          {truncated && (
+            <Alert tone="warning">
+              This period has {sales.totalElements} sales and only the most recent 200 are included in the totals above.
+              Narrow the date range for an exact figure.
+            </Alert>
+          )}
+
+          <Card flush>
+            <CardHeader title="Sales in this period" actions={<Link className="btn btn--ghost btn--sm" href="/sales">Open sales history</Link>} />
+            {sales.content.length === 0 ? (
+              <EmptyState icon="reports" title="No completed sales in this period" body="Try a wider date range." />
+            ) : (
+              <Table>
+                <Thead>
+                  <Tr>
+                    <Th>Receipt</Th>
+                    <Th>When</Th>
+                    <Th>Cashier</Th>
+                    <Th>Customer</Th>
+                    <Th className="table__num">Total</Th>
+                  </Tr>
+                </Thead>
+                <Tbody>
+                  {sales.content.slice(0, 50).map((sale) => (
+                    <Tr key={sale.id}>
+                      <Td>
+                        <span className="mono">{sale.receiptNumber}</span>
+                      </Td>
+                      <Td>{formatDateTime(sale.createdAt)}</Td>
+                      <Td>{sale.cashierName ?? <span className="text-muted">—</span>}</Td>
+                      <Td>{sale.customerName ?? <span className="text-muted">Walk-in</span>}</Td>
+                      <Td className="table__num">
+                        <span className="money">{formatMoney(sale.grandTotal)}</span>
+                      </Td>
+                    </Tr>
+                  ))}
+                </Tbody>
+              </Table>
+            )}
+          </Card>
+        </>
       )}
     </div>
   );
 }
 
-const selectStyle = {
-  height: 'var(--control-height)',
-  padding: '0 var(--space-3)',
-  border: '1px solid var(--color-border)',
-  borderRadius: 'var(--radius-md)',
-  background: 'var(--color-surface)',
-  color: 'var(--color-foreground)',
-} as const;
+function StockReport({ storeId }: { storeId: string }) {
+  const [lowOnly, setLowOnly] = useState(false);
+  const [rows, setRows] = useState<InventoryReportRow[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-const tableStyle = { width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)' } as const;
-const th = { textAlign: 'left' as const, padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' };
-const td = { padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' };
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const page = await inventoryApi.getInventoryReport({ storeId, size: 100, lowStockOnly: lowOnly });
+      setRows(page.content);
+    } catch (caught) {
+      setError(errorMessage(caught));
+      setRows([]);
+    }
+  }, [storeId, lowOnly]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
+  if (rows === null) return <LoadingState label="Loading stock report…" />;
+
+  return (
+    <>
+      <div className="toolbar">
+        <Checkbox
+          id="stock-report-low"
+          label="Low stock only"
+          checked={lowOnly}
+          onChange={(event) => setLowOnly(event.target.checked)}
+        />
+      </div>
+      <Card flush>
+        {rows.length === 0 ? (
+          <EmptyState icon="inventory" title={lowOnly ? 'Nothing is running low' : 'No stock recorded'} />
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Product</Th>
+                <Th>SKU</Th>
+                <Th className="table__num">On hand</Th>
+                <Th className="table__num">Re-order at</Th>
+                <Th>Below minimum</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {rows.map((row) => (
+                <Tr key={row.productId}>
+                  <Td className="table__primary">{row.productName}</Td>
+                  <Td>
+                    <span className="mono">{row.sku}</span>
+                  </Td>
+                  <Td className="table__num">{formatQuantity(row.quantity)}</Td>
+                  <Td className="table__num">{formatQuantity(row.minStock)}</Td>
+                  <Td>{row.belowMinimum ? 'Yes' : 'No'}</Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </Card>
+    </>
+  );
+}
+
+function MovementsReport({ storeId }: { storeId: string }) {
+  const [rows, setRows] = useState<InventoryTransaction[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const page = await inventoryApi.getMovementReport({ storeId, size: 100 });
+      setRows(page.content);
+    } catch (caught) {
+      setError(errorMessage(caught));
+      setRows([]);
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
+  if (rows === null) return <LoadingState label="Loading movements…" />;
+
+  return (
+    <Card flush>
+      {rows.length === 0 ? (
+        <EmptyState icon="inventory" title="No stock movements yet" body="Receiving, adjusting and selling all leave a record here." />
+      ) : (
+        <Table>
+          <Thead>
+            <Tr>
+              <Th>When</Th>
+              <Th>Product</Th>
+              <Th>Type</Th>
+              <Th className="table__num">Quantity</Th>
+              <Th>Reason</Th>
+              <Th>By</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {rows.map((row) => (
+              <Tr key={row.id}>
+                <Td>{formatDateTime(row.createdAt)}</Td>
+                <Td className="table__primary">{row.productName}</Td>
+                <Td>{humanise(row.transactionType)}</Td>
+                <Td className="table__num">{formatQuantity(row.quantity)}</Td>
+                <Td>{row.reason || <span className="text-muted">—</span>}</Td>
+                <Td>{row.createdByUsername || <span className="text-muted">—</span>}</Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      )}
+    </Card>
+  );
+}
+
+function ExpiryReport({ storeId }: { storeId: string }) {
+  const [days, setDays] = useState(30);
+  const [rows, setRows] = useState<InventoryBatch[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const page = await inventoryApi.getExpiryReport({ storeId, size: 100, days });
+      setRows(page.content);
+    } catch (caught) {
+      setError(errorMessage(caught));
+      setRows([]);
+    }
+  }, [storeId, days]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (error) return <ErrorState message={error} onRetry={() => void load()} />;
+
+  return (
+    <>
+      <div className="toolbar">
+        <Select
+          id="expiry-report-days"
+          label="Within"
+          placeholder={null}
+          value={String(days)}
+          onChange={(event) => setDays(Number(event.target.value))}
+          options={[
+            { value: '7', label: '7 days' },
+            { value: '30', label: '30 days' },
+            { value: '90', label: '90 days' },
+          ]}
+          fieldClassName="toolbar__filter"
+        />
+      </div>
+      <Card flush>
+        {rows === null ? (
+          <LoadingState label="Loading expiry report…" />
+        ) : rows.length === 0 ? (
+          <EmptyState icon="clock" title="Nothing expiring in that window" />
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Product</Th>
+                <Th>Batch</Th>
+                <Th className="table__num">Quantity</Th>
+                <Th>Expires</Th>
+                <Th>Status</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {rows.map((row) => (
+                <Tr key={row.id}>
+                  <Td className="table__primary">{row.productName}</Td>
+                  <Td>
+                    <span className="mono">{row.batchNumber}</span>
+                  </Td>
+                  <Td className="table__num">{formatQuantity(row.quantity)}</Td>
+                  <Td>{formatDate(row.expirationDate)}</Td>
+                  <Td>
+                    <StatusBadge kind="batch" status={row.status} />
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </Card>
+    </>
+  );
+}
+
+function humanise(value: string): string {
+  return value.charAt(0) + value.slice(1).toLowerCase().replace(/_/g, ' ');
+}
+
+function today(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgo(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().slice(0, 10);
+}

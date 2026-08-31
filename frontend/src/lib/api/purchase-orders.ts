@@ -1,13 +1,10 @@
-import { apiClient } from '../apiClient';
+import { Page, get, patch, post, query } from './http';
 
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-}
-
+/**
+ * The order lifecycle the API actually supports is DRAFT → SUBMITTED, with CANCELLED as the exit.
+ * There is no RECEIVED status: receiving creates a goods receipt and moves stock, and the order
+ * itself stays SUBMITTED. The screens say so rather than implying a stage that does not exist.
+ */
 export type PurchaseOrderStatus = 'DRAFT' | 'SUBMITTED' | 'CANCELLED';
 
 export interface PurchaseOrderItem {
@@ -37,45 +34,49 @@ export interface PurchaseOrderRequest {
   items: { productId: string; quantity: number }[];
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || 'An unexpected error occurred');
-  }
-  return body.data;
+export const purchaseOrdersApi = {
+  list: (params: { query?: string; status?: string; page?: number; size?: number; sort?: string } = {}) =>
+    get<Page<PurchaseOrder>>(`/purchase-orders${query({ ...params })}`),
+  get: (id: string) => get<PurchaseOrder>(`/purchase-orders/${id}`),
+  create: (body: PurchaseOrderRequest) => post<PurchaseOrder>('/purchase-orders', body),
+  update: (id: string, body: PurchaseOrderRequest) => patch<PurchaseOrder>(`/purchase-orders/${id}`, body),
+  submit: (id: string) => post<PurchaseOrder>(`/purchase-orders/${id}/submit`),
+  cancel: (id: string) => post<PurchaseOrder>(`/purchase-orders/${id}/cancel`),
+};
+
+export interface GoodsReceiptItem {
+  id: string;
+  productId: string;
+  sku: string;
+  name: string;
+  quantity: number;
+  batchNumber: string | null;
+  expirationDate: string | null;
+  manufacturingDate: string | null;
 }
 
-export const purchaseOrdersApi = {
-  list: async (query?: string, status?: string, page = 0, size = 50) => {
-    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
-    if (query) params.append('query', query);
-    if (status) params.append('status', status);
-    const res = await apiClient('/purchase-orders?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<PurchaseOrder>>(res);
-  },
+export interface GoodsReceipt {
+  id: string;
+  purchaseOrderId: string;
+  storeId: string;
+  items: GoodsReceiptItem[];
+  createdAt: string;
+  updatedAt: string;
+}
 
-  get: async (id: string) => {
-    const res = await apiClient('/purchase-orders/' + id, { method: 'GET' });
-    return handleResponse<PurchaseOrder>(res);
-  },
+export interface GoodsReceiptRequest {
+  purchaseOrderId: string;
+  storeId: string;
+  items: {
+    productId: string;
+    quantity: number;
+    batchNumber?: string | null;
+    expirationDate?: string | null;
+    manufacturingDate?: string | null;
+  }[];
+}
 
-  create: async (body: PurchaseOrderRequest) => {
-    const res = await apiClient('/purchase-orders', { method: 'POST', body: JSON.stringify(body) });
-    return handleResponse<PurchaseOrder>(res);
-  },
-
-  update: async (id: string, body: PurchaseOrderRequest) => {
-    const res = await apiClient('/purchase-orders/' + id, { method: 'PATCH', body: JSON.stringify(body) });
-    return handleResponse<PurchaseOrder>(res);
-  },
-
-  submit: async (id: string) => {
-    const res = await apiClient('/purchase-orders/' + id + '/submit', { method: 'POST' });
-    return handleResponse<PurchaseOrder>(res);
-  },
-
-  cancel: async (id: string) => {
-    const res = await apiClient('/purchase-orders/' + id + '/cancel', { method: 'POST' });
-    return handleResponse<PurchaseOrder>(res);
-  },
+export const goodsReceiptsApi = {
+  get: (id: string) => get<GoodsReceipt>(`/goods-receipts/${id}`),
+  create: (body: GoodsReceiptRequest) => post<GoodsReceipt>('/goods-receipts', body),
 };

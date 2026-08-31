@@ -1,131 +1,186 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/AuthContext';
-import { suppliersApi, Supplier } from '@/lib/api/suppliers';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Badge } from '@/components/ui/Badge';
-import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
+import { Supplier, suppliersApi } from '@/lib/api/suppliers';
+import { Page, emptyPage } from '@/lib/api/http';
+import { useDebounced } from '@/hooks/useDebounced';
+import { errorMessage } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { SearchInput, Select } from '@/components/ui/Field';
+import { ActiveBadge } from '@/components/ui/Badge';
+import { Pagination, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { EmptyState, ErrorState, PermissionRequired, TableSkeleton } from '@/components/ui/States';
+
+const PAGE_SIZE = 20;
 
 export default function SuppliersPage() {
-  const router = useRouter();
   const { user } = useAuth();
-  const canRead = user?.permissions?.includes('SUPPLIER_READ') ?? false;
-  const canWrite = user?.permissions?.includes('SUPPLIER_WRITE') ?? false;
+  const canRead = hasPermission(user?.permissions, P.SUPPLIER_READ);
+  const canWrite = hasPermission(user?.permissions, P.SUPPLIER_WRITE);
 
-  const [query, setQuery] = useState('');
-  const [isActive, setIsActive] = useState('');
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [term, setTerm] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(0);
+  const [result, setResult] = useState<Page<Supplier>>(emptyPage(PAGE_SIZE));
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const debouncedTerm = useDebounced(term);
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setResult(
+        await suppliersApi.list({
+          query: debouncedTerm || undefined,
+          isActive: status === '' ? undefined : status === 'active',
+          page,
+          size: PAGE_SIZE,
+          sort: 'name,asc',
+        })
+      );
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [debouncedTerm, status, page]);
 
   useEffect(() => {
-    if (!canRead) {
-      return;
-    }
-    setIsLoading(true);
-    suppliersApi.list(query || undefined, isActive || undefined)
-      .then((res) => {
-        setSuppliers(res.content ?? []);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load suppliers');
-      })
-      .finally(() => setIsLoading(false));
-  }, [canRead, query, isActive]);
+    if (canRead) void load();
+  }, [canRead, load]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedTerm, status]);
 
   if (!canRead) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Suppliers</h1>
-        <p role="status">Access is restricted. You do not have permission to view suppliers.</p>
+      <div className="page">
+        <PermissionRequired permission={P.SUPPLIER_READ} action="Viewing suppliers" />
       </div>
     );
   }
 
+  const hasFilters = Boolean(debouncedTerm || status);
+
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
-        <h1>Suppliers</h1>
-        {canWrite && (
-          <Button type="button" onClick={() => router.push('/suppliers/new')}>Create Supplier</Button>
+    <div className="page">
+      <PageHeader
+        title="Suppliers"
+        description="Who you buy from. A supplier is needed before you can raise a purchase order."
+        actions={
+          canWrite && (
+            <Link className="btn btn--primary" href="/suppliers/new">
+              Add supplier
+            </Link>
+          )
+        }
+      />
+
+      <div className="toolbar">
+        <SearchInput
+          id="supplier-search"
+          label="Search"
+          placeholder="Name, email or supplier code"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          fieldClassName="toolbar__search"
+          autoFocus
+        />
+        <Select
+          id="supplier-status"
+          label="Status"
+          placeholder="All"
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          options={[
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ]}
+          fieldClassName="toolbar__filter"
+        />
+      </div>
+
+      <Card flush>
+        {error ? (
+          <ErrorState message={error} onRetry={() => void load()} />
+        ) : isLoading && result.content.length === 0 ? (
+          <TableSkeleton rows={6} columns={4} />
+        ) : result.content.length === 0 ? (
+          <EmptyState
+            icon="suppliers"
+            title={hasFilters ? 'No suppliers match' : 'No suppliers yet'}
+            body={
+              hasFilters
+                ? 'Try a different name or code.'
+                : 'Add the businesses you buy stock from. You will pick one when raising a purchase order.'
+            }
+            action={
+              hasFilters
+                ? {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setTerm('');
+                      setStatus('');
+                    },
+                  }
+                : canWrite
+                  ? { label: 'Add supplier', href: '/suppliers/new' }
+                  : undefined
+            }
+          />
+        ) : (
+          <>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Supplier</Th>
+                  <Th>Phone</Th>
+                  <Th>Email</Th>
+                  <Th>Status</Th>
+                  <Th className="table__actions">Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {result.content.map((supplier) => (
+                  <Tr key={supplier.id}>
+                    <Td>
+                      <Link href={`/suppliers/${supplier.id}`} className="table__primary">
+                        {supplier.name}
+                      </Link>
+                      <div className="table__secondary mono">{supplier.supplierCode}</div>
+                    </Td>
+                    <Td>{supplier.phone ?? <span className="text-muted">—</span>}</Td>
+                    <Td>{supplier.email ?? <span className="text-muted">—</span>}</Td>
+                    <Td>
+                      <ActiveBadge active={supplier.active} />
+                    </Td>
+                    <Td className="table__actions">
+                      <Link className="btn btn--secondary btn--sm" href={`/suppliers/${supplier.id}`}>
+                        {canWrite ? 'Manage' : 'View'}
+                      </Link>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <Pagination
+              page={result.number}
+              totalPages={result.totalPages}
+              totalElements={result.totalElements}
+              pageSize={result.size || PAGE_SIZE}
+              onPageChange={setPage}
+              isLoading={isLoading}
+            />
+          </>
         )}
-      </div>
-
-      {error && (
-        <div role="alert" style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
-        <div style={{ flex: '1 1 16rem' }}>
-          <Input
-            id="supplier-search"
-            label="Search"
-            placeholder="Code, name, phone, or email"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <div style={{ flex: '0 1 12rem' }}>
-          <Select
-            id="supplier-status"
-            label="Status"
-            value={isActive}
-            onChange={(e) => setIsActive(e.target.value)}
-            options={[
-              { value: 'true', label: 'Active' },
-              { value: 'false', label: 'Inactive' },
-            ]}
-          />
-        </div>
-      </div>
-
-      {isLoading ? (
-        <p>Loading suppliers...</p>
-      ) : suppliers.length === 0 ? (
-        <div style={{ padding: 'var(--space-8)', textAlign: 'center', backgroundColor: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
-          No suppliers found.
-        </div>
-      ) : (
-        <Table>
-          <Thead>
-            <Tr>
-              <Th>Code</Th>
-              <Th>Name</Th>
-              <Th>Phone</Th>
-              <Th>Email</Th>
-              <Th>Status</Th>
-              <Th> </Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {suppliers.map((supplier) => (
-              <Tr key={supplier.id}>
-                <Td>{supplier.supplierCode}</Td>
-                <Td>{supplier.name}</Td>
-                <Td>{supplier.phone ?? '—'}</Td>
-                <Td>{supplier.email ?? '—'}</Td>
-                <Td>
-                  <Badge variant={supplier.active ? 'success' : 'error'}>
-                    {supplier.active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </Td>
-                <Td>
-                  <Button type="button" variant="secondary" onClick={() => router.push('/suppliers/' + supplier.id)}>
-                    {canWrite ? 'Manage' : 'View'}
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      )}
+      </Card>
     </div>
   );
 }

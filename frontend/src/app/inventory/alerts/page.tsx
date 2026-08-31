@@ -1,195 +1,217 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/AuthContext';
-import { inventoryApi, StockAlert } from '@/lib/api/inventory';
+import { useStoreContext } from '@/features/session/StoreContext';
+import { StockAlert, inventoryApi } from '@/lib/api/inventory';
+import { Page, emptyPage } from '@/lib/api/http';
+import { errorMessage, formatDate, formatQuantity } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Field';
+import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { Pagination, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { EmptyState, ErrorState, PermissionRequired, TableSkeleton } from '@/components/ui/States';
+import { useToast } from '@/components/ui/Toast';
+import { InventoryTabs } from '@/features/inventory/InventoryTabs';
 
-function statusLabel(status: string): string {
-  return status === 'ACKNOWLEDGED' ? 'Acknowledged' : 'Open';
-}
+const PAGE_SIZE = 20;
 
+/** Low stock and approaching expiry, with the action the system suggests for each. */
 export default function StockAlertsPage() {
   const { user } = useAuth();
-  const storeId = user?.storeIds?.[0];
-  const canRead = user?.permissions?.includes('INVENTORY_READ') ?? false;
+  const { activeStoreId, activeStore } = useStoreContext();
+  const toast = useToast();
+  const canRead = hasPermission(user?.permissions, P.INVENTORY_READ);
 
   const [alertType, setAlertType] = useState('');
-  const [status, setStatus] = useState('');
-  const [days, setDays] = useState(7);
-  const [alerts, setAlerts] = useState<StockAlert[]>([]);
+  const [status, setStatus] = useState('OPEN');
+  const [page, setPage] = useState(0);
+  const [alerts, setAlerts] = useState<Page<StockAlert>>(emptyPage(PAGE_SIZE));
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [ackingId, setAckingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = () => {
-    if (!canRead || !storeId) {
+  const load = useCallback(async () => {
+    if (!activeStoreId) {
+      setIsLoading(false);
       return;
     }
-    inventoryApi.getAlerts(storeId, 0, 50, alertType || undefined, status || undefined, days)
-      .then((res) => {
-        setAlerts(res.content ?? []);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load alerts');
-      });
-  };
+    setIsLoading(true);
+    setError(null);
+    try {
+      setAlerts(
+        await inventoryApi.getAlerts({
+          storeId: activeStoreId,
+          page,
+          size: PAGE_SIZE,
+          alertType: alertType || undefined,
+          status: status || undefined,
+        })
+      );
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeStoreId, alertType, status, page]);
 
   useEffect(() => {
-    load();
-  }, [canRead, storeId, alertType, status, days]);
+    if (canRead) void load();
+  }, [canRead, load]);
 
-  const acknowledge = async (id: string) => {
-    setAckingId(id);
-    try {
-      await inventoryApi.acknowledgeAlert(id);
-      load();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to acknowledge alert');
-    } finally {
-      setAckingId(null);
-    }
-  };
+  useEffect(() => {
+    setPage(0);
+  }, [alertType, status]);
 
   if (!canRead) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Stock Alerts</h1>
-        <p role="status">Access is restricted. You do not have permission to view stock alerts.</p>
+      <div className="page">
+        <PermissionRequired permission={P.INVENTORY_READ} action="Viewing stock alerts" />
       </div>
     );
   }
 
-  if (!storeId) {
-    return <div style={{ padding: 'var(--space-6)' }}>No store context available.</div>;
-  }
+  const acknowledge = async (alert: StockAlert) => {
+    setBusyId(alert.id);
+    try {
+      await inventoryApi.acknowledgeAlert(alert.id);
+      toast.success(`Alert for ${alert.productName} acknowledged.`);
+      await load();
+    } catch (caught) {
+      toast.error(errorMessage(caught));
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
-    <div style={{ padding: 'var(--space-6)' }}>
-      <h1>Stock Alerts</h1>
+    <div className="page">
+      <PageHeader
+        title="Stock alerts"
+        breadcrumbs={[{ label: 'Inventory', href: '/inventory' }, { label: 'Alerts' }]}
+        description={`What needs attention in ${activeStore?.name ?? 'this store'} — products running low and batches nearing their expiry date.`}
+      />
 
-      {error && (
-        <div
-          role="alert"
-          style={{
-            marginTop: 'var(--space-4)',
-            padding: 'var(--space-4)',
-            background: 'var(--color-error-surface)',
-            color: 'var(--color-error)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          {error}
-        </div>
-      )}
+      <InventoryTabs active="alerts" permissions={user?.permissions} />
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)', margin: 'var(--space-4) 0' }}>
-        <div>
-          <label htmlFor="alert-type" style={{ display: 'block', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>Type</label>
-          <select id="alert-type" value={alertType} onChange={(e) => setAlertType(e.target.value)} style={selectStyle}>
-            <option value="">All types</option>
-            <option value="LOW_STOCK">Low stock</option>
-            <option value="EXPIRY">Expiry</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="alert-status" style={{ display: 'block', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>Status</label>
-          <select id="alert-status" value={status} onChange={(e) => setStatus(e.target.value)} style={selectStyle}>
-            <option value="">All statuses</option>
-            <option value="OPEN">Open</option>
-            <option value="ACKNOWLEDGED">Acknowledged</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="alert-days" style={{ display: 'block', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>Window (days)</label>
-          <select id="alert-days" value={days} onChange={(e) => setDays(Number(e.target.value))} style={selectStyle}>
-            <option value={7}>7</option>
-            <option value={30}>30</option>
-          </select>
-        </div>
+      <div className="toolbar">
+        <Select
+          id="alert-type"
+          label="Type"
+          placeholder="All alerts"
+          value={alertType}
+          onChange={(event) => setAlertType(event.target.value)}
+          options={[
+            { value: 'LOW_STOCK', label: 'Low stock' },
+            { value: 'EXPIRY', label: 'Expiry' },
+          ]}
+          fieldClassName="toolbar__filter"
+        />
+        <Select
+          id="alert-status"
+          label="Status"
+          placeholder="All"
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          options={[
+            { value: 'OPEN', label: 'Needs action' },
+            { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
+          ]}
+          fieldClassName="toolbar__filter"
+        />
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)' }}>
-        <thead>
-          <tr>
-            <th style={th}>Product</th>
-            <th style={th}>Type</th>
-            <th style={{ ...th, textAlign: 'right' }}>Quantity</th>
-            <th style={{ ...th, textAlign: 'right' }}>Minimum</th>
-            <th style={th}>Batch / expiry</th>
-            <th style={th}>Store</th>
-            <th style={th}>Status</th>
-            <th style={th}>Suggested action</th>
-            <th style={th}> </th>
-          </tr>
-        </thead>
-        <tbody>
-          {alerts.map((alert) => {
-            const expired = alert.alertType === 'EXPIRY' && (alert.daysRemaining ?? 0) < 0;
-            return (
-              <tr key={alert.id}>
-                <td style={td}>{alert.productName} ({alert.sku})</td>
-                <td style={td}>{alert.alertType === 'LOW_STOCK' ? 'Low stock' : 'Expiry'}</td>
-                <td style={{ ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{alert.quantity}</td>
-                <td style={{ ...td, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{alert.minimumLevel ?? '—'}</td>
-                <td style={td}>
-                  {alert.batchNumber ? `${alert.batchNumber} / ${alert.expirationDate ?? '—'}` : '—'}
-                </td>
-                <td style={td}>{alert.storeName}</td>
-                <td style={td}>
-                  <span
-                    role="status"
-                    style={{
-                      color: expired || alert.alertType === 'LOW_STOCK' ? 'var(--color-error)' : 'var(--color-warning)',
-                      background: expired || alert.alertType === 'LOW_STOCK' ? 'var(--color-error-surface)' : 'var(--color-warning-surface)',
-                      padding: '0 var(--space-2)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontWeight: 'var(--font-weight-medium)',
-                    }}
-                  >
-                    {statusLabel(alert.status)}
-                  </span>
-                </td>
-                <td style={td}>{alert.suggestedAction}</td>
-                <td style={td}>
-                  {alert.status === 'OPEN' && (
-                    <Button type="button" onClick={() => acknowledge(alert.id)} isLoading={ackingId === alert.id} disabled={ackingId === alert.id}>
-                      Acknowledge
-                    </Button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-          {alerts.length === 0 && (
-            <tr>
-              <td colSpan={9} style={{ ...td, textAlign: 'center', color: 'var(--color-foreground-muted)' }}>
-                No stock alerts found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <Card flush>
+        {error ? (
+          <ErrorState message={error} onRetry={() => void load()} />
+        ) : isLoading && alerts.content.length === 0 ? (
+          <TableSkeleton rows={5} columns={5} />
+        ) : alerts.content.length === 0 ? (
+          <EmptyState
+            icon="check-circle"
+            title={status === 'OPEN' ? 'Nothing needs attention' : 'No alerts here'}
+            body={
+              status === 'OPEN'
+                ? 'No product is below its re-order level and no batch is close to expiring.'
+                : 'Try a different status or alert type.'
+            }
+          />
+        ) : (
+          <>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Product</Th>
+                  <Th>Alert</Th>
+                  <Th className="table__num">On hand</Th>
+                  <Th>Suggested action</Th>
+                  <Th>Status</Th>
+                  <Th className="table__actions">Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {alerts.content.map((alert) => (
+                  <Tr key={alert.id}>
+                    <Td>
+                      <Link href={`/products/${alert.productId}`} className="table__primary">
+                        {alert.productName}
+                      </Link>
+                      <div className="table__secondary mono">{alert.sku}</div>
+                    </Td>
+                    <Td>
+                      {alert.alertType === 'LOW_STOCK' ? (
+                        <Badge variant="warning">Low stock</Badge>
+                      ) : (
+                        <Badge variant="error">Expiry</Badge>
+                      )}
+                      {alert.alertType === 'EXPIRY' && alert.expirationDate && (
+                        <div className="table__secondary">
+                          {alert.batchNumber ? `Batch ${alert.batchNumber} · ` : ''}
+                          {formatDate(alert.expirationDate)}
+                        </div>
+                      )}
+                    </Td>
+                    <Td className="table__num">
+                      {formatQuantity(alert.quantity)}
+                      {alert.minimumLevel !== null && (
+                        <div className="table__secondary">min {formatQuantity(alert.minimumLevel)}</div>
+                      )}
+                    </Td>
+                    <Td>{alert.suggestedAction}</Td>
+                    <Td>
+                      <StatusBadge kind="alert" status={alert.status} />
+                    </Td>
+                    <Td className="table__actions">
+                      {alert.status === 'OPEN' && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          isLoading={busyId === alert.id}
+                          onClick={() => void acknowledge(alert)}
+                        >
+                          Acknowledge
+                        </Button>
+                      )}
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <Pagination
+              page={alerts.number}
+              totalPages={alerts.totalPages}
+              totalElements={alerts.totalElements}
+              pageSize={alerts.size || PAGE_SIZE}
+              onPageChange={setPage}
+              isLoading={isLoading}
+            />
+          </>
+        )}
+      </Card>
     </div>
   );
 }
-
-const selectStyle: CSSProperties = {
-  height: 'var(--control-height)',
-  padding: '0 var(--space-3)',
-  border: '1px solid var(--color-border)',
-  borderRadius: 'var(--radius-md)',
-  background: 'var(--color-surface)',
-  color: 'var(--color-foreground)',
-};
-
-const th: CSSProperties = {
-  textAlign: 'left',
-  padding: 'var(--space-3)',
-  borderBottom: '1px solid var(--color-border)',
-};
-
-const td: CSSProperties = {
-  padding: 'var(--space-3)',
-  borderBottom: '1px solid var(--color-border)',
-};

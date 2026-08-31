@@ -1,151 +1,133 @@
-import { apiClient } from '../apiClient';
-import { 
-  Category, CategoryRequest, Brand, BrandRequest, Unit, UnitRequest,
-  Product, ProductRequest, ProductBarcode, BarcodeRequest, ProductPrice, PriceRequest 
+import { Page, del, get, patch, post, query } from './http';
+import {
+  BarcodeRequest,
+  Brand,
+  BrandRequest,
+  Category,
+  CategoryRequest,
+  PriceRequest,
+  Product,
+  ProductBarcode,
+  ProductCreateRequest,
+  ProductPrice,
+  ProductUpdateRequest,
+  Unit,
+  UnitRequest,
 } from '../../types/catalog';
 
-export class ApiError extends Error {
-  constructor(public status: number, public message: string, public code?: string) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
+export { ApiError } from './http';
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new ApiError(res.status, body.error?.message || 'An unexpected error occurred', body.error?.code);
-  }
-  return body.data;
-}
-
-export async function getCategories(): Promise<Category[]> {
-  const res = await apiClient('/categories', { method: 'GET' });
-  return handleResponse<Category[]>(res);
-}
-
-export async function createCategory(request: CategoryRequest): Promise<Category> {
-  const res = await apiClient('/categories', { method: 'POST', body: JSON.stringify(request) });
-  return handleResponse<Category>(res);
-}
-
-export async function updateCategory(id: string, request: CategoryRequest): Promise<Category> {
-  const res = await apiClient(`/categories/${id}`, { method: 'PATCH', body: JSON.stringify(request) });
-  return handleResponse<Category>(res);
-}
-
-export async function getBrands(): Promise<Brand[]> {
-  const res = await apiClient('/brands', { method: 'GET' });
-  return handleResponse<Brand[]>(res);
-}
-
-export async function createBrand(request: BrandRequest): Promise<Brand> {
-  const res = await apiClient('/brands', { method: 'POST', body: JSON.stringify(request) });
-  return handleResponse<Brand>(res);
-}
-
-export async function updateBrand(id: string, request: BrandRequest): Promise<Brand> {
-  const res = await apiClient(`/brands/${id}`, { method: 'PATCH', body: JSON.stringify(request) });
-  return handleResponse<Brand>(res);
-}
-
-export async function getUnits(): Promise<Unit[]> {
-  const res = await apiClient('/units', { method: 'GET' });
-  return handleResponse<Unit[]>(res);
-}
-
-export async function createUnit(request: UnitRequest): Promise<Unit> {
-  const res = await apiClient('/units', { method: 'POST', body: JSON.stringify(request) });
-  return handleResponse<Unit>(res);
-}
-
-export async function updateUnit(id: string, request: UnitRequest): Promise<Unit> {
-  const res = await apiClient(`/units/${id}`, { method: 'PATCH', body: JSON.stringify(request) });
-  return handleResponse<Unit>(res);
-}
-
-// ---- Products ----
-
-export async function getProducts(params?: {
+export interface ProductSearchParams {
   query?: string;
   categoryId?: string;
   brandId?: string;
   isActive?: boolean;
   page?: number;
   size?: number;
-}): Promise<Product[]> {
-  const searchParams = new URLSearchParams();
-  if (params?.query) searchParams.append('query', params.query);
-  if (params?.categoryId) searchParams.append('categoryId', params.categoryId);
-  if (params?.brandId) searchParams.append('brandId', params.brandId);
-  if (params?.isActive !== undefined) searchParams.append('isActive', params.isActive.toString());
-  if (params?.page !== undefined) searchParams.append('page', params.page.toString());
-  if (params?.size !== undefined) searchParams.append('size', params.size.toString());
+  sort?: string;
+}
 
-  // Note: If backend supports proper pagination envelopes, this signature should return a PaginatedResponse.
-  // We'll assume the /products endpoint returns a flat array in `data` or we handle it here.
-  const res = await apiClient(`/products?${searchParams.toString()}`);
-  return handleResponse<Product[]>(res);
+/*
+ * `GET /products` returns a Spring Data page, not an array. It was previously typed as
+ * `Product[]`, so `products.map` ran against the page envelope and the list screen threw.
+ *
+ * `query` matches name, SKU and barcode server-side (ProductRepository.searchProducts), which is
+ * what lets one field serve both the catalogue search box and the till's barcode scanner.
+ */
+export async function searchProducts(params: ProductSearchParams = {}): Promise<Page<Product>> {
+  return get<Page<Product>>(
+    `/products${query({
+      query: params.query,
+      categoryId: params.categoryId,
+      brandId: params.brandId,
+      isActive: params.isActive,
+      page: params.page,
+      size: params.size,
+      sort: params.sort,
+    })}`
+  );
 }
 
 export async function getProduct(id: string): Promise<Product> {
-  const res = await apiClient(`/products/${id}`);
-  return handleResponse<Product>(res);
+  return get<Product>(`/products/${id}`);
 }
 
-export async function createProduct(data: ProductRequest): Promise<Product> {
-  const res = await apiClient('/products', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return handleResponse<Product>(res);
+export async function createProduct(body: ProductCreateRequest): Promise<Product> {
+  return post<Product>('/products', body);
 }
 
-export async function updateProduct(id: string, data: Partial<ProductRequest>): Promise<Product> {
-  const res = await apiClient(`/products/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(data),
-  });
-  return handleResponse<Product>(res);
+export async function updateProduct(id: string, body: ProductUpdateRequest): Promise<Product> {
+  return patch<Product>(`/products/${id}`, body);
 }
 
 export async function updateProductStatus(id: string, isActive: boolean): Promise<void> {
-  const res = await apiClient(`/products/${id}/status`, {
-    method: 'PATCH',
-    body: JSON.stringify({ isActive }),
-  });
-  return handleResponse<void>(res);
+  return patch<void>(`/products/${id}/status`, { isActive });
 }
 
 export async function getProductBarcodes(id: string): Promise<ProductBarcode[]> {
-  const res = await apiClient(`/products/${id}/barcodes`);
-  return handleResponse<ProductBarcode[]>(res);
+  return get<ProductBarcode[]>(`/products/${id}/barcodes`);
 }
 
-export async function addProductBarcode(id: string, data: BarcodeRequest): Promise<ProductBarcode> {
-  const res = await apiClient(`/products/${id}/barcodes`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return handleResponse<ProductBarcode>(res);
+export async function addProductBarcode(id: string, body: BarcodeRequest): Promise<ProductBarcode> {
+  return post<ProductBarcode>(`/products/${id}/barcodes`, body);
 }
 
 export async function removeProductBarcode(id: string, barcodeId: string): Promise<void> {
-  const res = await apiClient(`/products/${id}/barcodes/${barcodeId}`, {
-    method: 'DELETE',
-  });
-  return handleResponse<void>(res);
+  return del<void>(`/products/${id}/barcodes/${barcodeId}`);
 }
 
 export async function getProductPrices(id: string): Promise<ProductPrice[]> {
-  const res = await apiClient(`/products/${id}/prices`);
-  return handleResponse<ProductPrice[]>(res);
+  return get<ProductPrice[]>(`/products/${id}/prices`);
 }
 
-export async function addProductPrice(id: string, data: PriceRequest): Promise<ProductPrice> {
-  const res = await apiClient(`/products/${id}/prices`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-  return handleResponse<ProductPrice>(res);
+export async function addProductPrice(id: string, body: PriceRequest): Promise<ProductPrice> {
+  return post<ProductPrice>(`/products/${id}/prices`, body);
+}
+
+export async function getCategories(): Promise<Category[]> {
+  return get<Category[]>('/categories');
+}
+
+export async function createCategory(body: CategoryRequest): Promise<Category> {
+  return post<Category>('/categories', body);
+}
+
+export async function updateCategory(id: string, body: CategoryRequest): Promise<Category> {
+  return patch<Category>(`/categories/${id}`, body);
+}
+
+export async function getBrands(): Promise<Brand[]> {
+  return get<Brand[]>('/brands');
+}
+
+export async function createBrand(body: BrandRequest): Promise<Brand> {
+  return post<Brand>('/brands', body);
+}
+
+export async function updateBrand(id: string, body: BrandRequest): Promise<Brand> {
+  return patch<Brand>(`/brands/${id}`, body);
+}
+
+export async function getUnits(): Promise<Unit[]> {
+  return get<Unit[]>('/units');
+}
+
+export async function createUnit(body: UnitRequest): Promise<Unit> {
+  return post<Unit>('/units', body);
+}
+
+export async function updateUnit(id: string, body: UnitRequest): Promise<Unit> {
+  return patch<Unit>(`/units/${id}`, body);
+}
+
+/** Reference data for the product form, loaded as one unit so the form never renders half-ready. */
+export interface CatalogReferenceData {
+  categories: Category[];
+  brands: Brand[];
+  units: Unit[];
+}
+
+export async function getCatalogReferenceData(): Promise<CatalogReferenceData> {
+  const [categories, brands, units] = await Promise.all([getCategories(), getBrands(), getUnits()]);
+  return { categories, brands, units };
 }

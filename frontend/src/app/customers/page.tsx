@@ -1,133 +1,188 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/AuthContext';
-import { customersApi, Customer } from '@/lib/api/customers';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Badge } from '@/components/ui/Badge';
-import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
+import { Customer, customersApi } from '@/lib/api/customers';
+import { Page, emptyPage } from '@/lib/api/http';
+import { useDebounced } from '@/hooks/useDebounced';
+import { errorMessage, formatMoney } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { SearchInput, Select } from '@/components/ui/Field';
+import { ActiveBadge } from '@/components/ui/Badge';
+import { Pagination, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { EmptyState, ErrorState, PermissionRequired, TableSkeleton } from '@/components/ui/States';
+
+const PAGE_SIZE = 20;
 
 export default function CustomersPage() {
-  const router = useRouter();
   const { user } = useAuth();
-  const canRead = user?.permissions?.includes('CUSTOMER_READ') ?? false;
-  const canWrite = user?.permissions?.includes('CUSTOMER_WRITE') ?? false;
+  const canRead = hasPermission(user?.permissions, P.CUSTOMER_READ);
+  const canWrite = hasPermission(user?.permissions, P.CUSTOMER_WRITE);
 
-  const [query, setQuery] = useState('');
-  const [isActive, setIsActive] = useState('');
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [term, setTerm] = useState('');
+  const [status, setStatus] = useState('');
+  const [page, setPage] = useState(0);
+  const [result, setResult] = useState<Page<Customer>>(emptyPage(PAGE_SIZE));
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const debouncedTerm = useDebounced(term);
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      setResult(
+        await customersApi.list({
+          query: debouncedTerm || undefined,
+          isActive: status === '' ? undefined : status === 'active',
+          page,
+          size: PAGE_SIZE,
+          sort: 'name,asc',
+        })
+      );
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [debouncedTerm, status, page]);
 
   useEffect(() => {
-    if (!canRead) {
-      return;
-    }
-    setIsLoading(true);
-    customersApi.list(query || undefined, isActive || undefined)
-      .then((res) => {
-        setCustomers(res.content ?? []);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load customers');
-      })
-      .finally(() => setIsLoading(false));
-  }, [canRead, query, isActive]);
+    if (canRead) void load();
+  }, [canRead, load]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [debouncedTerm, status]);
 
   if (!canRead) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Customers</h1>
-        <p role="status">Access is restricted. You do not have permission to view customers.</p>
+      <div className="page">
+        <PermissionRequired permission={P.CUSTOMER_READ} action="Viewing customers" />
       </div>
     );
   }
 
+  const hasFilters = Boolean(debouncedTerm || status);
+
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-6)' }}>
-        <h1>Customers</h1>
-        {canWrite && (
-          <Button type="button" onClick={() => router.push('/customers/new')}>Create Customer</Button>
+    <div className="page">
+      <PageHeader
+        title="Customers"
+        description="Account customers. Adding one to a sale records their purchase history and lets them pay on store credit."
+        actions={
+          canWrite && (
+            <Link className="btn btn--primary" href="/customers/new">
+              Add customer
+            </Link>
+          )
+        }
+      />
+
+      <div className="toolbar">
+        <SearchInput
+          id="customer-search"
+          label="Search"
+          placeholder="Name, phone, email or customer code"
+          value={term}
+          onChange={(event) => setTerm(event.target.value)}
+          fieldClassName="toolbar__search"
+          autoFocus
+        />
+        <Select
+          id="customer-status"
+          label="Status"
+          placeholder="All"
+          value={status}
+          onChange={(event) => setStatus(event.target.value)}
+          options={[
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ]}
+          fieldClassName="toolbar__filter"
+        />
+      </div>
+
+      <Card flush>
+        {error ? (
+          <ErrorState message={error} onRetry={() => void load()} />
+        ) : isLoading && result.content.length === 0 ? (
+          <TableSkeleton rows={6} columns={4} />
+        ) : result.content.length === 0 ? (
+          <EmptyState
+            icon="customers"
+            title={hasFilters ? 'No customers match' : 'No customers yet'}
+            body={
+              hasFilters
+                ? 'Try a different name or phone number.'
+                : 'You do not need a customer to make a sale. Add one when you want to track their purchases or offer credit.'
+            }
+            action={
+              hasFilters
+                ? {
+                    label: 'Clear filters',
+                    onClick: () => {
+                      setTerm('');
+                      setStatus('');
+                    },
+                  }
+                : canWrite
+                  ? { label: 'Add customer', href: '/customers/new' }
+                  : undefined
+            }
+          />
+        ) : (
+          <>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Customer</Th>
+                  <Th>Phone</Th>
+                  <Th>Email</Th>
+                  <Th className="table__num">Credit limit</Th>
+                  <Th>Status</Th>
+                  <Th className="table__actions">Actions</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {result.content.map((customer) => (
+                  <Tr key={customer.id}>
+                    <Td>
+                      <Link href={`/customers/${customer.id}`} className="table__primary">
+                        {customer.name}
+                      </Link>
+                      <div className="table__secondary mono">{customer.customerCode}</div>
+                    </Td>
+                    <Td>{customer.phone ?? <span className="text-muted">—</span>}</Td>
+                    <Td>{customer.email ?? <span className="text-muted">—</span>}</Td>
+                    <Td className="table__num">{formatMoney(customer.creditLimit)}</Td>
+                    <Td>
+                      <ActiveBadge active={customer.active} />
+                    </Td>
+                    <Td className="table__actions">
+                      <Link className="btn btn--secondary btn--sm" href={`/customers/${customer.id}`}>
+                        {canWrite ? 'Manage' : 'View'}
+                      </Link>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <Pagination
+              page={result.number}
+              totalPages={result.totalPages}
+              totalElements={result.totalElements}
+              pageSize={result.size || PAGE_SIZE}
+              onPageChange={setPage}
+              isLoading={isLoading}
+            />
+          </>
         )}
-      </div>
-
-      {error && (
-        <div role="alert" style={{ marginBottom: 'var(--space-4)', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-4)' }}>
-        <div style={{ flex: '1 1 16rem' }}>
-          <Input
-            id="customer-search"
-            label="Search"
-            placeholder="Code, name, phone, or email"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </div>
-        <div style={{ flex: '0 1 12rem' }}>
-          <Select
-            id="customer-status"
-            label="Status"
-            value={isActive}
-            onChange={(e) => setIsActive(e.target.value)}
-            options={[
-              { value: 'true', label: 'Active' },
-              { value: 'false', label: 'Inactive' },
-            ]}
-          />
-        </div>
-      </div>
-
-      {isLoading ? (
-        <p>Loading customers...</p>
-      ) : customers.length === 0 ? (
-        <div style={{ padding: 'var(--space-8)', textAlign: 'center', backgroundColor: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
-          No customers found.
-        </div>
-      ) : (
-        <Table>
-          <Thead>
-            <Tr>
-              <Th>Code</Th>
-              <Th>Name</Th>
-              <Th>Phone</Th>
-              <Th>Email</Th>
-              <Th>Credit limit</Th>
-              <Th>Status</Th>
-              <Th> </Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {customers.map((customer) => (
-              <Tr key={customer.id}>
-                <Td>{customer.customerCode}</Td>
-                <Td>{customer.name}</Td>
-                <Td>{customer.phone ?? '—'}</Td>
-                <Td>{customer.email ?? '—'}</Td>
-                <Td style={{ fontVariantNumeric: 'tabular-nums' }}>{customer.creditLimit}</Td>
-                <Td>
-                  <Badge variant={customer.active ? 'success' : 'error'}>
-                    {customer.active ? 'Active' : 'Inactive'}
-                  </Badge>
-                </Td>
-                <Td>
-                  <Button type="button" variant="secondary" onClick={() => router.push('/customers/' + customer.id)}>
-                    {canWrite ? 'Manage' : 'View'}
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      )}
+      </Card>
     </div>
   );
 }

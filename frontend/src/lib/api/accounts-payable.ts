@@ -1,14 +1,14 @@
-import { apiClient } from '../apiClient';
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-}
+import { Page, get, patch, post, query } from './http';
 
 export type SupplierInvoiceStatus = 'OPEN' | 'PAID' | 'CANCELLED';
+export type SupplierPaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'OTHER';
+
+export const PAYMENT_METHOD_LABELS: Record<SupplierPaymentMethod, string> = {
+  CASH: 'Cash',
+  BANK_TRANSFER: 'Bank transfer',
+  CHEQUE: 'Cheque',
+  OTHER: 'Other',
+};
 
 export interface SupplierInvoice {
   id: string;
@@ -35,15 +35,7 @@ export interface SupplierInvoiceCreateRequest {
   notes?: string | null;
 }
 
-export interface SupplierInvoiceUpdateRequest {
-  invoiceNumber: string;
-  invoiceDate: string;
-  dueDate: string;
-  totalAmount: number;
-  notes?: string | null;
-}
-
-export type SupplierPaymentMethod = 'CASH' | 'BANK_TRANSFER' | 'CHEQUE' | 'OTHER';
+export type SupplierInvoiceUpdateRequest = Omit<SupplierInvoiceCreateRequest, 'supplierId'>;
 
 export interface SupplierPayment {
   id: string;
@@ -71,60 +63,21 @@ export interface PayablesSummary {
   overdue: number;
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || 'An unexpected error occurred');
-  }
-  return body.data;
-}
+export const accountsPayableApi = {
+  listInvoices: (params: { query?: string; status?: string; page?: number; size?: number; sort?: string } = {}) =>
+    get<Page<SupplierInvoice>>(`/accounts-payable/invoices${query({ ...params })}`),
+  getInvoice: (id: string) => get<SupplierInvoice>(`/accounts-payable/invoices/${id}`),
+  createInvoice: (body: SupplierInvoiceCreateRequest) =>
+    post<SupplierInvoice>('/accounts-payable/invoices', body),
+  updateInvoice: (id: string, body: SupplierInvoiceUpdateRequest) =>
+    patch<SupplierInvoice>(`/accounts-payable/invoices/${id}`, body),
 
-export const invoicesApi = {
-  list: async (query?: string, status?: string, page = 0, size = 50) => {
-    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
-    if (query) params.append('query', query);
-    if (status) params.append('status', status);
-    const res = await apiClient('/accounts-payable/invoices?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<SupplierInvoice>>(res);
-  },
+  listPayments: (params: { invoiceId?: string; page?: number; size?: number } = {}) =>
+    get<Page<SupplierPayment>>(`/accounts-payable/payments${query({ ...params })}`),
+  createPayment: (body: SupplierPaymentCreateRequest) =>
+    post<SupplierPayment>('/accounts-payable/payments', body),
 
-  get: async (id: string) => {
-    const res = await apiClient('/accounts-payable/invoices/' + id, { method: 'GET' });
-    return handleResponse<SupplierInvoice>(res);
-  },
-
-  create: async (body: SupplierInvoiceCreateRequest) => {
-    const res = await apiClient('/accounts-payable/invoices', { method: 'POST', body: JSON.stringify(body) });
-    return handleResponse<SupplierInvoice>(res);
-  },
-
-  update: async (id: string, body: SupplierInvoiceUpdateRequest) => {
-    const res = await apiClient('/accounts-payable/invoices/' + id, { method: 'PATCH', body: JSON.stringify(body) });
-    return handleResponse<SupplierInvoice>(res);
-  },
-};
-
-export const paymentsApi = {
-  list: async (invoiceId?: string, page = 0, size = 50) => {
-    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
-    if (invoiceId) params.append('invoiceId', invoiceId);
-    const res = await apiClient('/accounts-payable/payments?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<SupplierPayment>>(res);
-  },
-
-  create: async (body: SupplierPaymentCreateRequest) => {
-    const res = await apiClient('/accounts-payable/payments', { method: 'POST', body: JSON.stringify(body) });
-    return handleResponse<SupplierPayment>(res);
-  },
-
-  overdue: async (page = 0, size = 50) => {
-    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
-    const res = await apiClient('/accounts-payable/overdue?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<SupplierInvoice>>(res);
-  },
-
-  summary: async () => {
-    const res = await apiClient('/accounts-payable/summary', { method: 'GET' });
-    return handleResponse<PayablesSummary>(res);
-  },
+  overdue: (params: { page?: number; size?: number } = {}) =>
+    get<Page<SupplierInvoice>>(`/accounts-payable/overdue${query({ ...params })}`),
+  summary: () => get<PayablesSummary>('/accounts-payable/summary'),
 };

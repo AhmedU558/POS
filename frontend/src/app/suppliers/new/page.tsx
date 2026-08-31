@@ -1,76 +1,87 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { suppliersApi } from '@/lib/api/suppliers';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Checkbox } from '@/components/ui/Checkbox';
+import { ApiError } from '@/lib/api/http';
+import { errorMessage } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { PermissionRequired } from '@/components/ui/States';
+import { useToast } from '@/components/ui/Toast';
+import {
+  SupplierForm,
+  SupplierFormErrors,
+  SupplierFormValues,
+  emptySupplierForm,
+  supplierFormToRequest,
+  validateSupplierForm,
+} from '@/features/suppliers/SupplierForm';
 
 export default function NewSupplierPage() {
   const router = useRouter();
+  const toast = useToast();
   const { user } = useAuth();
-  const canWrite = user?.permissions?.includes('SUPPLIER_WRITE') ?? false;
+  const canWrite = hasPermission(user?.permissions, P.SUPPLIER_WRITE);
 
-  const [supplierCode, setSupplierCode] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [values, setValues] = useState<SupplierFormValues>(emptySupplierForm);
+  const [errors, setErrors] = useState<SupplierFormErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!canWrite) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Create Supplier</h1>
-        <p role="status">Access is restricted. You do not have permission to create suppliers.</p>
+      <div className="page">
+        <PermissionRequired permission={P.SUPPLIER_WRITE} action="Creating suppliers" />
       </div>
     );
   }
 
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  const submit = async () => {
+    const found = validateSupplierForm(values);
+    setErrors(found);
+    if (Object.keys(found).length > 0) {
+      setSubmitError('Check the highlighted fields and try again.');
+      return;
+    }
     setIsSubmitting(true);
-    setError(null);
+    setSubmitError(null);
     try {
-      const created = await suppliersApi.create({
-        supplierCode,
-        name,
-        phone: phone || null,
-        email: email || null,
-        address: address || null,
-        isActive,
-      });
-      router.push('/suppliers/' + created.id);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create supplier');
+      const created = await suppliersApi.create(supplierFormToRequest(values));
+      toast.success(`${created.name} added. You can now raise a purchase order for them.`);
+      router.push(`/suppliers/${created.id}`);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'CONFLICT') {
+        setErrors({ supplierCode: 'Another supplier already uses this code.' });
+        setSubmitError('That supplier code is taken. Pick a different one.');
+      } else {
+        setSubmitError(errorMessage(caught));
+      }
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <h1>Create Supplier</h1>
-      {error && (
-        <div role="alert" style={{ margin: 'var(--space-4) 0', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
-        </div>
-      )}
-      <form onSubmit={onSubmit}>
-        <Input id="supplier-code" label="Supplier code" value={supplierCode} onChange={(e) => setSupplierCode(e.target.value)} required />
-        <Input id="supplier-name" label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-        <Input id="supplier-phone" label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-        <Input id="supplier-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Input id="supplier-address" label="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
-        <Checkbox id="supplier-active" label="Active" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
-        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
-          <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>Save</Button>
-          <Button type="button" variant="secondary" onClick={() => router.push('/suppliers')}>Cancel</Button>
-        </div>
-      </form>
+    <div className="page page-narrow">
+      <PageHeader
+        title="Add supplier"
+        breadcrumbs={[{ label: 'Suppliers', href: '/suppliers' }, { label: 'Add supplier' }]}
+        description="Only a name and a code are required."
+      />
+      <SupplierForm
+        values={values}
+        errors={errors}
+        submitError={submitError}
+        isSubmitting={isSubmitting}
+        submitLabel="Add supplier"
+        onChange={(field, value) => {
+          setValues((current) => ({ ...current, [field]: value }));
+          setErrors((current) => ({ ...current, [field]: undefined }));
+        }}
+        onSubmit={() => void submit()}
+        onCancel={() => router.push('/suppliers')}
+      />
     </div>
   );
 }

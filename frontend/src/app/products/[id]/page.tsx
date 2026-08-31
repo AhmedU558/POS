@@ -1,308 +1,457 @@
-"use client";
+'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { 
-  getProduct, updateProduct, updateProductStatus, 
-  getProductBarcodes, addProductBarcode, removeProductBarcode,
-  getProductPrices, addProductPrice,
-  getCategories, getBrands, getUnits
+import { useStoreContext } from '@/features/session/StoreContext';
+import {
+  CatalogReferenceData,
+  addProductBarcode,
+  getCatalogReferenceData,
+  getProduct,
+  getProductBarcodes,
+  getProductPrices,
+  removeProductBarcode,
+  updateProduct,
+  updateProductStatus,
 } from '@/lib/api/catalog';
-import { 
-  Product, ProductBarcode, ProductPrice, 
-  Category, Brand, Unit, ProductRequest 
-} from '@/types/catalog';
+import { InventoryBalance, inventoryApi } from '@/lib/api/inventory';
+import { ApiError } from '@/lib/api/http';
+import { Product, ProductBarcode, ProductPrice } from '@/types/catalog';
+import { errorMessage, formatDate, formatMoney, formatQuantity } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardBody, CardHeader, Metric } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Checkbox } from '@/components/ui/Checkbox';
-import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
+import { Checkbox, Input } from '@/components/ui/Field';
+import { ActiveBadge, Badge } from '@/components/ui/Badge';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { ConfirmDialog } from '@/components/ui/Modal';
+import { Alert, EmptyState, ErrorState, LoadingState, PermissionRequired } from '@/components/ui/States';
+import { useToast } from '@/components/ui/Toast';
+import {
+  ProductForm,
+  ProductFormErrors,
+  ProductFormValues,
+  formToCreateRequest,
+  productToForm,
+  validateProductForm,
+} from '@/features/products/ProductForm';
+
+type Tab = 'details' | 'barcodes' | 'prices';
 
 export default function ProductDetailPage() {
-  const { id } = useParams() as { id: string };
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const toast = useToast();
   const { user } = useAuth();
-  const hasWritePerm = user?.permissions?.includes('PRODUCT_WRITE');
-  const hasPriceWritePerm = user?.permissions?.includes('PRODUCT_PRICE_WRITE');
-  
+  const { activeStoreId } = useStoreContext();
+
+  const canRead = hasPermission(user?.permissions, P.PRODUCT_READ);
+  const canWrite = hasPermission(user?.permissions, P.PRODUCT_WRITE);
+  const canWritePrices = hasPermission(user?.permissions, P.PRODUCT_PRICE_WRITE);
+  const canReadInventory = hasPermission(user?.permissions, P.INVENTORY_READ);
+
+  const [tab, setTab] = useState<Tab>('details');
   const [product, setProduct] = useState<Product | null>(null);
+  const [reference, setReference] = useState<CatalogReferenceData>({ categories: [], brands: [], units: [] });
   const [barcodes, setBarcodes] = useState<ProductBarcode[]>([]);
   const [prices, setPrices] = useState<ProductPrice[]>([]);
-  
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [balance, setBalance] = useState<InventoryBalance | null>(null);
 
-  const [formData, setFormData] = useState<ProductRequest | null>(null);
+  const [values, setValues] = useState<ProductFormValues | null>(null);
+  const [errors, setErrors] = useState<ProductFormErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  const [newBarcode, setNewBarcode] = useState('');
-  const [isPrimaryBarcode, setIsPrimaryBarcode] = useState(false);
-  
-  const [newPriceAmount, setNewPriceAmount] = useState(0);
-  const [newPriceType, setNewPriceType] = useState<'REGULAR' | 'PROMOTIONAL' | 'WHOLESALE'>('REGULAR');
-  const [newPriceEffective, setNewPriceEffective] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [statusPrompt, setStatusPrompt] = useState(false);
+  const [barcodeToRemove, setBarcodeToRemove] = useState<ProductBarcode | null>(null);
 
-  const loadData = async () => {
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
     try {
-      setIsLoading(true);
-      const [prodRes, barcodeRes, priceRes, catData, brandData, unitData] = await Promise.all([
+      const [loaded, loadedBarcodes, loadedPrices, loadedReference] = await Promise.all([
         getProduct(id),
-        getProductBarcodes(id),
-        getProductPrices(id),
-        getCategories(),
-        getBrands(),
-        getUnits()
+        getProductBarcodes(id).catch(() => [] as ProductBarcode[]),
+        getProductPrices(id).catch(() => [] as ProductPrice[]),
+        getCatalogReferenceData().catch(() => ({ categories: [], brands: [], units: [] })),
       ]);
-      setProduct(prodRes);
-      setBarcodes(barcodeRes);
-      setPrices(priceRes);
-      
-      setCategories(catData.filter((c: Category) => c.active || c.id === prodRes.categoryId));
-      setBrands(brandData.filter((b: Brand) => b.active || b.id === prodRes.brandId));
-      setUnits(unitData.filter((u: Unit) => u.active || u.id === prodRes.unitId));
-      
-      setFormData({
-        sku: prodRes.sku,
-        name: prodRes.name,
-        description: prodRes.description,
-        categoryId: prodRes.categoryId,
-        brandId: prodRes.brandId,
-        unitId: prodRes.unitId,
-        purchasePrice: prodRes.purchasePrice,
-        sellingPrice: prodRes.sellingPrice,
-        wholesalePrice: prodRes.wholesalePrice,
-        taxRate: prodRes.taxRate,
-        minStock: prodRes.minStock,
-        maxStock: prodRes.maxStock,
-        trackBatch: prodRes.trackBatch,
-        trackExpiry: prodRes.trackExpiry,
-        isActive: prodRes.active
-      });
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load product details');
+      setProduct(loaded);
+      setValues(productToForm(loaded));
+      setBarcodes(loadedBarcodes);
+      setPrices(loadedPrices);
+      setReference(loadedReference);
+    } catch (caught) {
+      setLoadError(errorMessage(caught));
     } finally {
       setIsLoading(false);
     }
+  }, [id]);
+
+  useEffect(() => {
+    if (canRead) void load();
+  }, [canRead, load]);
+
+  // Stock lives in a different module; showing it here answers "do we have any?" in one place.
+  useEffect(() => {
+    if (!canReadInventory || !activeStoreId) return;
+    inventoryApi
+      .getBalance(id, activeStoreId)
+      .then(setBalance)
+      .catch(() => setBalance(null));
+  }, [canReadInventory, activeStoreId, id]);
+
+  if (!canRead) {
+    return (
+      <div className="page">
+        <PermissionRequired permission={P.PRODUCT_READ} action="Viewing products" />
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="page">
+        <LoadingState label="Loading product…" />
+      </div>
+    );
+  }
+
+  if (loadError || !product || !values) {
+    return (
+      <div className="page">
+        <ErrorState message={loadError ?? 'Product not found.'} onRetry={() => void load()} />
+      </div>
+    );
+  }
+
+  const change = <K extends keyof ProductFormValues>(field: K, value: ProductFormValues[K]) => {
+    setValues((current) => (current ? { ...current, [field]: value } : current));
+    setErrors((current) => ({ ...current, [field]: undefined }));
   };
 
-  const handleUpdateProduct = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData) return;
+  const save = async () => {
+    const found = validateProductForm(values);
+    setErrors(found);
+    if (Object.keys(found).length > 0) {
+      setSubmitError('Check the highlighted fields and try again.');
+      return;
+    }
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
-      const payload: ProductRequest = {
-        ...formData,
-        categoryId: formData.categoryId || null,
-        brandId: formData.brandId || null,
-        unitId: formData.unitId || null,
-        wholesalePrice: formData.wholesalePrice || null,
-        maxStock: formData.maxStock || null,
-      };
-      await updateProduct(id, payload);
-      if (formData.isActive !== product?.active) {
-        await updateProductStatus(id, formData.isActive);
+      /*
+       * `isActive` is deliberately dropped: PATCH /products/{id} does not accept it, and
+       * availability is changed through the explicit control below so it is never a side effect
+       * of editing a price.
+       */
+      const { isActive: _ignored, ...update } = formToCreateRequest(values);
+      const saved = await updateProduct(id, update);
+      setProduct(saved);
+      setValues(productToForm(saved));
+      toast.success('Product saved.');
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'CONFLICT') {
+        setErrors({ sku: 'Another product already uses this SKU.' });
+        setSubmitError('That SKU is already taken. Pick a different one.');
+      } else {
+        setSubmitError(errorMessage(caught));
       }
-      await loadData();
-    } catch (err: any) {
-      setError(err.message || 'Failed to update product');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleAddBarcode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBarcode) return;
+  const toggleStatus = async () => {
+    setIsSubmitting(true);
     try {
-      await addProductBarcode(id, { barcode: newBarcode, isPrimary: isPrimaryBarcode });
-      setNewBarcode('');
-      setIsPrimaryBarcode(false);
-      const res = await getProductBarcodes(id);
-      setBarcodes(res);
-    } catch (err: any) {
-      setError(err.message || 'Failed to add barcode');
+      await updateProductStatus(id, !product.isActive);
+      const refreshed = await getProduct(id);
+      setProduct(refreshed);
+      setValues(productToForm(refreshed));
+      toast.success(refreshed.isActive ? 'Product is available for sale.' : 'Product withdrawn from sale.');
+    } catch (caught) {
+      toast.error(errorMessage(caught));
+    } finally {
+      setIsSubmitting(false);
+      setStatusPrompt(false);
     }
   };
-  
-  const handleRemoveBarcode = async (barcodeId: string) => {
-    try {
-      await removeProductBarcode(id, barcodeId);
-      const res = await getProductBarcodes(id);
-      setBarcodes(res);
-    } catch (err: any) {
-      setError(err.message || 'Failed to remove barcode');
-    }
-  };
-
-  const handleAddPrice = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPriceAmount <= 0 || !newPriceEffective) return;
-    try {
-      await addProductPrice(id, {
-        priceType: newPriceType,
-        amount: newPriceAmount,
-        effectiveFrom: new Date(newPriceEffective).toISOString()
-      });
-      setNewPriceAmount(0);
-      setNewPriceEffective('');
-      const res = await getProductPrices(id);
-      setPrices(res);
-    } catch (err: any) {
-      setError(err.message || 'Failed to add price');
-    }
-  };
-
-  const handleChange = (field: keyof ProductRequest, value: any) => {
-    if (formData) {
-      setFormData({ ...formData, [field]: value });
-    }
-  };
-
-  if (isLoading) return <div style={{ padding: 'var(--space-6)' }}>Loading...</div>;
-  if (!product || !formData) return <div style={{ padding: 'var(--space-6)' }}>Product not found</div>;
 
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: '1000px', margin: '0 auto' }}>
-      <Button variant="secondary" onClick={() => router.push('/products')} style={{ marginBottom: 'var(--space-4)' }}>
-        &larr; Back to Products
-      </Button>
-      
-      <h1 style={{ fontSize: 'var(--font-size-heading)', marginBottom: 'var(--space-6)' }}>
-        Manage Product: {product.name}
-      </h1>
+    <div className="page">
+      <PageHeader
+        title={product.name}
+        breadcrumbs={[{ label: 'Products', href: '/products' }, { label: product.name }]}
+        description={`SKU ${product.sku}`}
+        actions={
+          <>
+            <ActiveBadge active={product.isActive} />
+            {canWrite && (
+              <Button variant={product.isActive ? 'secondary' : 'primary'} onClick={() => setStatusPrompt(true)}>
+                {product.isActive ? 'Withdraw from sale' : 'Make available'}
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {error && (
-        <div style={{
-          backgroundColor: 'var(--color-error-surface)', color: 'var(--color-error)',
-          padding: 'var(--space-3)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-4)'
-        }}>{error}</div>
+      <div className="metric-grid" style={{ marginBottom: 'var(--space-6)' }}>
+        <Metric label="Selling price" value={formatMoney(product.sellingPrice)} meta={`Cost ${formatMoney(product.purchasePrice)}`} />
+        <Metric
+          label="Stock on hand"
+          value={balance ? formatQuantity(balance.quantity) : canReadInventory ? '—' : 'Hidden'}
+          meta={
+            balance ? (
+              balance.quantity <= product.minStock ? (
+                <Badge variant="warning">At or below re-order level</Badge>
+              ) : (
+                `Re-order at ${formatQuantity(product.minStock)}`
+              )
+            ) : (
+              'No stock recorded in this store'
+            )
+          }
+        />
+        <Metric label="Barcodes" value={barcodes.length} meta={barcodes.length === 0 ? 'Cannot be scanned yet' : 'Scannable at the till'} />
+      </div>
+
+      <div className="tabs" role="tablist">
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'details'} onClick={() => setTab('details')}>
+          Details
+        </button>
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'barcodes'} onClick={() => setTab('barcodes')}>
+          Barcodes ({barcodes.length})
+        </button>
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'prices'} onClick={() => setTab('prices')}>
+          Price history ({prices.length})
+        </button>
+      </div>
+
+      {tab === 'details' && (
+        <ProductForm
+          mode="edit"
+          values={values}
+          errors={errors}
+          reference={reference}
+          isSubmitting={isSubmitting}
+          submitError={submitError}
+          readOnly={!canWrite}
+          onChange={change}
+          onSubmit={() => void save()}
+          onCancel={() => router.push('/products')}
+        />
       )}
 
-      <div style={{ display: 'flex', gap: 'var(--space-6)', flexDirection: 'column' }}>
-        
-        {/* Basic Info */}
-        <div style={{ padding: 'var(--space-6)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
-          <h2 style={{ marginBottom: 'var(--space-4)' }}>Product Information</h2>
-          <form onSubmit={handleUpdateProduct} style={{ display: 'grid', gap: 'var(--space-4)' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-4)' }}>
-              <Input id="sku" label="SKU" value={formData.sku} onChange={e => handleChange('sku', e.target.value)} required disabled={!hasWritePerm} />
-              <Input id="name" label="Name" value={formData.name} onChange={e => handleChange('name', e.target.value)} required disabled={!hasWritePerm} />
-            </div>
-            
-            <Input id="description" label="Description" value={formData.description || ''} onChange={e => handleChange('description', e.target.value)} disabled={!hasWritePerm} />
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
-              <Select id="categoryId" label="Category" options={categories.map(c => ({ label: c.name, value: c.id }))} value={formData.categoryId || ''} onChange={e => handleChange('categoryId', e.target.value)} disabled={!hasWritePerm} />
-              <Select id="brandId" label="Brand" options={brands.map(b => ({ label: b.name, value: b.id }))} value={formData.brandId || ''} onChange={e => handleChange('brandId', e.target.value)} disabled={!hasWritePerm} />
-              <Select id="unitId" label="Unit" options={units.map(u => ({ label: u.name, value: u.id }))} value={formData.unitId || ''} onChange={e => handleChange('unitId', e.target.value)} disabled={!hasWritePerm} />
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
-              <Input id="purchasePrice" type="number" step="0.01" min="0" label="Purchase Price" value={formData.purchasePrice} onChange={e => handleChange('purchasePrice', parseFloat(e.target.value) || 0)} required disabled={!hasWritePerm} />
-              <Input id="sellingPrice" type="number" step="0.01" min="0" label="Selling Price" value={formData.sellingPrice} onChange={e => handleChange('sellingPrice', parseFloat(e.target.value) || 0)} required disabled={!hasWritePerm} />
-              <Input id="wholesalePrice" type="number" step="0.01" min="0" label="Wholesale Price" value={formData.wholesalePrice || ''} onChange={e => handleChange('wholesalePrice', e.target.value ? parseFloat(e.target.value) : null)} disabled={!hasWritePerm} />
-            </div>
-            
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-4)' }}>
-              <Input id="taxRate" type="number" step="0.01" min="0" max="1" label="Tax Rate (0-1)" value={formData.taxRate} onChange={e => handleChange('taxRate', parseFloat(e.target.value) || 0)} required disabled={!hasWritePerm} />
-              <Input id="minStock" type="number" min="0" label="Min Stock" value={formData.minStock} onChange={e => handleChange('minStock', parseFloat(e.target.value) || 0)} required disabled={!hasWritePerm} />
-              <Input id="maxStock" type="number" min="0" label="Max Stock" value={formData.maxStock || ''} onChange={e => handleChange('maxStock', e.target.value ? parseFloat(e.target.value) : null)} disabled={!hasWritePerm} />
-            </div>
-            
-            <div style={{ display: 'flex', gap: 'var(--space-4)' }}>
-              <Checkbox id="trackBatch" label="Track Batch" checked={formData.trackBatch} onChange={e => handleChange('trackBatch', e.target.checked)} disabled={!hasWritePerm} />
-              <Checkbox id="trackExpiry" label="Track Expiry" checked={formData.trackExpiry} onChange={e => handleChange('trackExpiry', e.target.checked)} disabled={!hasWritePerm} />
-              <Checkbox id="isActive" label="Active" checked={formData.isActive} onChange={e => handleChange('isActive', e.target.checked)} disabled={!hasWritePerm} />
-            </div>
-            
-            {hasWritePerm && (
-              <div style={{ marginTop: 'var(--space-4)' }}>
-                <Button type="submit" isLoading={isSubmitting}>Update Product</Button>
-              </div>
-            )}
-          </form>
-        </div>
+      {tab === 'barcodes' && (
+        <BarcodesPanel
+          productId={id}
+          barcodes={barcodes}
+          canWrite={canWrite}
+          onChanged={setBarcodes}
+          onRemoveRequest={setBarcodeToRemove}
+        />
+      )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-6)' }}>
-          {/* Barcodes */}
-          <div style={{ padding: 'var(--space-6)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
-            <h2 style={{ marginBottom: 'var(--space-4)' }}>Barcodes</h2>
-            {barcodes.length === 0 ? <p>No barcodes.</p> : (
-              <Table>
-                <Thead><Tr><Th>Barcode</Th><Th>Primary</Th><Th>Actions</Th></Tr></Thead>
-                <Tbody>
-                  {barcodes.map(b => (
-                    <Tr key={b.id}>
-                      <Td>{b.barcode}</Td>
-                      <Td>{b.isPrimary ? 'Yes' : 'No'}</Td>
-                      <Td style={{ textAlign: 'right' }}>
-                        {hasWritePerm && <Button variant="secondary" onClick={() => handleRemoveBarcode(b.id)}>Remove</Button>}
-                      </Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            )}
-            
-            {hasWritePerm && (
-              <form onSubmit={handleAddBarcode} style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-4)', alignItems: 'flex-end' }}>
-                <div style={{ flex: 1 }}><Input id="newBarcode" label="New Barcode" value={newBarcode} onChange={e => setNewBarcode(e.target.value)} required /></div>
-                <div style={{ marginBottom: 'var(--space-2)' }}><Checkbox id="isPrimaryBarcode" label="Primary" checked={isPrimaryBarcode} onChange={e => setIsPrimaryBarcode(e.target.checked)} /></div>
-                <Button type="submit">Add</Button>
-              </form>
-            )}
-          </div>
+      {tab === 'prices' && <PricesPanel prices={prices} canWrite={canWritePrices} />}
 
-          {/* Prices */}
-          <div style={{ padding: 'var(--space-6)', backgroundColor: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-sm)' }}>
-            <h2 style={{ marginBottom: 'var(--space-4)' }}>Price History</h2>
-            {prices.length === 0 ? <p>No price records.</p> : (
-              <Table>
-                <Thead><Tr><Th>Type</Th><Th>Amount</Th><Th>Effective</Th></Tr></Thead>
-                <Tbody>
-                  {prices.map(p => (
-                    <Tr key={p.id}>
-                      <Td>{p.priceType}</Td>
-                      <Td>${p.amount.toFixed(2)}</Td>
-                      <Td>{new Date(p.effectiveFrom).toLocaleDateString()}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            )}
-            
-            {hasPriceWritePerm && (
-              <form onSubmit={handleAddPrice} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', marginTop: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                  <div style={{ flex: 1 }}>
-                    <Select id="newPriceType" label="Type" options={[{label:'REGULAR', value:'REGULAR'}, {label:'PROMOTIONAL', value:'PROMOTIONAL'}, {label:'WHOLESALE', value:'WHOLESALE'}]} value={newPriceType} onChange={e => setNewPriceType(e.target.value as any)} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <Input id="newPriceAmount" type="number" step="0.01" min="0" label="Amount" value={newPriceAmount} onChange={e => setNewPriceAmount(parseFloat(e.target.value) || 0)} required />
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'flex-end' }}>
-                  <div style={{ flex: 1 }}>
-                    <Input id="newPriceEffective" type="datetime-local" label="Effective From" value={newPriceEffective} onChange={e => setNewPriceEffective(e.target.value)} required />
-                  </div>
-                  <Button type="submit">Add Price</Button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-        
-      </div>
+      <ConfirmDialog
+        open={statusPrompt}
+        title={product.isActive ? 'Withdraw from sale?' : 'Make available for sale?'}
+        description={
+          product.isActive
+            ? `${product.name} will no longer be sellable at the till. Existing stock and sales history are kept.`
+            : `${product.name} will appear at the till and can be added to sales.`
+        }
+        confirmLabel={product.isActive ? 'Withdraw' : 'Make available'}
+        destructive={product.isActive}
+        isWorking={isSubmitting}
+        onConfirm={() => void toggleStatus()}
+        onCancel={() => setStatusPrompt(false)}
+      />
+
+      <ConfirmDialog
+        open={barcodeToRemove !== null}
+        title="Remove barcode?"
+        description={`${barcodeToRemove?.barcode ?? ''} will no longer scan to this product.`}
+        confirmLabel="Remove"
+        destructive
+        isWorking={isSubmitting}
+        onCancel={() => setBarcodeToRemove(null)}
+        onConfirm={async () => {
+          if (!barcodeToRemove) return;
+          setIsSubmitting(true);
+          try {
+            await removeProductBarcode(id, barcodeToRemove.id);
+            setBarcodes(await getProductBarcodes(id));
+            toast.success('Barcode removed.');
+          } catch (caught) {
+            toast.error(errorMessage(caught));
+          } finally {
+            setIsSubmitting(false);
+            setBarcodeToRemove(null);
+          }
+        }}
+      />
     </div>
+  );
+}
+
+function BarcodesPanel({
+  productId,
+  barcodes,
+  canWrite,
+  onChanged,
+  onRemoveRequest,
+}: {
+  productId: string;
+  barcodes: ProductBarcode[];
+  canWrite: boolean;
+  onChanged: (next: ProductBarcode[]) => void;
+  onRemoveRequest: (barcode: ProductBarcode) => void;
+}) {
+  const toast = useToast();
+  const [value, setValue] = useState('');
+  const [isPrimary, setIsPrimary] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const add = async () => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      setError('Scan or type a barcode first.');
+      return;
+    }
+    setIsSaving(true);
+    setError(null);
+    try {
+      await addProductBarcode(productId, { barcode: trimmed, isPrimary });
+      onChanged(await getProductBarcodes(productId));
+      setValue('');
+      setIsPrimary(false);
+      toast.success('Barcode added.');
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Card flush>
+      <CardHeader title="Barcodes" />
+      {canWrite && (
+        <CardBody>
+          <form
+            className="row row-wrap"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void add();
+            }}
+          >
+            <div className="grow">
+              <Input
+                id="new-barcode"
+                label="Add a barcode"
+                value={value}
+                error={error ?? undefined}
+                placeholder="Scan the product or type its number"
+                onChange={(event) => setValue(event.target.value)}
+              />
+            </div>
+            <Checkbox
+              id="barcode-primary"
+              label="Primary"
+              checked={isPrimary}
+              onChange={(event) => setIsPrimary(event.target.checked)}
+            />
+            <Button type="submit" isLoading={isSaving}>
+              Add
+            </Button>
+          </form>
+        </CardBody>
+      )}
+      {barcodes.length === 0 ? (
+        <EmptyState
+          icon="barcode"
+          title="No barcodes yet"
+          body="Without a barcode this product can still be found by name or SKU at the till, but it cannot be scanned."
+        />
+      ) : (
+        <Table>
+          <Thead>
+            <Tr>
+              <Th>Barcode</Th>
+              <Th>Type</Th>
+              {canWrite && <Th className="table__actions">Actions</Th>}
+            </Tr>
+          </Thead>
+          <Tbody>
+            {barcodes.map((barcode) => (
+              <Tr key={barcode.id}>
+                <Td>
+                  <span className="mono">{barcode.barcode}</span>
+                </Td>
+                <Td>{barcode.isPrimary ? <Badge variant="info">Primary</Badge> : <span className="text-muted">Alternate</span>}</Td>
+                {canWrite && (
+                  <Td className="table__actions">
+                    <Button variant="ghost" size="sm" icon="trash" onClick={() => onRemoveRequest(barcode)}>
+                      Remove
+                    </Button>
+                  </Td>
+                )}
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      )}
+    </Card>
+  );
+}
+
+function PricesPanel({ prices, canWrite }: { prices: ProductPrice[]; canWrite: boolean }) {
+  return (
+    <Card flush>
+      <CardHeader title="Price history" />
+      {!canWrite && (
+        <CardBody>
+          <Alert tone="info">
+            Recorded prices are read-only for your role. The selling price on the Details tab is what the till charges.
+          </Alert>
+        </CardBody>
+      )}
+      {prices.length === 0 ? (
+        <EmptyState
+          icon="reports"
+          title="No recorded price changes"
+          body="The till charges the selling price on the Details tab. Dated prices recorded here are kept for reporting."
+        />
+      ) : (
+        <Table>
+          <Thead>
+            <Tr>
+              <Th>Type</Th>
+              <Th className="table__num">Amount</Th>
+              <Th>Effective from</Th>
+              <Th>Effective to</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {prices.map((price) => (
+              <Tr key={price.id}>
+                <Td>{price.priceType.charAt(0) + price.priceType.slice(1).toLowerCase()}</Td>
+                <Td className="table__num">{formatMoney(price.amount)}</Td>
+                <Td>{formatDate(price.effectiveFrom)}</Td>
+                <Td>{price.effectiveTo ? formatDate(price.effectiveTo) : <span className="text-muted">Ongoing</span>}</Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
+      )}
+    </Card>
   );
 }

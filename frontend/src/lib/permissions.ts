@@ -1,0 +1,88 @@
+/*
+ * Permission codes, mirrored from REST API Specification section 4.3.
+ *
+ * The frontend uses these only to decide what to show. Authorisation itself is enforced by the
+ * API (`@EnableMethodSecurity` on every controller), so hiding a control here is a courtesy to
+ * the user, never a security boundary (UI/UX Specification 32).
+ */
+export const P = {
+  USER_READ: 'USER_READ',
+  USER_WRITE: 'USER_WRITE',
+  USER_ADMIN: 'USER_ADMIN',
+  ROLE_READ: 'ROLE_READ',
+  ROLE_WRITE: 'ROLE_WRITE',
+
+  STORE_READ: 'STORE_READ',
+  STORE_WRITE: 'STORE_WRITE',
+  TERMINAL_READ: 'TERMINAL_READ',
+  TERMINAL_WRITE: 'TERMINAL_WRITE',
+  REGISTER_READ: 'REGISTER_READ',
+  REGISTER_WRITE: 'REGISTER_WRITE',
+
+  PRODUCT_READ: 'PRODUCT_READ',
+  PRODUCT_WRITE: 'PRODUCT_WRITE',
+  PRODUCT_PRICE_WRITE: 'PRODUCT_PRICE_WRITE',
+
+  INVENTORY_READ: 'INVENTORY_READ',
+  INVENTORY_ADJUST: 'INVENTORY_ADJUST',
+  INVENTORY_RECEIVE: 'INVENTORY_RECEIVE',
+
+  CUSTOMER_READ: 'CUSTOMER_READ',
+  CUSTOMER_WRITE: 'CUSTOMER_WRITE',
+  CREDIT_READ: 'CREDIT_READ',
+  CREDIT_WRITE: 'CREDIT_WRITE',
+
+  SUPPLIER_READ: 'SUPPLIER_READ',
+  SUPPLIER_WRITE: 'SUPPLIER_WRITE',
+
+  PURCHASE_READ: 'PURCHASE_READ',
+  PURCHASE_WRITE: 'PURCHASE_WRITE',
+  PURCHASE_APPROVE: 'PURCHASE_APPROVE',
+
+  AP_READ: 'AP_READ',
+  AP_WRITE: 'AP_WRITE',
+  AP_PAYMENT_CREATE: 'AP_PAYMENT_CREATE',
+
+  EXPENSE_READ: 'EXPENSE_READ',
+  EXPENSE_WRITE: 'EXPENSE_WRITE',
+  BUDGET_READ: 'BUDGET_READ',
+  BUDGET_WRITE: 'BUDGET_WRITE',
+  BUDGET_APPROVE: 'BUDGET_APPROVE',
+
+  SALE_CREATE: 'SALE_CREATE',
+  SALE_READ: 'SALE_READ',
+  SALE_DISCOUNT: 'SALE_DISCOUNT',
+  SALE_REFUND: 'SALE_REFUND',
+  PAYMENT_READ: 'PAYMENT_READ',
+  RECEIPT_READ: 'RECEIPT_READ',
+  RECEIPT_REPRINT: 'RECEIPT_REPRINT',
+
+  REGISTER_OPEN: 'REGISTER_OPEN',
+  REGISTER_CASH: 'REGISTER_CASH',
+  REGISTER_CLOSE: 'REGISTER_CLOSE',
+
+  PROMOTION_READ: 'PROMOTION_READ',
+  PROMOTION_WRITE: 'PROMOTION_WRITE',
+
+  QUOTATION_READ: 'QUOTATION_READ',
+  QUOTATION_WRITE: 'QUOTATION_WRITE',
+
+  ORDER_READ: 'ORDER_READ',
+  ORDER_CREATE: 'ORDER_CREATE',
+  ORDER_FULFILL: 'ORDER_FULFILL',
+
+  REPORT_SALES: 'REPORT_SALES',
+  REPORT_INVENTORY: 'REPORT_INVENTORY',
+  REPORT_FINANCE: 'REPORT_FINANCE',
+  REPORT_CASH: 'REPORT_CASH',
+} as const;
+
+export type PermissionCode = (typeof P)[keyof typeof P];
+
+export function hasPermission(permissions: string[] | undefined, code: string): boolean {
+  return permissions?.includes(code) ?? false;
+}
+
+export function hasAnyPermission(permissions: string[] | undefined, codes: readonly string[]): boolean {
+  return codes.some((code) => hasPermission(permissions, code));
+}

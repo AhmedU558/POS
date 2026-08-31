@@ -1,13 +1,4 @@
-import { apiClient } from '../apiClient';
-import { PaginatedSales } from './sales';
-
-export interface PaginatedResponse<T> {
-  content: T[];
-  totalElements: number;
-  totalPages: number;
-  size: number;
-  number: number;
-}
+import { Page, get, patch, post, query } from './http';
 
 export interface Customer {
   id: string;
@@ -52,7 +43,7 @@ export interface CustomerCredit {
   balance: number;
   currencyCode: string | null;
   status: string | null;
-  transactions: PaginatedResponse<CreditTransaction>;
+  transactions: Page<CreditTransaction>;
 }
 
 export interface CreditTransactionRequest {
@@ -63,54 +54,25 @@ export interface CreditTransactionRequest {
   referenceId?: string | null;
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || 'An unexpected error occurred');
-  }
-  return body.data;
+export interface CustomerSearchParams {
+  query?: string;
+  isActive?: boolean;
+  page?: number;
+  size?: number;
+  sort?: string;
 }
 
 export const customersApi = {
-  list: async (query?: string, isActive?: string, page = 0, size = 50) => {
-    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
-    if (query) params.append('query', query);
-    if (isActive === 'true' || isActive === 'false') params.append('isActive', isActive);
-    const res = await apiClient('/customers?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<Customer>>(res);
-  },
-
-  get: async (id: string) => {
-    const res = await apiClient('/customers/' + id, { method: 'GET' });
-    return handleResponse<Customer>(res);
-  },
-
-  create: async (body: CustomerRequest) => {
-    const res = await apiClient('/customers', { method: 'POST', body: JSON.stringify(body) });
-    return handleResponse<Customer>(res);
-  },
-
-  update: async (id: string, body: CustomerRequest) => {
-    const res = await apiClient('/customers/' + id, { method: 'PATCH', body: JSON.stringify(body) });
-    return handleResponse<Customer>(res);
-  },
-
-  getCredit: async (id: string, page = 0, size = 50) => {
-    const params = new URLSearchParams({ page: page.toString(), size: size.toString() });
-    const res = await apiClient('/customers/' + id + '/credit?' + params.toString(), { method: 'GET' });
-    return handleResponse<CustomerCredit>(res);
-  },
-
-  listSales: async (id: string) => {
-    const res = await apiClient('/customers/' + id + '/sales', { method: 'GET' });
-    return handleResponse<PaginatedSales>(res);
-  },
-
-  postCredit: async (id: string, body: CreditTransactionRequest) => {
-    const res = await apiClient('/customers/' + id + '/credit/transactions', {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    return handleResponse<CustomerCredit>(res);
-  },
+  list: (params: CustomerSearchParams = {}) => get<Page<Customer>>(`/customers${query({ ...params })}`),
+  get: (id: string) => get<Customer>(`/customers/${id}`),
+  create: (body: CustomerRequest) => post<Customer>('/customers', body),
+  update: (id: string, body: CustomerRequest) => patch<Customer>(`/customers/${id}`, body),
+  getCredit: (id: string, page = 0, size = 20) =>
+    get<CustomerCredit>(`/customers/${id}/credit${query({ page, size })}`),
+  listSales: (id: string, page = 0, size = 20) =>
+    get<Page<{ id: string; receiptNumber: string; status: string; grandTotal: number; createdAt: string }>>(
+      `/customers/${id}/sales${query({ page, size })}`
+    ),
+  postCredit: (id: string, body: CreditTransactionRequest) =>
+    post<CustomerCredit>(`/customers/${id}/credit/transactions`, body),
 };

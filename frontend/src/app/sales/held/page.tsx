@@ -1,141 +1,211 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/AuthContext';
-import { paymentMethodsApi, salesApi, PaymentMethod, SaleSummary } from '@/lib/api/sales';
+import { useStoreContext } from '@/features/session/StoreContext';
+import {
+  PaymentMethod,
+  Sale,
+  SalePaymentRequest,
+  SaleReceipt,
+  SaleSummary,
+  paymentMethodsApi,
+  salesApi,
+} from '@/lib/api/sales';
+import { errorMessage, formatDateTime, formatMoney } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
-import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { Alert, EmptyState, ErrorState, PermissionRequired, TableSkeleton } from '@/components/ui/States';
+import { useToast } from '@/components/ui/Toast';
+import { PaymentDialog } from '@/features/pos/PaymentDialog';
+import { ReceiptDialog } from '@/features/pos/ReceiptDialog';
 
+/**
+ * Sales parked mid-transaction, waiting to be paid for.
+ *
+ * Resuming goes through the same payment dialog as the till, tendering against the sale's own
+ * total. The previous screen sent a fixed payment of 1, which the server would only ever have
+ * accepted as a cash sale, and silently under-recorded any other tender.
+ */
 export default function HeldSalesPage() {
   const { user } = useAuth();
-  const canCreate = user?.permissions?.includes('SALE_CREATE') ?? false;
+  const { session } = useStoreContext();
+  const toast = useToast();
+  const canSell = hasPermission(user?.permissions, P.SALE_CREATE);
 
-  const [sales, setSales] = useState<SaleSummary[]>([]);
+  const [sales, setSales] = useState<SaleSummary[] | null>(null);
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [registerSessionId, setRegisterSessionId] = useState('');
-  const [paymentMethodId, setPaymentMethodId] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [resumedTotal, setResumedTotal] = useState<string | null>(null);
+
+  const [resuming, setResuming] = useState<Sale | null>(null);
+  const [isLoadingSale, setIsLoadingSale] = useState<string | null>(null);
+  const [isSettling, setIsSettling] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [receipt, setReceipt] = useState<SaleReceipt | null>(null);
+  const [changeDue, setChangeDue] = useState<number | null>(null);
+
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const page = await salesApi.search({ status: 'HELD', size: 50, sort: 'createdAt,desc' });
+      setSales(page.content);
+    } catch (caught) {
+      setError(errorMessage(caught));
+      setSales([]);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!canCreate) {
-      return;
-    }
-    setIsLoading(true);
-    Promise.all([
-      salesApi.list({ status: 'HELD' }),
-      paymentMethodsApi.list(),
-    ])
-      .then(([list, methodList]) => {
-        setSales(list.content ?? []);
-        setMethods(methodList);
-        const cash = methodList.find((method) => method.code === 'CASH');
-        if (cash) {
-          setPaymentMethodId(cash.id);
-        }
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load held sales');
-      })
-      .finally(() => setIsLoading(false));
-  }, [canCreate]);
+    if (!canSell) return;
+    void load();
+    paymentMethodsApi
+      .list()
+      .then((list) => setMethods(list.filter((method) => method.active)))
+      .catch(() => setMethods([]));
+  }, [canSell, load]);
 
-  if (!canCreate) {
+  if (!canSell) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Held Sales</h1>
-        <p role="status">Access is restricted. You do not have permission to resume sales.</p>
+      <div className="page">
+        <PermissionRequired permission={P.SALE_CREATE} action="Resuming held sales" />
       </div>
     );
   }
 
-  const onResume = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!selectedId) {
-      return;
-    }
-    setIsSubmitting(true);
-    setError(null);
+  const beginResume = async (summary: SaleSummary) => {
+    setIsLoadingSale(summary.id);
+    setPaymentError(null);
     try {
-      const sale = await salesApi.resume(selectedId, {
-        registerSessionId,
-        payments: [{ paymentMethodId, amount: 1 }],
-      });
-      setResumedTotal(String(sale.grandTotal));
-      setSales((current) => current.filter((item) => item.id !== selectedId));
-      setSelectedId(null);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to resume sale');
+      setResuming(await salesApi.get(summary.id));
+    } catch (caught) {
+      toast.error(errorMessage(caught));
     } finally {
-      setIsSubmitting(false);
+      setIsLoadingSale(null);
+    }
+  };
+
+  const settle = async (payments: SalePaymentRequest[], cashTendered: number | null) => {
+    if (!resuming || !session) return;
+    setIsSettling(true);
+    setPaymentError(null);
+    try {
+      const completed = await salesApi.resume(resuming.id, { registerSessionId: session.id, payments });
+      const cashPaid = payments
+        .filter((payment) => methods.find((method) => method.id === payment.paymentMethodId)?.code === 'CASH')
+        .reduce((sum, payment) => sum + payment.amount, 0);
+      setChangeDue(cashTendered === null ? null : Math.max(0, cashTendered - cashPaid));
+      setReceipt(await salesApi.receipt(completed.id).catch(() => null));
+      setResuming(null);
+      await load();
+      toast.success(`Sale ${completed.receiptNumber} completed.`);
+    } catch (caught) {
+      setPaymentError(errorMessage(caught));
+    } finally {
+      setIsSettling(false);
     }
   };
 
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <h1>Held Sales</h1>
+    <div className="page">
+      <PageHeader
+        title="Held sales"
+        breadcrumbs={[{ label: 'Sales', href: '/sales' }, { label: 'Held sales' }]}
+        description="Sales that were parked before payment. Resume one to take payment and finish it."
+        actions={
+          <Link className="btn btn--primary" href="/pos">
+            Back to the till
+          </Link>
+        }
+      />
 
-      {error && (
-        <div role="alert" style={{ margin: 'var(--space-4) 0', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
+      {!session && (
+        <div style={{ marginBottom: 'var(--space-4)' }}>
+          <Alert tone="warning" title="No till is open">
+            A held sale is settled against an open register. Open one before resuming.
+            <div style={{ marginTop: 'var(--space-3)' }}>
+              <Link className="btn btn--primary btn--sm" href="/register">
+                Open a register
+              </Link>
+            </div>
+          </Alert>
         </div>
       )}
 
-      {isLoading ? (
-        <p>Loading held sales...</p>
-      ) : sales.length === 0 ? (
-        <div style={{ padding: 'var(--space-6)', textAlign: 'center', backgroundColor: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
-          No held sales.
-        </div>
-      ) : (
-        <Table>
-          <Thead>
-            <Tr>
-              <Th>Receipt</Th>
-              <Th>Total</Th>
-              <Th> </Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {sales.map((sale) => (
-              <Tr key={sale.id}>
-                <Td>{sale.receiptNumber}</Td>
-                <Td>{sale.grandTotal}</Td>
-                <Td>
-                  <Button type="button" variant="secondary" onClick={() => setSelectedId(sale.id)}>
-                    Resume
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
-          </Tbody>
-        </Table>
-      )}
-
-      {selectedId && (
-        <form onSubmit={onResume} style={{ marginTop: 'var(--space-6)' }}>
-          <Input id="held-session" label="Register session" value={registerSessionId} onChange={(e) => setRegisterSessionId(e.target.value)} required />
-          <Select
-            id="held-method"
-            label="Payment method"
-            options={methods.map((method) => ({ value: method.id, label: method.name }))}
-            value={paymentMethodId}
-            onChange={(e) => setPaymentMethodId(e.target.value)}
-            required
+      <Card flush>
+        {error ? (
+          <ErrorState message={error} onRetry={() => void load()} />
+        ) : sales === null ? (
+          <TableSkeleton rows={4} columns={4} />
+        ) : sales.length === 0 ? (
+          <EmptyState
+            icon="pos"
+            title="Nothing on hold"
+            body="Sales parked at the till appear here so another cashier — or the same one, later — can finish them."
+            action={{ label: 'Go to the till', href: '/pos' }}
           />
-          <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
-            Complete held sale
-          </Button>
-        </form>
-      )}
+        ) : (
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Receipt</Th>
+                <Th>Held since</Th>
+                <Th>Customer</Th>
+                <Th className="table__num">Total</Th>
+                <Th className="table__actions">Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {sales.map((sale) => (
+                <Tr key={sale.id}>
+                  <Td>
+                    <span className="mono table__primary">{sale.receiptNumber}</span>
+                  </Td>
+                  <Td>{formatDateTime(sale.createdAt)}</Td>
+                  <Td>{sale.customerName ?? <span className="text-muted">Walk-in</span>}</Td>
+                  <Td className="table__num">
+                    <span className="money">{formatMoney(sale.grandTotal)}</span>
+                  </Td>
+                  <Td className="table__actions">
+                    <Button
+                      size="sm"
+                      disabled={!session}
+                      isLoading={isLoadingSale === sale.id}
+                      onClick={() => void beginResume(sale)}
+                    >
+                      Take payment
+                    </Button>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        )}
+      </Card>
 
-      {resumedTotal && <p>Total: {resumedTotal}</p>}
+      <PaymentDialog
+        open={resuming !== null}
+        total={resuming?.grandTotal ?? 0}
+        methods={methods}
+        // The sale's customer was fixed when it was held and cannot be changed on resume.
+        hasCustomer
+        isSubmitting={isSettling}
+        error={paymentError}
+        onCancel={() => setResuming(null)}
+        onConfirm={(payments, cashTendered) => void settle(payments, cashTendered)}
+      />
+
+      <ReceiptDialog
+        receipt={receipt}
+        changeDue={changeDue}
+        onClose={() => {
+          setReceipt(null);
+          setChangeDue(null);
+        }}
+      />
     </div>
   );
 }

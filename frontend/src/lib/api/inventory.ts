@@ -1,5 +1,4 @@
-import { apiClient } from '../apiClient';
-export interface PaginatedResponse<T> { content: T[]; totalElements: number; totalPages: number; size: number; number: number; }
+import { Page, get, patch, post, query } from './http';
 
 export interface InventoryBalance {
   productId: string;
@@ -18,14 +17,15 @@ export interface InventoryTransaction {
   storeId: string;
   transactionType: string;
   quantity: number;
-  reason: string;
-  createdByUsername: string;
+  reason: string | null;
+  createdByUsername: string | null;
   createdAt: string;
 }
 
 export interface InventoryAdjustmentRequest {
   storeId: string;
   productId: string;
+  /** Signed: the difference to apply, not the resulting quantity. */
   quantity: number;
   reason: string;
 }
@@ -34,12 +34,27 @@ export interface InventoryReceiptRequest {
   storeId: string;
   productId: string;
   quantity: number;
-  batchNumber?: string;
-  expirationDate?: string;
-  manufacturingDate?: string;
+  batchNumber?: string | null;
+  expirationDate?: string | null;
+  manufacturingDate?: string | null;
 }
 
 export type InventoryBatchStatus = 'EXPIRED' | 'EXPIRING_TODAY' | 'APPROACHING' | 'OK';
+
+export interface InventoryBatch {
+  id: string;
+  productId: string;
+  productName: string;
+  sku: string;
+  storeId: string;
+  storeName: string;
+  batchNumber: string;
+  quantity: number;
+  expirationDate: string | null;
+  manufacturingDate: string | null;
+  status: InventoryBatchStatus;
+  daysRemaining: number | null;
+}
 
 export interface StockAlert {
   id: string;
@@ -73,110 +88,43 @@ export interface InventoryReportRow {
   lastUpdatedAt: string;
 }
 
-export interface InventoryBatch {
-  id: string;
-  productId: string;
-  productName: string;
-  sku: string;
-  storeId: string;
-  storeName: string;
-  batchNumber: string;
-  quantity: number;
-  expirationDate: string | null;
-  manufacturingDate: string | null;
-  status: InventoryBatchStatus;
-  daysRemaining: number | null;
-}
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || body.message || 'An unexpected error occurred');
-  }
-  return body.data;
-}
-
 export const inventoryApi = {
-  getBalances: async (storeId: string, page = 0, size = 10, categoryId?: string, query?: string) => {
-    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
-    if (categoryId) params.append('categoryId', categoryId);
-    if (query) params.append('query', query);
-    const res = await apiClient('/inventory?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<InventoryBalance>>(res);
-  },
+  getBalances: (params: { storeId: string; page?: number; size?: number; categoryId?: string; query?: string; sort?: string }) =>
+    get<Page<InventoryBalance>>(`/inventory${query({ ...params })}`),
 
-  getBalance: async (productId: string, storeId: string) => {
-    const res = await apiClient('/inventory/' + productId + '?storeId=' + storeId, { method: 'GET' });
-    return handleResponse<InventoryBalance>(res);
-  },
+  getBalance: (productId: string, storeId: string) =>
+    get<InventoryBalance>(`/inventory/${productId}${query({ storeId })}`),
 
-  getMovements: async (productId: string, storeId: string, page = 0, size = 10) => {
-    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
-    const res = await apiClient('/inventory/' + productId + '/movements?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<InventoryTransaction>>(res);
-  },
+  getMovements: (productId: string, storeId: string, page = 0, size = 20) =>
+    get<Page<InventoryTransaction>>(`/inventory/${productId}/movements${query({ storeId, page, size })}`),
 
-  adjustStock: async (request: InventoryAdjustmentRequest) => {
-    const res = await apiClient('/inventory/adjustments', { method: 'POST', body: JSON.stringify(request) });
-    return handleResponse<InventoryBalance>(res);
-  },
+  adjustStock: (body: InventoryAdjustmentRequest) => post<InventoryBalance>('/inventory/adjustments', body),
 
-  receiveStock: async (request: InventoryReceiptRequest) => {
-    const res = await apiClient('/inventory/receipts', { method: 'POST', body: JSON.stringify(request) });
-    return handleResponse<InventoryBalance>(res);
-  },
+  receiveStock: (body: InventoryReceiptRequest) => post<InventoryBalance>('/inventory/receipts', body),
 
-  getBatches: async (storeId: string, page = 0, size = 50, days?: number, productId?: string) => {
-    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
-    if (days !== undefined) params.append('days', days.toString());
-    if (productId) params.append('productId', productId);
-    const res = await apiClient('/inventory/batches?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<InventoryBatch>>(res);
-  },
+  getBatches: (params: { storeId: string; page?: number; size?: number; days?: number; productId?: string }) =>
+    get<Page<InventoryBatch>>(`/inventory/batches${query({ ...params })}`),
 
-  getExpiry: async (storeId: string, page = 0, size = 50, days?: number) => {
-    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
-    if (days !== undefined) params.append('days', days.toString());
-    const res = await apiClient('/inventory/expiry?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<InventoryBatch>>(res);
-  },
+  getExpiry: (params: { storeId: string; page?: number; size?: number; days?: number }) =>
+    get<Page<InventoryBatch>>(`/inventory/expiry${query({ ...params })}`),
 
-  getAlerts: async (storeId: string, page = 0, size = 50, alertType?: string, status?: string, days?: number) => {
-    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
-    if (alertType) params.append('alertType', alertType);
-    if (status) params.append('status', status);
-    if (days !== undefined) params.append('days', days.toString());
-    const res = await apiClient('/inventory/alerts?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<StockAlert>>(res);
-  },
+  getAlerts: (params: {
+    storeId: string;
+    page?: number;
+    size?: number;
+    alertType?: string;
+    status?: string;
+    days?: number;
+  }) => get<Page<StockAlert>>(`/inventory/alerts${query({ ...params })}`),
 
-  acknowledgeAlert: async (id: string) => {
-    const res = await apiClient('/inventory/alerts/' + id + '/acknowledge', { method: 'PATCH' });
-    return handleResponse<StockAlert>(res);
-  },
+  acknowledgeAlert: (id: string) => patch<StockAlert>(`/inventory/alerts/${id}/acknowledge`),
 
-  getInventoryReport: async (storeId: string, page = 0, size = 50, lowStockOnly = false) => {
-    const params = new URLSearchParams({
-      storeId,
-      page: page.toString(),
-      size: size.toString(),
-      lowStockOnly: String(lowStockOnly),
-    });
-    const res = await apiClient('/reports/inventory?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<InventoryReportRow>>(res);
-  },
+  getInventoryReport: (params: { storeId: string; page?: number; size?: number; lowStockOnly?: boolean }) =>
+    get<Page<InventoryReportRow>>(`/reports/inventory${query({ ...params })}`),
 
-  getMovementReport: async (storeId: string, page = 0, size = 50, productId?: string) => {
-    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
-    if (productId) params.append('productId', productId);
-    const res = await apiClient('/reports/inventory/movements?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<InventoryTransaction>>(res);
-  },
+  getMovementReport: (params: { storeId: string; page?: number; size?: number; productId?: string }) =>
+    get<Page<InventoryTransaction>>(`/reports/inventory/movements${query({ ...params })}`),
 
-  getExpiryReport: async (storeId: string, page = 0, size = 50, days?: number) => {
-    const params = new URLSearchParams({ storeId, page: page.toString(), size: size.toString() });
-    if (days !== undefined) params.append('days', days.toString());
-    const res = await apiClient('/reports/inventory/expiry?' + params.toString(), { method: 'GET' });
-    return handleResponse<PaginatedResponse<InventoryBatch>>(res);
-  }
+  getExpiryReport: (params: { storeId: string; page?: number; size?: number; days?: number }) =>
+    get<Page<InventoryBatch>>(`/reports/inventory/expiry${query({ ...params })}`),
 };

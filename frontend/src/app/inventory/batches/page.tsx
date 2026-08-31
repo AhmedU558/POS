@@ -1,205 +1,187 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/features/auth/AuthContext';
-import { inventoryApi, InventoryBatch, InventoryBatchStatus } from '@/lib/api/inventory';
+import { useStoreContext } from '@/features/session/StoreContext';
+import { InventoryBatch, inventoryApi } from '@/lib/api/inventory';
+import { Page, emptyPage } from '@/lib/api/http';
+import { errorMessage, formatDate, formatQuantity } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Select } from '@/components/ui/Field';
+import { StatusBadge } from '@/components/ui/Badge';
+import { Pagination, Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { EmptyState, ErrorState, PermissionRequired, TableSkeleton } from '@/components/ui/States';
+import { InventoryTabs } from '@/features/inventory/InventoryTabs';
 
-type ViewMode = 'all' | 'expiry';
+const PAGE_SIZE = 20;
 
-function statusLabel(batch: InventoryBatch): string {
-  switch (batch.status) {
-    case 'EXPIRED':
-      return 'Expired';
-    case 'EXPIRING_TODAY':
-      return 'Expiring today';
-    case 'APPROACHING':
-      return batch.daysRemaining == null
-        ? 'Approaching'
-        : `Approaching (${batch.daysRemaining} days remaining)`;
-    default:
-      return 'OK';
-  }
-}
-
-function statusTone(status: InventoryBatchStatus): { color: string; background: string } {
-  switch (status) {
-    case 'EXPIRED':
-      return { color: 'var(--color-error)', background: 'var(--color-error-surface)' };
-    case 'EXPIRING_TODAY':
-    case 'APPROACHING':
-      return { color: 'var(--color-warning)', background: 'var(--color-warning-surface)' };
-    default:
-      return { color: 'var(--color-success)', background: 'var(--color-success-surface)' };
-  }
-}
-
-export default function BatchesExpiryPage() {
+/** Batches held in the store, ordered so what expires soonest is dealt with first. */
+export default function BatchesPage() {
   const { user } = useAuth();
-  const storeId = user?.storeIds?.[0];
-  const canRead = user?.permissions?.includes('INVENTORY_READ') ?? false;
+  const { activeStoreId, activeStore } = useStoreContext();
+  const canRead = hasPermission(user?.permissions, P.INVENTORY_READ);
 
-  const [mode, setMode] = useState<ViewMode>('all');
-  const [days, setDays] = useState(7);
-  const [batches, setBatches] = useState<InventoryBatch[]>([]);
+  const [scope, setScope] = useState<'all' | 'expiring'>('all');
+  const [days, setDays] = useState(30);
+  const [page, setPage] = useState(0);
+  const [batches, setBatches] = useState<Page<InventoryBatch>>(emptyPage(PAGE_SIZE));
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!canRead || !storeId) {
+  const load = useCallback(async () => {
+    if (!activeStoreId) {
+      setIsLoading(false);
       return;
     }
-    const load = mode === 'expiry'
-      ? inventoryApi.getExpiry(storeId, 0, 50, days)
-      : inventoryApi.getBatches(storeId, 0, 50, days);
-    load
-      .then((res) => {
-        setBatches(res.content ?? []);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load batches');
-      });
-  }, [canRead, storeId, mode, days]);
+    setIsLoading(true);
+    setError(null);
+    try {
+      setBatches(
+        scope === 'expiring'
+          ? await inventoryApi.getExpiry({ storeId: activeStoreId, page, size: PAGE_SIZE, days })
+          : await inventoryApi.getBatches({ storeId: activeStoreId, page, size: PAGE_SIZE })
+      );
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [activeStoreId, scope, days, page]);
+
+  useEffect(() => {
+    if (canRead) void load();
+  }, [canRead, load]);
+
+  useEffect(() => {
+    setPage(0);
+  }, [scope, days]);
 
   if (!canRead) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Batches &amp; Expiry</h1>
-        <p role="status">Access is restricted. You do not have permission to view batches.</p>
+      <div className="page">
+        <PermissionRequired permission={P.INVENTORY_READ} action="Viewing batches" />
       </div>
     );
   }
 
-  if (!storeId) {
-    return <div style={{ padding: 'var(--space-6)' }}>No store context available.</div>;
-  }
-
   return (
-    <div style={{ padding: 'var(--space-6)' }}>
-      <h1>Batches &amp; Expiry</h1>
+    <div className="page">
+      <PageHeader
+        title="Batches & expiry"
+        breadcrumbs={[{ label: 'Inventory', href: '/inventory' }, { label: 'Batches & expiry' }]}
+        description={`Batches recorded against stock in ${activeStore?.name ?? 'this store'}. A batch is created when tracked stock is received.`}
+      />
 
-      {error && (
-        <div
-          role="alert"
-          style={{
-            marginTop: 'var(--space-4)',
-            padding: 'var(--space-4)',
-            background: 'var(--color-error-surface)',
-            color: 'var(--color-error)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          {error}
-        </div>
-      )}
+      <InventoryTabs active="batches" permissions={user?.permissions} />
 
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 'var(--space-4)',
-          marginTop: 'var(--space-4)',
-          marginBottom: 'var(--space-4)',
-          alignItems: 'flex-end',
-        }}
-      >
-        <div>
-          <label htmlFor="batch-view" style={{ display: 'block', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>
-            View
-          </label>
-          <select
-            id="batch-view"
-            value={mode}
-            onChange={(e) => setMode(e.target.value as ViewMode)}
-            style={{
-              height: 'var(--control-height)',
-              padding: '0 var(--space-3)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-foreground)',
-            }}
-          >
-            <option value="all">All batches</option>
-            <option value="expiry">Expiring and expired</option>
-          </select>
-        </div>
-        <div>
-          <label htmlFor="batch-days" style={{ display: 'block', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--space-2)' }}>
-            Window (days)
-          </label>
-          <select
+      <div className="toolbar">
+        <Select
+          id="batch-scope"
+          label="Show"
+          placeholder={null}
+          value={scope}
+          onChange={(event) => setScope(event.target.value as 'all' | 'expiring')}
+          options={[
+            { value: 'all', label: 'All batches' },
+            { value: 'expiring', label: 'Expiring soon' },
+          ]}
+          fieldClassName="toolbar__filter"
+        />
+        {scope === 'expiring' && (
+          <Select
             id="batch-days"
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            style={{
-              height: 'var(--control-height)',
-              padding: '0 var(--space-3)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-foreground)',
-            }}
-          >
-            <option value={7}>7</option>
-            <option value={30}>30</option>
-          </select>
-        </div>
+            label="Within"
+            placeholder={null}
+            value={String(days)}
+            onChange={(event) => setDays(Number(event.target.value))}
+            options={[
+              { value: '7', label: '7 days' },
+              { value: '30', label: '30 days' },
+              { value: '90', label: '90 days' },
+            ]}
+            fieldClassName="toolbar__filter"
+          />
+        )}
       </div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: 'var(--color-surface)' }}>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'left', padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>Product</th>
-            <th style={{ textAlign: 'left', padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>Batch</th>
-            <th style={{ textAlign: 'right', padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>Quantity</th>
-            <th style={{ textAlign: 'left', padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>Expiry date</th>
-            <th style={{ textAlign: 'left', padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>Store</th>
-            <th style={{ textAlign: 'left', padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {batches.map((batch) => {
-            const tone = statusTone(batch.status);
-            return (
-              <tr key={batch.id}>
-                <td style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
-                  {batch.productName} ({batch.sku})
-                </td>
-                <td style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>{batch.batchNumber}</td>
-                <td style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {batch.quantity}
-                </td>
-                <td style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
-                  {batch.expirationDate ?? '—'}
-                </td>
-                <td style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>{batch.storeName}</td>
-                <td style={{ padding: 'var(--space-3)', borderBottom: '1px solid var(--color-border)' }}>
-                  <span
-                    role="status"
-                    style={{
-                      display: 'inline-block',
-                      padding: '0 var(--space-2)',
-                      borderRadius: 'var(--radius-sm)',
-                      color: tone.color,
-                      background: tone.background,
-                      fontWeight: 'var(--font-weight-medium)',
-                    }}
-                  >
-                    {statusLabel(batch)}
-                  </span>
-                </td>
-              </tr>
-            );
-          })}
-          {batches.length === 0 && (
-            <tr>
-              <td colSpan={6} style={{ padding: 'var(--space-4)', textAlign: 'center', color: 'var(--color-foreground-muted)' }}>
-                No batches found.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
+      <Card flush>
+        {error ? (
+          <ErrorState message={error} onRetry={() => void load()} />
+        ) : isLoading && batches.content.length === 0 ? (
+          <TableSkeleton rows={5} columns={5} />
+        ) : batches.content.length === 0 ? (
+          <EmptyState
+            icon="box"
+            title={scope === 'expiring' ? 'Nothing expiring in that window' : 'No batches recorded'}
+            body={
+              scope === 'expiring'
+                ? 'Widen the window, or switch to all batches.'
+                : 'Batches appear when you receive stock for a product that has batch tracking turned on. Turn it on from the product’s stock control settings.'
+            }
+            action={{ label: 'Receive stock', href: '/inventory/receive' }}
+          />
+        ) : (
+          <>
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Product</Th>
+                  <Th>Batch</Th>
+                  <Th className="table__num">Quantity</Th>
+                  <Th>Expires</Th>
+                  <Th>Status</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {batches.content.map((batch) => (
+                  <Tr key={batch.id}>
+                    <Td>
+                      <Link href={`/products/${batch.productId}`} className="table__primary">
+                        {batch.productName}
+                      </Link>
+                      <div className="table__secondary mono">{batch.sku}</div>
+                    </Td>
+                    <Td>
+                      <span className="mono">{batch.batchNumber}</span>
+                    </Td>
+                    <Td className="table__num">{formatQuantity(batch.quantity)}</Td>
+                    <Td>
+                      {batch.expirationDate ? (
+                        <>
+                          {formatDate(batch.expirationDate)}
+                          {batch.daysRemaining !== null && (
+                            <div className="table__secondary">
+                              {batch.daysRemaining < 0
+                                ? `${Math.abs(batch.daysRemaining)} days ago`
+                                : `in ${batch.daysRemaining} days`}
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-muted">No expiry</span>
+                      )}
+                    </Td>
+                    <Td>
+                      <StatusBadge kind="batch" status={batch.status} />
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <Pagination
+              page={batches.number}
+              totalPages={batches.totalPages}
+              totalElements={batches.totalElements}
+              pageSize={batches.size || PAGE_SIZE}
+              onPageChange={setPage}
+              isLoading={isLoading}
+            />
+          </>
+        )}
+      </Card>
     </div>
   );
 }

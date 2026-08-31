@@ -1,4 +1,4 @@
-import { apiClient } from '../apiClient';
+import { get, post } from './http';
 
 export interface RegisterSession {
   id: string;
@@ -14,12 +14,18 @@ export interface RegisterSession {
 
 export interface RegisterSessionSummary {
   id: string;
+  registerId: string;
+  storeId: string;
+  terminalId: string;
+  cashierId: string;
+  status: string;
   openingCash: number;
   cashInTotal: number;
   cashOutTotal: number;
   cashSalesTotal: number;
   expectedCash: number;
-  status: string;
+  openedAt: string;
+  closedAt: string | null;
 }
 
 export interface CashMovement {
@@ -36,60 +42,36 @@ export interface RegisterClosingReport {
   zReportNumber: string;
   status: string;
   openingCash: number;
+  cashInTotal: number;
+  cashOutTotal: number;
+  cashSalesTotal: number;
   expectedCash: number;
   actualCash: number;
   variance: number;
   notes: string | null;
-}
-
-async function handleResponse<T>(res: Response): Promise<T> {
-  const body = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(body.error?.message || 'An unexpected error occurred');
-  }
-  return body.data;
+  openedAt: string;
+  closedAt: string | null;
 }
 
 export const registerSessionsApi = {
-  open: async (registerId: string, openingCash: number) => {
-    const res = await apiClient('/registers/' + registerId + '/sessions/open', {
-      method: 'POST',
-      body: JSON.stringify({ openingCash }),
-    });
-    return handleResponse<RegisterSession>(res);
-  },
+  /** The caller's open session, or null when no till is open (AMD-043). */
+  current: () => get<RegisterSession | null>('/register-sessions/current'),
 
-  get: async (id: string) => {
-    const res = await apiClient('/register-sessions/' + id, { method: 'GET' });
-    return handleResponse<RegisterSession>(res);
-  },
+  open: (registerId: string, openingCash: number) =>
+    post<RegisterSession>(`/registers/${registerId}/sessions/open`, { openingCash }),
 
-  summary: async (id: string) => {
-    const res = await apiClient('/register-sessions/' + id + '/summary', { method: 'GET' });
-    return handleResponse<RegisterSessionSummary>(res);
-  },
+  get: (id: string) => get<RegisterSession>(`/register-sessions/${id}`),
 
-  cashIn: async (id: string, amount: number, reason?: string) => {
-    const res = await apiClient('/register-sessions/' + id + '/cash-in', {
-      method: 'POST',
-      body: JSON.stringify({ amount, reason: reason || null }),
-    });
-    return handleResponse<CashMovement>(res);
-  },
+  summary: (id: string) => get<RegisterSessionSummary>(`/register-sessions/${id}/summary`),
 
-  cashOut: async (id: string, amount: number, reason?: string) => {
-    const res = await apiClient('/register-sessions/' + id + '/cash-out', {
-      method: 'POST',
-      body: JSON.stringify({ amount, reason: reason || null }),
-    });
-    return handleResponse<CashMovement>(res);
-  },
+  closingReport: (id: string) => get<RegisterClosingReport>(`/register-sessions/${id}/closing-report`),
 
-  close: async (id: string, actualCash: number, notes?: string) => {
-    const res = await apiClient('/register-sessions/' + id + '/close', {
-      method: 'POST',
-      body: JSON.stringify({ actualCash, notes: notes || null }),
-    });
-    return handleResponse<RegisterClosingReport>(res);
-  },
+  cashIn: (id: string, amount: number, reason?: string) =>
+    post<CashMovement>(`/register-sessions/${id}/cash-in`, { amount, reason: reason || null }),
+
+  cashOut: (id: string, amount: number, reason?: string) =>
+    post<CashMovement>(`/register-sessions/${id}/cash-out`, { amount, reason: reason || null }),
+
+  close: (id: string, actualCash: number, notes?: string) =>
+    post<RegisterClosingReport>(`/register-sessions/${id}/close`, { actualCash, notes: notes || null }),
 };

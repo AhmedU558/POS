@@ -1,136 +1,221 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { invoicesApi, paymentsApi, SupplierInvoice, SupplierPaymentMethod } from '@/lib/api/accounts-payable';
+import {
+  PAYMENT_METHOD_LABELS,
+  SupplierInvoice,
+  SupplierPaymentMethod,
+  accountsPayableApi,
+} from '@/lib/api/accounts-payable';
+import { errorMessage, formatDate, formatMoney } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardBody, CardFooter } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Select } from '@/components/ui/Select';
+import { Input, Select } from '@/components/ui/Field';
+import { Alert, EmptyState, ErrorState, LoadingState, PermissionRequired } from '@/components/ui/States';
+import { useToast } from '@/components/ui/Toast';
 
-export default function SupplierPaymentPage() {
-  const { id } = useParams() as { id: string };
+export default function PaySupplierInvoicePage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const toast = useToast();
   const { user } = useAuth();
-  const canPay = user?.permissions?.includes('AP_PAYMENT_CREATE') ?? false;
+  const canPay = hasPermission(user?.permissions, P.AP_PAYMENT_CREATE);
 
   const [invoice, setInvoice] = useState<SupplierInvoice | null>(null);
-  const [amount, setAmount] = useState('');
-  const [paymentDate, setPaymentDate] = useState('');
-  const [method, setMethod] = useState<SupplierPaymentMethod | ''>('');
-  const [reference, setReference] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [amount, setAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().slice(0, 10));
+  const [method, setMethod] = useState<SupplierPaymentMethod>('BANK_TRANSFER');
+  const [reference, setReference] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!canPay || !id) {
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const loaded = await accountsPayableApi.getInvoice(id);
+      setInvoice(loaded);
+      setAmount(String(loaded.remainingAmount ?? ''));
+    } catch (caught) {
+      setLoadError(errorMessage(caught));
+    } finally {
       setIsLoading(false);
-      return;
     }
-    invoicesApi.get(id)
-      .then((loaded) => {
-        setInvoice(loaded);
-        setAmount(String(loaded.remainingAmount));
-        setPaymentDate(new Date().toISOString().slice(0, 10));
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load invoice');
-      })
-      .finally(() => setIsLoading(false));
-  }, [canPay, id]);
+  }, [id]);
+
+  useEffect(() => {
+    if (canPay) void load();
+  }, [canPay, load]);
 
   if (!canPay) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Supplier Payment</h1>
-        <p role="status">Access is restricted. You do not have permission to record payments.</p>
+      <div className="page">
+        <PermissionRequired permission={P.AP_PAYMENT_CREATE} action="Paying supplier bills" />
       </div>
     );
   }
 
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    if (!method) {
-      setError('A payment method is required.');
-      return;
+  if (isLoading) {
+    return (
+      <div className="page">
+        <LoadingState label="Loading bill…" />
+      </div>
+    );
+  }
+
+  if (loadError || !invoice) {
+    return (
+      <div className="page">
+        <ErrorState message={loadError ?? 'Bill not found.'} onRetry={() => void load()} />
+      </div>
+    );
+  }
+
+  if (invoice.status !== 'OPEN') {
+    return (
+      <div className="page page-narrow">
+        <PageHeader
+          title="Record a payment"
+          breadcrumbs={[
+            { label: 'Bills to pay', href: '/accounts-payable' },
+            { label: invoice.invoiceNumber, href: `/accounts-payable/${id}` },
+            { label: 'Pay' },
+          ]}
+        />
+        <Card>
+          <CardBody>
+            <EmptyState
+              icon="check-circle"
+              title={invoice.status === 'PAID' ? 'This bill is already settled' : 'This bill was cancelled'}
+              body="No further payment can be recorded against it."
+              action={{ label: 'Back to the bill', href: `/accounts-payable/${id}` }}
+            />
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  const value = Number(amount);
+  const overpaying = Number.isFinite(value) && value > invoice.remainingAmount + 0.005;
+
+  const submit = async () => {
+    const found: Record<string, string> = {};
+    if (amount.trim() === '' || !Number.isFinite(value) || value <= 0) {
+      found.amount = 'Enter the amount you paid.';
+    } else if (overpaying) {
+      found.amount = `That is more than the ${formatMoney(invoice.remainingAmount)} still owed on this bill.`;
     }
+    if (!paymentDate) found.paymentDate = 'Enter the date the payment was made.';
+    setErrors(found);
+    if (Object.keys(found).length > 0) return;
+
     setIsSubmitting(true);
-    setError(null);
+    setSubmitError(null);
     try {
-      await paymentsApi.create({
+      await accountsPayableApi.createPayment({
         invoiceId: id,
-        amount: Number(amount),
+        amount: value,
         paymentDate,
         method,
-        reference: reference || null,
+        reference: reference.trim() || null,
       });
-      router.push('/accounts-payable/' + id);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to record payment');
+      toast.success(`${formatMoney(value)} recorded against ${invoice.invoiceNumber}.`);
+      router.push(`/accounts-payable/${id}`);
+    } catch (caught) {
+      setSubmitError(errorMessage(caught));
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <Button type="button" variant="secondary" onClick={() => router.push('/accounts-payable/' + id)} style={{ marginBottom: 'var(--space-4)' }}>
-        Back to invoice
-      </Button>
-      <h1>Supplier Payment</h1>
-      {invoice && (
-        <p>
-          Invoice {invoice.invoiceNumber} — outstanding {invoice.remainingAmount}
-        </p>
-      )}
+    <div className="page page-narrow">
+      <PageHeader
+        title="Record a payment"
+        breadcrumbs={[
+          { label: 'Bills to pay', href: '/accounts-payable' },
+          { label: invoice.invoiceNumber, href: `/accounts-payable/${id}` },
+          { label: 'Pay' },
+        ]}
+        description={`${invoice.supplierName} · ${formatMoney(invoice.remainingAmount)} still owed, due ${formatDate(invoice.dueDate)}`}
+      />
 
-      {error && (
-        <div role="alert" style={{ margin: 'var(--space-4) 0', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
-        </div>
-      )}
-
-      {isLoading || !invoice ? (
-        <p>Loading invoice...</p>
-      ) : (
-        <form onSubmit={onSubmit}>
-          <Input
-            id="pay-amount"
-            label="Amount"
-            type="number"
-            min="0.0001"
-            step="any"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-          <Input
-            id="pay-date"
-            label="Payment date"
-            type="date"
-            value={paymentDate}
-            onChange={(e) => setPaymentDate(e.target.value)}
-            required
-          />
-          <Select
-            id="pay-method"
-            label="Method"
-            value={method}
-            onChange={(e) => setMethod(e.target.value as SupplierPaymentMethod)}
-            options={[
-              { value: 'CASH', label: 'Cash' },
-              { value: 'BANK_TRANSFER', label: 'Bank transfer' },
-              { value: 'CHEQUE', label: 'Cheque' },
-              { value: 'OTHER', label: 'Other' },
-            ]}
-          />
-          <Input id="pay-ref" label="Reference" value={reference} onChange={(e) => setReference(e.target.value)} />
-          <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
-            Confirm payment
-          </Button>
-        </form>
-      )}
+      <form
+        className="stack"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void submit();
+        }}
+        noValidate
+      >
+        {submitError && <Alert tone="error">{submitError}</Alert>}
+        <Card>
+          <CardBody className="stack">
+            <div className="total-row">
+              <span className="total-row__label">Still owed on this bill</span>
+              <span className="total-row__value money">{formatMoney(invoice.remainingAmount)}</span>
+            </div>
+            <Input
+              id="payment-amount"
+              label="Amount paid"
+              required
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              inputSize="lg"
+              value={amount}
+              error={errors.amount}
+              hint="Pre-filled with the full remaining balance. Change it for a part payment."
+              onChange={(event) => setAmount(event.target.value)}
+              autoFocus
+            />
+            <div className="form-grid form-grid--2">
+              <Input
+                id="payment-date"
+                label="Payment date"
+                required
+                type="date"
+                value={paymentDate}
+                error={errors.paymentDate}
+                onChange={(event) => setPaymentDate(event.target.value)}
+              />
+              <Select
+                id="payment-method"
+                label="Method"
+                required
+                placeholder={null}
+                value={method}
+                onChange={(event) => setMethod(event.target.value as SupplierPaymentMethod)}
+                options={Object.entries(PAYMENT_METHOD_LABELS).map(([code, label]) => ({ value: code, label }))}
+              />
+            </div>
+            <Input
+              id="payment-reference"
+              label="Reference"
+              value={reference}
+              hint="Optional. Cheque number, transfer reference, anything that identifies the payment."
+              onChange={(event) => setReference(event.target.value)}
+            />
+          </CardBody>
+          <CardFooter>
+            <Button variant="secondary" onClick={() => router.push(`/accounts-payable/${id}`)} disabled={isSubmitting}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={isSubmitting}>
+              Record payment
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
     </div>
   );
 }

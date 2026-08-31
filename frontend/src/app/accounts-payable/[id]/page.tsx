@@ -1,159 +1,171 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { invoicesApi, paymentsApi, SupplierInvoice, SupplierPayment } from '@/lib/api/accounts-payable';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Badge } from '@/components/ui/Badge';
-import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
+import {
+  PAYMENT_METHOD_LABELS,
+  SupplierInvoice,
+  SupplierPayment,
+  accountsPayableApi,
+} from '@/lib/api/accounts-payable';
+import { errorMessage, formatDate, formatMoney } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardBody, CardHeader, DetailItem, DetailList, Metric } from '@/components/ui/Card';
+import { Badge, StatusBadge } from '@/components/ui/Badge';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { EmptyState, ErrorState, LoadingState, PermissionRequired } from '@/components/ui/States';
 
-function statusVariant(status: string) {
-  if (status === 'PAID') return 'success';
-  if (status === 'CANCELLED') return 'error';
-  return 'pending';
-}
-
-export default function InvoiceDetailPage() {
-  const { id } = useParams() as { id: string };
-  const router = useRouter();
+export default function SupplierInvoiceDetailPage() {
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const canRead = user?.permissions?.includes('AP_READ') ?? false;
-  const canWrite = user?.permissions?.includes('AP_WRITE') ?? false;
-  const canPay = user?.permissions?.includes('AP_PAYMENT_CREATE') ?? false;
+  const canRead = hasPermission(user?.permissions, P.AP_READ);
+  const canPay = hasPermission(user?.permissions, P.AP_PAYMENT_CREATE);
 
   const [invoice, setInvoice] = useState<SupplierInvoice | null>(null);
   const [payments, setPayments] = useState<SupplierPayment[]>([]);
-  const [invoiceNumber, setInvoiceNumber] = useState('');
-  const [invoiceDate, setInvoiceDate] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [totalAmount, setTotalAmount] = useState('');
-  const [notes, setNotes] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const [loaded, loadedPayments] = await Promise.all([
+        accountsPayableApi.getInvoice(id),
+        accountsPayableApi.listPayments({ invoiceId: id, size: 50 }).catch(() => ({ content: [] as SupplierPayment[] })),
+      ]);
+      setInvoice(loaded);
+      setPayments(loadedPayments.content);
+    } catch (caught) {
+      setError(errorMessage(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    if (!canRead || !id) {
-      setIsLoading(false);
-      return;
-    }
-    Promise.all([invoicesApi.get(id), paymentsApi.list(id)])
-      .then(([loaded, history]) => {
-        setInvoice(loaded);
-        setPayments(history.content ?? []);
-        setInvoiceNumber(loaded.invoiceNumber);
-        setInvoiceDate(loaded.invoiceDate);
-        setDueDate(loaded.dueDate);
-        setTotalAmount(String(loaded.totalAmount));
-        setNotes(loaded.notes ?? '');
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load invoice');
-      })
-      .finally(() => setIsLoading(false));
-  }, [canRead, id]);
+    if (canRead) void load();
+  }, [canRead, load]);
 
   if (!canRead) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Invoice</h1>
-        <p role="status">Access is restricted. You do not have permission to view invoices.</p>
+      <div className="page">
+        <PermissionRequired permission={P.AP_READ} action="Viewing supplier bills" />
       </div>
     );
   }
 
-  const isOpen = invoice?.status === 'OPEN';
+  if (isLoading) {
+    return (
+      <div className="page">
+        <LoadingState label="Loading bill…" />
+      </div>
+    );
+  }
 
-  const onSave = async (event: FormEvent) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const updated = await invoicesApi.update(id, {
-        invoiceNumber,
-        invoiceDate,
-        dueDate,
-        totalAmount: Number(totalAmount),
-        notes: notes || null,
-      });
-      setInvoice(updated);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update invoice');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+  if (error || !invoice) {
+    return (
+      <div className="page">
+        <ErrorState message={error ?? 'Bill not found.'} onRetry={() => void load()} />
+      </div>
+    );
+  }
+
+  const overdue = invoice.status === 'OPEN' && new Date(invoice.dueDate) < startOfToday();
 
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <Button type="button" variant="secondary" onClick={() => router.push('/accounts-payable')} style={{ marginBottom: 'var(--space-4)' }}>
-        Back to invoices
-      </Button>
-      <h1>Invoice</h1>
-      {invoice && <Badge variant={statusVariant(invoice.status)}>{invoice.status}</Badge>}
-
-      {error && (
-        <div role="alert" style={{ margin: 'var(--space-4) 0', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
-        </div>
-      )}
-
-      {isLoading || !invoice ? (
-        <p>Loading invoice...</p>
-      ) : (
-        <>
-          <p>Supplier: {invoice.supplierName}</p>
-          <p>Paid: {invoice.paidAmount} — Outstanding: {invoice.remainingAmount}</p>
-          {canPay && isOpen && (
-            <Button type="button" onClick={() => router.push('/accounts-payable/' + invoice.id + '/pay')} style={{ marginBottom: 'var(--space-4)' }}>
-              Record payment
-            </Button>
-          )}
-          <form onSubmit={onSave}>
-            <Input id="inv-number" label="Invoice number" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} required disabled={!canWrite || !isOpen} />
-            <Input id="inv-date" label="Invoice date" type="date" value={invoiceDate} onChange={(e) => setInvoiceDate(e.target.value)} required disabled={!canWrite || !isOpen} />
-            <Input id="inv-due" label="Due date" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} required disabled={!canWrite || !isOpen} />
-            <Input id="inv-total" label="Total" type="number" min="0.0001" step="any" value={totalAmount} onChange={(e) => setTotalAmount(e.target.value)} required disabled={!canWrite || !isOpen} />
-            <Input id="inv-notes" label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} disabled={!canWrite || !isOpen} />
-            {canWrite && isOpen && (
-              <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>Save</Button>
+    <div className="page">
+      <PageHeader
+        title={invoice.invoiceNumber}
+        breadcrumbs={[{ label: 'Bills to pay', href: '/accounts-payable' }, { label: invoice.invoiceNumber }]}
+        description={`From ${invoice.supplierName}`}
+        actions={
+          <>
+            <StatusBadge kind="invoice" status={invoice.status === 'OPEN' ? 'UNPAID' : invoice.status} />
+            {invoice.status === 'OPEN' && canPay && (
+              <Link className="btn btn--primary" href={`/accounts-payable/${id}/pay`}>
+                Record a payment
+              </Link>
             )}
-          </form>
+          </>
+        }
+      />
 
-          <section style={{ marginTop: 'var(--space-8)' }}>
-            <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Payment history</h2>
-            {payments.length === 0 ? (
-              <div style={{ padding: 'var(--space-6)', textAlign: 'center', backgroundColor: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
-                No payments recorded.
-              </div>
-            ) : (
-              <Table>
-                <Thead>
-                  <Tr>
-                    <Th>Date</Th>
-                    <Th>Amount</Th>
-                    <Th>Method</Th>
-                    <Th>Reference</Th>
+      <div className="metric-grid" style={{ marginBottom: 'var(--space-6)' }}>
+        <Metric label="Invoice total" value={formatMoney(invoice.totalAmount)} />
+        <Metric label="Paid so far" value={formatMoney(invoice.paidAmount)} />
+        <Metric
+          label="Still owed"
+          value={formatMoney(invoice.remainingAmount)}
+          meta={overdue ? <Badge variant="error">Overdue since {formatDate(invoice.dueDate)}</Badge> : `Due ${formatDate(invoice.dueDate)}`}
+        />
+      </div>
+
+      <div className="stack-lg stack">
+        <Card>
+          <CardBody>
+            <DetailList>
+              <DetailItem label="Supplier">
+                <Link href={`/suppliers/${invoice.supplierId}`}>{invoice.supplierName}</Link>
+              </DetailItem>
+              <DetailItem label="Invoice date">{formatDate(invoice.invoiceDate)}</DetailItem>
+              <DetailItem label="Due date">{formatDate(invoice.dueDate)}</DetailItem>
+              <DetailItem label="Notes">{invoice.notes || <span className="text-muted">None</span>}</DetailItem>
+            </DetailList>
+          </CardBody>
+        </Card>
+
+        <Card flush>
+          <CardHeader
+            title={`Payments (${payments.length})`}
+            actions={
+              <Link className="btn btn--ghost btn--sm" href={`/suppliers/${invoice.supplierId}/statement`}>
+                Supplier statement
+              </Link>
+            }
+          />
+          {payments.length === 0 ? (
+            <EmptyState
+              icon="cash"
+              title="No payments yet"
+              body="Record a payment when you pay some or all of this bill. The amount still owed updates automatically."
+              action={canPay && invoice.status === 'OPEN' ? { label: 'Record a payment', href: `/accounts-payable/${id}/pay` } : undefined}
+            />
+          ) : (
+            <Table>
+              <Thead>
+                <Tr>
+                  <Th>Paid on</Th>
+                  <Th>Method</Th>
+                  <Th>Reference</Th>
+                  <Th className="table__num">Amount</Th>
+                </Tr>
+              </Thead>
+              <Tbody>
+                {payments.map((payment) => (
+                  <Tr key={payment.id}>
+                    <Td>{formatDate(payment.paymentDate)}</Td>
+                    <Td>{PAYMENT_METHOD_LABELS[payment.method] ?? payment.method}</Td>
+                    <Td>{payment.reference ?? <span className="text-muted">—</span>}</Td>
+                    <Td className="table__num">
+                      <span className="money">{formatMoney(payment.amount)}</span>
+                    </Td>
                   </Tr>
-                </Thead>
-                <Tbody>
-                  {payments.map((payment) => (
-                    <Tr key={payment.id}>
-                      <Td>{payment.paymentDate}</Td>
-                      <Td>{payment.amount}</Td>
-                      <Td>{payment.method}</Td>
-                      <Td>{payment.reference ?? '—'}</Td>
-                    </Tr>
-                  ))}
-                </Tbody>
-              </Table>
-            )}
-          </section>
-        </>
-      )}
+                ))}
+              </Tbody>
+            </Table>
+          )}
+        </Card>
+      </div>
     </div>
   );
+}
+
+function startOfToday(): Date {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
 }

@@ -1,11 +1,13 @@
 @import "../styles/tokens.css";
+@import "../styles/components.css";
+@import "../styles/pos.css";
 
 /*
  * Global base styles.
  *
  * Deliberately minimal: this layer only establishes the document defaults that every screen
- * inherits. Component styling belongs to the design-system primitives listed in UI/UX
- * Specification section 26, which are built in later phases.
+ * inherits. Component styling lives in components.css (the design-system primitives of UI/UX
+ * Specification section 26) and pos.css (the checkout layout of section 6.1).
  */
 
 *,
@@ -28,8 +30,6 @@ body {
   font-size: var(--font-size-body);
   line-height: var(--line-height-body);
   -webkit-font-smoothing: antialiased;
-  display: flex;
-  flex-direction: column;
 }
 
 h1,

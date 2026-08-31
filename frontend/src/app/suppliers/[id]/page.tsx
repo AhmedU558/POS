@@ -1,191 +1,255 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { suppliersApi, SupplierProduct } from '@/lib/api/suppliers';
-import { getProducts } from '@/lib/api/catalog';
+import { Supplier, SupplierProduct, suppliersApi } from '@/lib/api/suppliers';
 import { Product } from '@/types/catalog';
+import { errorMessage } from '@/lib/format';
+import { P, hasPermission } from '@/lib/permissions';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card, CardBody, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
-import { Checkbox } from '@/components/ui/Checkbox';
-import { Badge } from '@/components/ui/Badge';
-import { Table, Thead, Tbody, Tr, Th, Td } from '@/components/ui/Table';
+import { ActiveBadge } from '@/components/ui/Badge';
+import { Table, Tbody, Td, Th, Thead, Tr } from '@/components/ui/Table';
+import { ConfirmDialog } from '@/components/ui/Modal';
+import { EmptyState, ErrorState, LoadingState, PermissionRequired } from '@/components/ui/States';
+import { useToast } from '@/components/ui/Toast';
+import { ProductPicker } from '@/features/products/ProductPicker';
+import {
+  SupplierForm,
+  SupplierFormErrors,
+  SupplierFormValues,
+  supplierFormToRequest,
+  validateSupplierForm,
+} from '@/features/suppliers/SupplierForm';
 
-export default function SupplierProfilePage() {
-  const { id } = useParams() as { id: string };
+type Tab = 'details' | 'products';
+
+export default function SupplierDetailPage() {
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const toast = useToast();
   const { user } = useAuth();
-  const canRead = user?.permissions?.includes('SUPPLIER_READ') ?? false;
-  const canWrite = user?.permissions?.includes('SUPPLIER_WRITE') ?? false;
-  const canReadProducts = user?.permissions?.includes('PRODUCT_READ') ?? false;
-  const canReadStatement = user?.permissions?.includes('AP_READ') ?? false;
 
-  const [supplierCode, setSupplierCode] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [address, setAddress] = useState('');
-  const [isActive, setIsActive] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const canRead = hasPermission(user?.permissions, P.SUPPLIER_READ);
+  const canWrite = hasPermission(user?.permissions, P.SUPPLIER_WRITE);
+  const canReadStatement = hasPermission(user?.permissions, P.AP_READ);
+
+  const [tab, setTab] = useState<Tab>('details');
+  const [supplier, setSupplier] = useState<Supplier | null>(null);
+  const [products, setProducts] = useState<SupplierProduct[]>([]);
+  const [values, setValues] = useState<SupplierFormValues | null>(null);
+  const [errors, setErrors] = useState<SupplierFormErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [associations, setAssociations] = useState<SupplierProduct[]>([]);
-  const [catalog, setCatalog] = useState<Product[]>([]);
-  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
-  const [isSavingProducts, setIsSavingProducts] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [toAdd, setToAdd] = useState<Product | null>(null);
+  const [toRemove, setToRemove] = useState<SupplierProduct | null>(null);
+
+  const load = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const [loaded, loadedProducts] = await Promise.all([
+        suppliersApi.get(id),
+        suppliersApi.listProducts(id).catch(() => [] as SupplierProduct[]),
+      ]);
+      setSupplier(loaded);
+      setProducts(loadedProducts);
+      setValues({
+        supplierCode: loaded.supplierCode,
+        name: loaded.name,
+        phone: loaded.phone ?? '',
+        email: loaded.email ?? '',
+        address: loaded.address ?? '',
+        isActive: loaded.active,
+      });
+    } catch (caught) {
+      setLoadError(errorMessage(caught));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id]);
 
   useEffect(() => {
-    if (!canRead || !id) {
-      setIsLoading(false);
-      return;
-    }
-    Promise.all([
-      suppliersApi.get(id),
-      suppliersApi.listProducts(id),
-      canReadProducts ? getProducts({ size: 100 }) : Promise.resolve([] as Product[]),
-    ])
-      .then(([supplier, products, catalogResult]) => {
-        setSupplierCode(supplier.supplierCode);
-        setName(supplier.name);
-        setPhone(supplier.phone ?? '');
-        setEmail(supplier.email ?? '');
-        setAddress(supplier.address ?? '');
-        setIsActive(supplier.active);
-        setAssociations(products);
-        setSelectedProductIds(products.map((row) => row.productId));
-        const list = Array.isArray(catalogResult)
-          ? catalogResult
-          : ((catalogResult as { content?: Product[] }).content ?? []);
-        setCatalog(list);
-        setError(null);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'Failed to load supplier');
-      })
-      .finally(() => setIsLoading(false));
-  }, [canRead, canReadProducts, id]);
+    if (canRead) void load();
+  }, [canRead, load]);
 
   if (!canRead) {
     return (
-      <div style={{ padding: 'var(--space-6)' }}>
-        <h1>Supplier Profile</h1>
-        <p role="status">Access is restricted. You do not have permission to view suppliers.</p>
+      <div className="page">
+        <PermissionRequired permission={P.SUPPLIER_READ} action="Viewing suppliers" />
       </div>
     );
   }
 
-  const saveAssociatedProducts = async (productIds: string[]) => {
-    setIsSavingProducts(true);
-    setError(null);
-    try {
-      const updated = await suppliersApi.replaceProducts(id, productIds);
-      setAssociations(updated);
-      setSelectedProductIds(updated.map((row) => row.productId));
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update associated products');
-    } finally {
-      setIsSavingProducts(false);
-    }
-  };
+  if (isLoading) {
+    return (
+      <div className="page">
+        <LoadingState label="Loading supplier…" />
+      </div>
+    );
+  }
 
-  const onSubmit = async (event: FormEvent) => {
-    event.preventDefault();
+  if (loadError || !supplier || !values) {
+    return (
+      <div className="page">
+        <ErrorState message={loadError ?? 'Supplier not found.'} onRetry={() => void load()} />
+      </div>
+    );
+  }
+
+  const save = async () => {
+    const found = validateSupplierForm(values);
+    setErrors(found);
+    if (Object.keys(found).length > 0) {
+      setSubmitError('Check the highlighted fields and try again.');
+      return;
+    }
     setIsSubmitting(true);
-    setError(null);
+    setSubmitError(null);
     try {
-      const updated = await suppliersApi.update(id, {
-        supplierCode,
-        name,
-        phone: phone || null,
-        email: email || null,
-        address: address || null,
-        isActive,
-      });
-      setIsActive(updated.active);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to update supplier');
+      setSupplier(await suppliersApi.update(id, supplierFormToRequest(values)));
+      toast.success('Supplier saved.');
+    } catch (caught) {
+      setSubmitError(errorMessage(caught));
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  /*
+   * The API replaces the whole catalogue in one PUT, so adding or removing one product means
+   * sending the full list. The screen keeps that detail to itself.
+   */
+  const replaceProducts = async (productIds: string[], message: string) => {
+    setIsSubmitting(true);
+    try {
+      setProducts(await suppliersApi.replaceProducts(id, productIds));
+      toast.success(message);
+    } catch (caught) {
+      toast.error(errorMessage(caught));
+    } finally {
+      setIsSubmitting(false);
+      setToAdd(null);
+      setToRemove(null);
+    }
+  };
+
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
-        <Button type="button" variant="secondary" onClick={() => router.push('/suppliers')}>
-          Back to suppliers
-        </Button>
-        {canReadStatement && (
-          <Button type="button" variant="secondary" onClick={() => router.push('/suppliers/' + id + '/statement')}>
-            Statement
-          </Button>
-        )}
+    <div className="page">
+      <PageHeader
+        title={supplier.name}
+        breadcrumbs={[{ label: 'Suppliers', href: '/suppliers' }, { label: supplier.name }]}
+        description={`Supplier code ${supplier.supplierCode}`}
+        actions={
+          <>
+            <ActiveBadge active={supplier.active} />
+            {canReadStatement && (
+              <Link className="btn btn--secondary" href={`/suppliers/${id}/statement`}>
+                Statement
+              </Link>
+            )}
+            {hasPermission(user?.permissions, P.PURCHASE_WRITE) && (
+              <Link className="btn btn--primary" href={`/purchase-orders/new?supplierId=${id}`}>
+                New purchase order
+              </Link>
+            )}
+          </>
+        }
+      />
+
+      <div className="tabs" role="tablist">
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'details'} onClick={() => setTab('details')}>
+          Details
+        </button>
+        <button type="button" role="tab" className="tab" aria-selected={tab === 'products'} onClick={() => setTab('products')}>
+          Products they supply ({products.length})
+        </button>
       </div>
-      <h1>Supplier Profile</h1>
-      {isActive ? <Badge variant="success">Active</Badge> : <Badge variant="error">Inactive</Badge>}
 
-      {error && (
-        <div role="alert" style={{ margin: 'var(--space-4) 0', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
-          {error}
-        </div>
-      )}
-
-      {isLoading ? (
-        <p>Loading supplier...</p>
+      {tab === 'details' ? (
+        <SupplierForm
+          values={values}
+          errors={errors}
+          submitError={submitError}
+          isSubmitting={isSubmitting}
+          submitLabel="Save changes"
+          onChange={(field, value) => {
+            setValues((current) => (current ? { ...current, [field]: value } : current));
+            setErrors((current) => ({ ...current, [field]: undefined }));
+          }}
+          onSubmit={() => void (canWrite ? save() : undefined)}
+          onCancel={() => router.push('/suppliers')}
+        />
       ) : (
-        <form onSubmit={onSubmit}>
-          <Input id="profile-code" label="Supplier code" value={supplierCode} onChange={(e) => setSupplierCode(e.target.value)} required disabled={!canWrite} />
-          <Input id="profile-name" label="Name" value={name} onChange={(e) => setName(e.target.value)} required disabled={!canWrite} />
-          <Input id="profile-phone" label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={!canWrite} />
-          <Input id="profile-email" label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!canWrite} />
-          <Input id="profile-address" label="Address" value={address} onChange={(e) => setAddress(e.target.value)} disabled={!canWrite} />
-          <Checkbox id="profile-active" label="Active" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} disabled={!canWrite} />
+        <Card flush>
+          <CardHeader title="Products they supply" />
           {canWrite && (
-            <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>Save</Button>
+            <CardBody>
+              <div className="row row-wrap">
+                <div className="grow">
+                  <ProductPicker
+                    id="supplier-add-product"
+                    label="Add a product"
+                    hint="Records that this supplier can provide the product. It does not change stock or pricing."
+                    selected={toAdd}
+                    onSelect={setToAdd}
+                  />
+                </div>
+                <Button
+                  disabled={!toAdd || products.some((existing) => existing.productId === toAdd.id)}
+                  isLoading={isSubmitting}
+                  onClick={() => {
+                    if (!toAdd) return;
+                    void replaceProducts(
+                      [...products.map((existing) => existing.productId), toAdd.id],
+                      `${toAdd.name} added to ${supplier.name}.`
+                    );
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+            </CardBody>
           )}
-        </form>
-      )}
-
-      {!isLoading && (
-        <section style={{ marginTop: 'var(--space-8)' }}>
-          <h2 style={{ fontSize: 'var(--font-size-heading-sm)', marginBottom: 'var(--space-4)' }}>Associated products</h2>
-          {associations.length === 0 ? (
-            <div style={{ padding: 'var(--space-6)', textAlign: 'center', backgroundColor: 'var(--color-surface-sunken)', borderRadius: 'var(--radius-md)' }}>
-              No associated products.
-            </div>
+          {products.length === 0 ? (
+            <EmptyState
+              icon="products"
+              title="No products linked yet"
+              body="Linking products records who supplies what. It is optional — a purchase order can include any product."
+            />
           ) : (
             <Table>
               <Thead>
                 <Tr>
+                  <Th>Product</Th>
                   <Th>SKU</Th>
-                  <Th>Name</Th>
                   <Th>Status</Th>
-                  {canWrite && <Th>Actions</Th>}
+                  {canWrite && <Th className="table__actions">Actions</Th>}
                 </Tr>
               </Thead>
               <Tbody>
-                {associations.map((row) => (
-                  <Tr key={row.id}>
-                    <Td>{row.sku}</Td>
-                    <Td>{row.name}</Td>
+                {products.map((product) => (
+                  <Tr key={product.id}>
                     <Td>
-                      <Badge variant={row.active ? 'success' : 'error'}>
-                        {row.active ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <Link href={`/products/${product.productId}`} className="table__primary">
+                        {product.name}
+                      </Link>
+                    </Td>
+                    <Td>
+                      <span className="mono">{product.sku}</span>
+                    </Td>
+                    <Td>
+                      <ActiveBadge active={product.active} />
                     </Td>
                     {canWrite && (
-                      <Td>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          disabled={isSavingProducts}
-                          onClick={() => saveAssociatedProducts(
-                            associations
-                              .map((item) => item.productId)
-                              .filter((productId) => productId !== row.productId)
-                          )}
-                        >
+                      <Td className="table__actions">
+                        <Button variant="ghost" size="sm" icon="trash" onClick={() => setToRemove(product)}>
                           Remove
                         </Button>
                       </Td>
@@ -195,37 +259,25 @@ export default function SupplierProfilePage() {
               </Tbody>
             </Table>
           )}
-
-          {canWrite && canReadProducts && (
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void saveAssociatedProducts(selectedProductIds);
-              }}
-              style={{ marginTop: 'var(--space-6)' }}
-            >
-              {catalog.map((product) => (
-                <Checkbox
-                  key={product.id}
-                  id={'assoc-' + product.id}
-                  label={product.sku + ' — ' + product.name}
-                  checked={selectedProductIds.includes(product.id)}
-                  onChange={(e) => {
-                    setSelectedProductIds((current) =>
-                      e.target.checked
-                        ? [...current, product.id]
-                        : current.filter((item) => item !== product.id)
-                    );
-                  }}
-                />
-              ))}
-              <Button type="submit" isLoading={isSavingProducts} disabled={isSavingProducts}>
-                Save associated products
-              </Button>
-            </form>
-          )}
-        </section>
+        </Card>
       )}
+
+      <ConfirmDialog
+        open={toRemove !== null}
+        title="Remove this product from the supplier?"
+        description={`${toRemove?.name ?? ''} will no longer be listed as supplied by ${supplier.name}. Existing purchase orders are unaffected.`}
+        confirmLabel="Remove"
+        destructive
+        isWorking={isSubmitting}
+        onCancel={() => setToRemove(null)}
+        onConfirm={() => {
+          if (!toRemove) return;
+          void replaceProducts(
+            products.filter((existing) => existing.id !== toRemove.id).map((existing) => existing.productId),
+            `${toRemove.name} removed.`
+          );
+        }}
+      />
     </div>
   );
 }

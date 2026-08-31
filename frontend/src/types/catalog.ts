@@ -9,7 +9,7 @@ export interface Category {
 }
 
 export interface CategoryRequest {
-  name?: string;
+  name: string;
   description?: string | null;
   parentId?: string | null;
   isActive?: boolean;
@@ -25,28 +25,35 @@ export interface Brand {
 }
 
 export interface BrandRequest {
-  name?: string;
+  name: string;
   description?: string | null;
   isActive?: boolean;
 }
 
+/** Mirrors `UnitResponse`: a unit is a code and a name. There is no abbreviation field. */
 export interface Unit {
   id: string;
+  code: string;
   name: string;
-  abbreviation: string;
-  allowFractions: boolean;
   active: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface UnitRequest {
-  name?: string;
-  abbreviation?: string;
-  allowFractions?: boolean;
+  code: string;
+  name: string;
   isActive?: boolean;
 }
 
+/**
+ * Mirrors `ProductResponse`.
+ *
+ * The active flag is `isActive`, not `active`: the backend record component is named `isActive`
+ * and Jackson serialises records by component name. Reading `active` here silently produced
+ * `undefined`, so every product displayed as inactive and saving the edit form deactivated it.
+ * Category, brand and unit use the bare `active` name — the contract is not uniform.
+ */
 export interface Product {
   id: string;
   sku: string;
@@ -63,12 +70,13 @@ export interface Product {
   maxStock: number | null;
   trackBatch: boolean;
   trackExpiry: boolean;
-  active: boolean;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ProductRequest {
+/** `POST /products`. Carries `isActive`; the update contract does not. */
+export interface ProductCreateRequest {
   sku: string;
   name: string;
   description?: string | null;
@@ -86,6 +94,12 @@ export interface ProductRequest {
   isActive: boolean;
 }
 
+/**
+ * `PATCH /products/{id}`. Deliberately omits `isActive` — activation moves through
+ * `PATCH /products/{id}/status`, and sending it here has no effect.
+ */
+export type ProductUpdateRequest = Omit<ProductCreateRequest, 'isActive'>;
+
 export interface ProductBarcode {
   id: string;
   productId: string;
@@ -100,10 +114,12 @@ export interface BarcodeRequest {
   isPrimary: boolean;
 }
 
+export type PriceType = 'REGULAR' | 'PROMOTIONAL' | 'WHOLESALE';
+
 export interface ProductPrice {
   id: string;
   productId: string;
-  priceType: 'REGULAR' | 'PROMOTIONAL' | 'WHOLESALE';
+  priceType: PriceType;
   amount: number;
   effectiveFrom: string;
   effectiveTo: string | null;
@@ -112,7 +128,7 @@ export interface ProductPrice {
 }
 
 export interface PriceRequest {
-  priceType: 'REGULAR' | 'PROMOTIONAL' | 'WHOLESALE';
+  priceType: PriceType;
   amount: number;
   effectiveFrom: string;
   effectiveTo?: string | null;
