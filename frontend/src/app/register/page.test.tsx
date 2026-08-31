@@ -5,7 +5,7 @@ import * as AuthContext from '@/features/auth/AuthContext';
 import { registerSessionsApi } from '@/lib/api/register-sessions';
 
 vi.mock('@/lib/api/register-sessions', () => ({
-  registerSessionsApi: { open: vi.fn(), get: vi.fn(), summary: vi.fn(), cashIn: vi.fn(), cashOut: vi.fn() },
+  registerSessionsApi: { open: vi.fn(), get: vi.fn(), summary: vi.fn(), cashIn: vi.fn(), cashOut: vi.fn(), close: vi.fn() },
 }));
 
 function renderWithAuth(permissions: string[]) {
@@ -59,6 +59,16 @@ describe('RegisterOpenPage', () => {
       reason: 'Float',
       createdAt: '2026-08-31T00:00:00Z',
     });
+    vi.mocked(registerSessionsApi.close).mockResolvedValue({
+      sessionId: 'sess-1',
+      zReportNumber: 'Z-2026-000001',
+      status: 'CLOSED',
+      openingCash: 150,
+      expectedCash: 170,
+      actualCash: 165,
+      variance: -5,
+      notes: null,
+    });
   });
 
   afterEach(() => {
@@ -66,7 +76,7 @@ describe('RegisterOpenPage', () => {
   });
 
   it('opens a session and records cash-in from the API', async () => {
-    renderWithAuth(['REGISTER_OPEN', 'REGISTER_CASH']);
+    renderWithAuth(['REGISTER_OPEN', 'REGISTER_CASH', 'REGISTER_CLOSE']);
     fireEvent.change(screen.getByLabelText('Register'), { target: { value: 'reg-1' } });
     fireEvent.change(screen.getByLabelText('Opening cash'), { target: { value: '150' } });
     fireEvent.click(screen.getByText('Open register'));
@@ -84,6 +94,14 @@ describe('RegisterOpenPage', () => {
     await waitFor(() => {
       expect(registerSessionsApi.cashIn).toHaveBeenCalledWith('sess-1', 20, '');
       expect(screen.getByText('CASH_IN: 20')).toBeTruthy();
+    });
+
+    fireEvent.change(screen.getByLabelText('Actual cash'), { target: { value: '165' } });
+    fireEvent.click(screen.getByText('Close register'));
+    await waitFor(() => {
+      expect(registerSessionsApi.close).toHaveBeenCalledWith('sess-1', 165);
+      expect(screen.getByText('Z report Z-2026-000001')).toBeTruthy();
+      expect(screen.getByText('Variance: -5')).toBeTruthy();
     });
   });
 

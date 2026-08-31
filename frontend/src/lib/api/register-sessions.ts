@@ -31,6 +31,17 @@ export interface CashMovement {
   createdAt: string;
 }
 
+export interface RegisterClosingReport {
+  sessionId: string;
+  zReportNumber: string;
+  status: string;
+  openingCash: number;
+  expectedCash: number;
+  actualCash: number;
+  variance: number;
+  notes: string | null;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   const body = await res.json().catch(() => ({}));
   if (!res.ok) {
@@ -72,5 +83,13 @@ export const registerSessionsApi = {
       body: JSON.stringify({ amount, reason: reason || null }),
     });
     return handleResponse<CashMovement>(res);
+  },
+
+  close: async (id: string, actualCash: number, notes?: string) => {
+    const res = await apiClient('/register-sessions/' + id + '/close', {
+      method: 'POST',
+      body: JSON.stringify({ actualCash, notes: notes || null }),
+    });
+    return handleResponse<RegisterClosingReport>(res);
   },
 };

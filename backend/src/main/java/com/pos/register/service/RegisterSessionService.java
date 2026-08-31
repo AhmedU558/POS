@@ -10,11 +10,15 @@ import com.pos.organization.domain.Register;
 import com.pos.organization.domain.RegisterSession;
 import com.pos.organization.repository.RegisterRepository;
 import com.pos.organization.repository.RegisterSessionRepository;
+import com.pos.register.domain.RegisterClosing;
 import com.pos.register.dto.CashMovementRequest;
 import com.pos.register.dto.CashMovementResponse;
+import com.pos.register.dto.RegisterClosingReportResponse;
+import com.pos.register.dto.RegisterSessionCloseRequest;
 import com.pos.register.dto.RegisterSessionOpenRequest;
 import com.pos.register.dto.RegisterSessionResponse;
 import com.pos.register.dto.RegisterSessionSummaryResponse;
+import com.pos.register.repository.RegisterClosingRepository;
 import com.pos.sales.domain.CashTransaction;
 import com.pos.sales.repository.CashTransactionRepository;
 import com.pos.users.domain.User;
@@ -26,6 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.OffsetDateTime;
+import java.time.Year;
 import java.util.UUID;
 
 @Service
@@ -34,6 +40,7 @@ public class RegisterSessionService {
     private final RegisterRepository registerRepository;
     private final RegisterSessionRepository sessionRepository;
     private final CashTransactionRepository cashTransactionRepository;
+    private final RegisterClosingRepository closingRepository;
     private final UserRepository userRepository;
     private final StoreScopeEvaluator storeScopeEvaluator;
     private final AuditRecorder auditRecorder;
@@ -42,12 +49,14 @@ public class RegisterSessionService {
             RegisterRepository registerRepository,
             RegisterSessionRepository sessionRepository,
             CashTransactionRepository cashTransactionRepository,
+            RegisterClosingRepository closingRepository,
             UserRepository userRepository,
             StoreScopeEvaluator storeScopeEvaluator,
             AuditRecorder auditRecorder) {
         this.registerRepository = registerRepository;
         this.sessionRepository = sessionRepository;
         this.cashTransactionRepository = cashTransactionRepository;
+        this.closingRepository = closingRepository;
         this.userRepository = userRepository;
         this.storeScopeEvaluator = storeScopeEvaluator;
         this.auditRecorder = auditRecorder;
@@ -71,6 +80,77 @@ public class RegisterSessionService {
             throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
         }
         return toSummary(session);
+    }
+
+    @Transactional
+    public RegisterClosingReportResponse close(UUID id, RegisterSessionCloseRequest request) {
+        RegisterSession session = sessionRepository.findByIdForUpdate(id)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Register session not found"));
+        if (!storeScopeEvaluator.canAccess(session.getRegister().getStore().getId())) {
+            throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
+        }
+        if (!session.isOpen()) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Register session is already closed");
+        }
+
+        RegisterSessionSummaryResponse live = toSummary(session);
+        BigDecimal actual = money(request.actualCash());
+        BigDecimal expected = live.expectedCash();
+        BigDecimal variance = money(actual.subtract(expected));
+
+        session.setExpectedCash(expected);
+        session.setActualCash(actual);
+        session.setVariance(variance);
+        session.setClosedAt(OffsetDateTime.now());
+        session.setStatus(RegisterSession.STATUS_CLOSED);
+        sessionRepository.save(session);
+
+        User actor = currentUser();
+        RegisterClosing closing = new RegisterClosing();
+        closing.setRegisterSession(session);
+        closing.setZReportNumber("Z-" + Year.now() + "-" + String.format("%06d", closingRepository.nextZReportSequence()));
+        closing.setNotes(blankToNull(request.notes()));
+        RegisterClosing saved = closingRepository.save(closing);
+
+        auditRecorder.record(AuditEvent.of(
+                AuditActor.user(actor.getId()),
+                "REGISTER_SESSION_CLOSED",
+                "RegisterSession",
+                session.getId()));
+
+        return toClosingReport(session, saved, live);
+    }
+
+    @Transactional(readOnly = true)
+    public RegisterClosingReportResponse closingReport(UUID id) {
+        RegisterSession session = sessionRepository.findDetailedById(id)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Register session not found"));
+        if (!storeScopeEvaluator.canAccess(session.getRegister().getStore().getId())) {
+            throw new ApiException(ErrorCode.ACCESS_DENIED, "No access to this store");
+        }
+        RegisterClosing closing = closingRepository.findByRegisterSession_Id(id)
+                .orElseThrow(() -> new ApiException(ErrorCode.RESOURCE_NOT_FOUND, "Closing report not found"));
+        return toClosingReport(session, closing, toSummary(session));
+    }
+
+    private RegisterClosingReportResponse toClosingReport(
+            RegisterSession session,
+            RegisterClosing closing,
+            RegisterSessionSummaryResponse live) {
+        return new RegisterClosingReportResponse(
+                session.getId(),
+                closing.getZReportNumber(),
+                session.getStatus(),
+                live.openingCash(),
+                live.cashInTotal(),
+                live.cashOutTotal(),
+                live.cashSalesTotal(),
+                session.getExpectedCash() == null ? live.expectedCash() : session.getExpectedCash(),
+                session.getActualCash(),
+                session.getVariance(),
+                closing.getNotes(),
+                session.getOpenedAt(),
+                session.getClosedAt());
     }
 
     private RegisterSessionSummaryResponse toSummary(RegisterSession session) {

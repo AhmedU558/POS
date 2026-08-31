@@ -194,6 +194,14 @@ class FlywayMigrationTests extends AbstractIntegrationTest {
                 .containsEntry("opened_at", "timestamp with time zone")
                 .containsEntry("opening_cash", "numeric");
 
+        Map<String, String> closings = columnTypesOf("register_closings");
+        assertThat(closings)
+                .containsEntry("id", "uuid")
+                .containsEntry("register_session_id", "uuid")
+                .containsEntry("z_report_number", "character varying")
+                .containsEntry("notes", "character varying")
+                .containsEntry("created_at", "timestamp with time zone");
+
         Map<String, String> cash = columnTypesOf("cash_transactions");
         assertThat(cash)
                 .containsEntry("id", "uuid")

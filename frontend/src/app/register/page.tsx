@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from 'react';
 import { useAuth } from '@/features/auth/AuthContext';
-import { registerSessionsApi, RegisterSession, RegisterSessionSummary } from '@/lib/api/register-sessions';
+import { registerSessionsApi, RegisterClosingReport, RegisterSession, RegisterSessionSummary } from '@/lib/api/register-sessions';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 
@@ -10,11 +10,14 @@ export default function RegisterOpenPage() {
   const { user } = useAuth();
   const canOpen = user?.permissions?.includes('REGISTER_OPEN') ?? false;
   const canCash = user?.permissions?.includes('REGISTER_CASH') ?? false;
+  const canClose = user?.permissions?.includes('REGISTER_CLOSE') ?? false;
 
   const [registerId, setRegisterId] = useState('');
   const [openingCash, setOpeningCash] = useState('0');
   const [session, setSession] = useState<RegisterSession | null>(null);
   const [summary, setSummary] = useState<RegisterSessionSummary | null>(null);
+  const [report, setReport] = useState<RegisterClosingReport | null>(null);
+  const [actualCash, setActualCash] = useState('');
   const [cashAmount, setCashAmount] = useState('');
   const [cashReason, setCashReason] = useState('');
   const [lastMovement, setLastMovement] = useState<string | null>(null);
@@ -66,10 +69,28 @@ export default function RegisterOpenPage() {
     }
   };
 
+  const onClose = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!session) {
+      return;
+    }
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const closed = await registerSessionsApi.close(session.id, Number(actualCash));
+      setReport(closed);
+      setSession({ ...session, status: closed.status });
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to close register');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div style={{ padding: 'var(--space-6)', maxWidth: 'var(--layout-max-width)', margin: '0 auto' }}>
-      <h1>Open Register</h1>
-      <p>Register is closed. Enter opening cash to start a session.</p>
+      <h1>Register</h1>
+      <p>{session?.status === 'CLOSED' ? 'Session is closed. Z report is read-only.' : 'Enter opening cash to start a session, then cash in/out or close.'}</p>
 
       {error && (
         <div role="alert" style={{ margin: 'var(--space-4) 0', padding: 'var(--space-4)', background: 'var(--color-error-surface)', color: 'var(--color-error)', borderRadius: 'var(--radius-md)' }}>
@@ -96,7 +117,7 @@ export default function RegisterOpenPage() {
 
       {session && (
         <section style={{ marginTop: 'var(--space-8)' }}>
-          <h2 style={{ fontSize: 'var(--font-size-heading-sm)' }}>Session open</h2>
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)' }}>Session {session.status === 'CLOSED' ? 'closed' : 'open'}</h2>
           <p>Session {session.id}</p>
           <p>Status: {session.status}</p>
           <p>Opening cash: {session.openingCash}</p>
@@ -108,7 +129,7 @@ export default function RegisterOpenPage() {
               <p>Expected cash: {summary.expectedCash}</p>
             </>
           )}
-          {canCash && (
+          {canCash && session.status === 'OPEN' && (
             <form onSubmit={(e) => e.preventDefault()} style={{ marginTop: 'var(--space-4)' }}>
               <Input id="reg-cash-amount" label="Cash amount" type="number" min="0" step="any" value={cashAmount} onChange={(e) => setCashAmount(e.target.value)} required />
               <Input id="reg-cash-reason" label="Reason" value={cashReason} onChange={(e) => setCashReason(e.target.value)} />
@@ -123,6 +144,23 @@ export default function RegisterOpenPage() {
             </form>
           )}
           {lastMovement && <p>{lastMovement}</p>}
+          {canClose && session.status === 'OPEN' && (
+            <form onSubmit={onClose} style={{ marginTop: 'var(--space-4)' }}>
+              <Input id="reg-actual-cash" label="Actual cash" type="number" min="0" step="any" value={actualCash} onChange={(e) => setActualCash(e.target.value)} required />
+              <Button type="submit" isLoading={isSubmitting} disabled={isSubmitting}>
+                Close register
+              </Button>
+            </form>
+          )}
+        </section>
+      )}
+
+      {report && (
+        <section style={{ marginTop: 'var(--space-8)' }} aria-label="Z report">
+          <h2 style={{ fontSize: 'var(--font-size-heading-sm)' }}>Z report {report.zReportNumber}</h2>
+          <p>Expected cash: {report.expectedCash}</p>
+          <p>Actual cash: {report.actualCash}</p>
+          <p>Variance: {report.variance}</p>
         </section>
       )}
     </div>

@@ -4,6 +4,8 @@ import com.pos.common.config.RequestCorrelation;
 import com.pos.common.response.ApiResponse;
 import com.pos.register.dto.CashMovementRequest;
 import com.pos.register.dto.CashMovementResponse;
+import com.pos.register.dto.RegisterClosingReportResponse;
+import com.pos.register.dto.RegisterSessionCloseRequest;
 import com.pos.register.dto.RegisterSessionOpenRequest;
 import com.pos.register.dto.RegisterSessionResponse;
 import com.pos.register.dto.RegisterSessionSummaryResponse;
@@ -41,6 +43,20 @@ public class RegisterSessionController {
     @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN')")
     public ApiResponse<RegisterSessionSummaryResponse> summary(@PathVariable UUID id) {
         return ApiResponse.of(registerSessionService.summary(id), RequestCorrelation.currentId());
+    }
+
+    @GetMapping("/register-sessions/{id}/closing-report")
+    @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN', 'REGISTER_CLOSE')")
+    public ApiResponse<RegisterClosingReportResponse> closingReport(@PathVariable UUID id) {
+        return ApiResponse.of(registerSessionService.closingReport(id), RequestCorrelation.currentId());
+    }
+
+    @PostMapping("/register-sessions/{id}/close")
+    @PreAuthorize("hasAuthority('REGISTER_CLOSE')")
+    public ApiResponse<RegisterClosingReportResponse> close(
+            @PathVariable UUID id,
+            @Valid @RequestBody RegisterSessionCloseRequest request) {
+        return ApiResponse.of(registerSessionService.close(id, request), RequestCorrelation.currentId());
     }
 
     @GetMapping("/register-sessions/{id}")

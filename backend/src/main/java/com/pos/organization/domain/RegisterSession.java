@@ -21,6 +21,7 @@ import java.util.UUID;
 public class RegisterSession {
 
     public static final String STATUS_OPEN = "OPEN";
+    public static final String STATUS_CLOSED = "CLOSED";
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -46,6 +47,15 @@ public class RegisterSession {
 
     @Column(name = "opening_cash", precision = 19, scale = 4)
     private BigDecimal openingCash;
+
+    @Column(name = "expected_cash", precision = 19, scale = 4)
+    private BigDecimal expectedCash;
+
+    @Column(name = "actual_cash", precision = 19, scale = 4)
+    private BigDecimal actualCash;
+
+    @Column(precision = 19, scale = 4)
+    private BigDecimal variance;
 
     public RegisterSession() {
     }
@@ -92,6 +102,34 @@ public class RegisterSession {
 
     public void setOpeningCash(BigDecimal openingCash) {
         this.openingCash = openingCash;
+    }
+
+    public void setClosedAt(OffsetDateTime closedAt) {
+        this.closedAt = closedAt;
+    }
+
+    public BigDecimal getExpectedCash() {
+        return expectedCash;
+    }
+
+    public void setExpectedCash(BigDecimal expectedCash) {
+        this.expectedCash = expectedCash;
+    }
+
+    public BigDecimal getActualCash() {
+        return actualCash;
+    }
+
+    public void setActualCash(BigDecimal actualCash) {
+        this.actualCash = actualCash;
+    }
+
+    public BigDecimal getVariance() {
+        return variance;
+    }
+
+    public void setVariance(BigDecimal variance) {
+        this.variance = variance;
     }
 
     public boolean isOpen() {
