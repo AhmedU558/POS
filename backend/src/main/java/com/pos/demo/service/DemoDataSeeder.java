@@ -175,7 +175,7 @@ public class DemoDataSeeder {
                         () -> {
                             log.info("Demo seed: creating store {}", STORE_CODE);
                             return storeRepository.save(
-                                    new Store(STORE_CODE, "Demo Store", "USD", "UTC"));
+                                    new Store(STORE_CODE, "Demo Store", "PKR", "UTC"));
                         });
     }
 

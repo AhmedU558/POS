@@ -19,6 +19,8 @@ public record SaleReceiptResponse(
         BigDecimal discountTotal,
         BigDecimal taxTotal,
         BigDecimal grandTotal,
+        String fbrInvoiceNumber,
+        String fbrQrCode,
         List<SaleItemResponse> items,
         List<SalePaymentResponse> payments
 ) {
@@ -39,6 +41,8 @@ public record SaleReceiptResponse(
                 saleResponse.discountTotal(),
                 saleResponse.taxTotal(),
                 saleResponse.grandTotal(),
+                sale.getFbrInvoiceNumber(),
+                sale.getFbrQrCode(),
                 saleResponse.items(),
                 saleResponse.payments());
     }

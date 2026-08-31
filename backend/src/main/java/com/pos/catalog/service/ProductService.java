@@ -96,6 +96,7 @@ public class ProductService {
         p.setTrackBatch(request.trackBatch());
         p.setTrackExpiry(request.trackExpiry());
         p.setActive(request.isActive());
+        p.setImageUrl(request.imageUrl());
 
         Product saved = productRepository.save(p);
         
@@ -150,6 +151,7 @@ public class ProductService {
         p.setMaxStock(request.maxStock());
         p.setTrackBatch(request.trackBatch());
         p.setTrackExpiry(request.trackExpiry());
+        p.setImageUrl(request.imageUrl());
 
         Product saved = productRepository.save(p);
         

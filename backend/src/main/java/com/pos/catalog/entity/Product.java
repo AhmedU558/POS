@@ -62,6 +62,9 @@ public class Product {
     @Column(nullable = false)
     private boolean isActive;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -71,6 +74,9 @@ public class Product {
     private OffsetDateTime updatedAt;
 
     // Getters and Setters
+
+    public String getImageUrl() { return imageUrl; }
+    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
 
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }

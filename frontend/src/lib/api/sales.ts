@@ -85,6 +85,8 @@ export interface SaleReceipt {
   discountTotal: number;
   taxTotal: number;
   grandTotal: number;
+  fbrInvoiceNumber?: string | null;
+  fbrQrCode?: string | null;
   payments: SalePayment[];
   items: SaleItem[];
 }

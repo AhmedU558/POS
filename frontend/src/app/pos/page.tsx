@@ -575,7 +575,11 @@ function ProductTile({ product, onAdd }: { product: Product; onAdd: () => void }
       onClick={onAdd}
     >
       <div className="product-tile__icon">
-        <Icon name="products" size={20} />
+        {product.imageUrl ? (
+          <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <Icon name="products" size={20} />
+        )}
       </div>
       <div className="product-tile__body">
         <span className="product-tile__name">{product.name}</span>

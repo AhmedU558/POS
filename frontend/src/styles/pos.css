@@ -167,15 +167,17 @@
 }
 
 .product-tile__icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: var(--radius-sm);
+  width: 100%;
+  aspect-ratio: 1;
   background: var(--color-surface-sunken);
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-foreground-subtle);
   flex-shrink: 0;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
 }
 
 .product-tile__body {

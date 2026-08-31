@@ -73,10 +73,16 @@ public class Sale {
     private BigDecimal discountTotal = BigDecimal.ZERO;
 
     @Column(name = "tax_total", nullable = false, precision = 19, scale = 4)
-    private BigDecimal taxTotal;
+    private BigDecimal taxTotal = BigDecimal.ZERO;
 
     @Column(name = "grand_total", nullable = false, precision = 19, scale = 4)
-    private BigDecimal grandTotal;
+    private BigDecimal grandTotal = BigDecimal.ZERO;
+
+    @Column(name = "fbr_invoice_number")
+    private String fbrInvoiceNumber;
+
+    @Column(name = "fbr_qr_code")
+    private String fbrQrCode;
 
     @Column(name = "currency_code", nullable = false, columnDefinition = "bpchar(3)")
     private String currencyCode;
@@ -96,6 +102,22 @@ public class Sale {
 
     public UUID getId() {
         return id;
+    }
+
+    public String getFbrInvoiceNumber() {
+        return fbrInvoiceNumber;
+    }
+
+    public void setFbrInvoiceNumber(String fbrInvoiceNumber) {
+        this.fbrInvoiceNumber = fbrInvoiceNumber;
+    }
+
+    public String getFbrQrCode() {
+        return fbrQrCode;
+    }
+
+    public void setFbrQrCode(String fbrQrCode) {
+        this.fbrQrCode = fbrQrCode;
     }
 
     public String getReceiptNumber() {

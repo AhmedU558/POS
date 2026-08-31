@@ -21,5 +21,6 @@ public record ProductCreateRequest(
     @DecimalMin("0.0") BigDecimal maxStock,
     @NotNull Boolean trackBatch,
     @NotNull Boolean trackExpiry,
-    @NotNull Boolean isActive
+    @NotNull Boolean isActive,
+    String imageUrl
 ) {}

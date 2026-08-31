@@ -35,6 +35,7 @@ export interface ProductFormValues {
   trackBatch: boolean;
   trackExpiry: boolean;
   isActive: boolean;
+  imageUrl: string;
   /** Create only: a barcode entered here is saved straight after the product. */
   barcode: string;
 }
@@ -56,6 +57,7 @@ export function emptyProductForm(): ProductFormValues {
     trackBatch: false,
     trackExpiry: false,
     isActive: true,
+    imageUrl: '',
     barcode: '',
   };
 }
@@ -78,6 +80,7 @@ export function productToForm(product: Product): ProductFormValues {
     trackBatch: product.trackBatch,
     trackExpiry: product.trackExpiry,
     isActive: product.isActive,
+    imageUrl: product.imageUrl ?? '',
     barcode: '',
   };
 }
@@ -152,6 +155,7 @@ export function formToCreateRequest(values: ProductFormValues): ProductCreateReq
     trackBatch: values.trackBatch,
     trackExpiry: values.trackExpiry,
     isActive: values.isActive,
+    imageUrl: values.imageUrl.trim() || null,
   };
 }
 
@@ -254,6 +258,16 @@ export function ProductForm({
                 value={values.description}
                 disabled={readOnly}
                 onChange={(event) => onChange('description', event.target.value)}
+              />
+            </div>
+            <div style={{ marginTop: 'var(--space-4)' }}>
+              <Input
+                id="product-image-url"
+                label="Image URL"
+                value={values.imageUrl}
+                disabled={readOnly}
+                hint="URL to a product image. A 1:1 square image works best on the POS."
+                onChange={(event) => onChange('imageUrl', event.target.value)}
               />
             </div>
           </div>

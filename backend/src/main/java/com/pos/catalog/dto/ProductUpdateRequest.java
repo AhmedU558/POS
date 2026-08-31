@@ -20,5 +20,6 @@ public record ProductUpdateRequest(
     @NotNull @DecimalMin("0.0") BigDecimal minStock,
     @DecimalMin("0.0") BigDecimal maxStock,
     @NotNull Boolean trackBatch,
-    @NotNull Boolean trackExpiry
+    @NotNull Boolean trackExpiry,
+    String imageUrl
 ) {}
