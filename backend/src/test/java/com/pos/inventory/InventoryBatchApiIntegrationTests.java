@@ -149,7 +149,7 @@ class InventoryBatchApiIntegrationTests extends AbstractIntegrationTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.error.code").value("BUSINESS_RULE_VIOLATION"));
 
-        assertThat(batchRepository.findAll()).isEmpty();
+        assertThat(batchCountFor(fx)).isZero();
     }
 
     @Test
@@ -163,7 +163,7 @@ class InventoryBatchApiIntegrationTests extends AbstractIntegrationTest {
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.error.code").value("BUSINESS_RULE_VIOLATION"));
 
-        assertThat(batchRepository.findAll()).isEmpty();
+        assertThat(batchCountFor(fx)).isZero();
     }
 
     @Test
@@ -177,7 +177,7 @@ class InventoryBatchApiIntegrationTests extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.quantity").value(6));
 
-        assertThat(batchRepository.findAll()).isEmpty();
+        assertThat(batchCountFor(fx)).isZero();
         var ledger = transactionRepository.findAll().stream()
                 .filter(t -> t.getProduct().getId().equals(fx.product.getId()))
                 .toList();
@@ -256,7 +256,7 @@ class InventoryBatchApiIntegrationTests extends AbstractIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.quantity").value(2));
 
-        assertThat(batchRepository.findAll()).isEmpty();
+        assertThat(batchCountFor(fx)).isZero();
     }
 
     private Fixture trackingFixture(boolean trackBatch, boolean trackExpiry) {
@@ -308,6 +308,21 @@ class InventoryBatchApiIntegrationTests extends AbstractIntegrationTest {
         }
         json.append("}");
         return json.toString();
+    }
+
+    /**
+     * Counts lots for this fixture only. The suite shares one PostgreSQL container, and
+     * non-transactional concurrency tests leave committed rows, so a global {@code findAll()}
+     * emptiness check is not a property of the behaviour under test.
+     */
+    private long batchCountFor(Fixture fx) {
+        Long count =
+                jdbcTemplate.queryForObject(
+                        "SELECT count(*) FROM inventory_batches WHERE product_id = ? AND store_id = ?",
+                        Long.class,
+                        fx.product.getId(),
+                        fx.store.getId());
+        return count == null ? 0L : count;
     }
 
     private static String idSuffix() {

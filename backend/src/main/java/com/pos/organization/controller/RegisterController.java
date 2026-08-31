@@ -29,8 +29,15 @@ public class RegisterController {
         this.registerService = registerService;
     }
 
+    /*
+     * REGISTER_OPEN is accepted alongside REGISTER_READ, as it already is on the session
+     * endpoints. A Cashier holds REGISTER_OPEN, REGISTER_CASH and REGISTER_CLOSE — the entire till
+     * workflow — but not REGISTER_READ, so without this they cannot discover which register to
+     * open and the workflow they are authorised for is unreachable. Store scope is unchanged.
+     */
     @GetMapping
-    @PreAuthorize("hasAuthority('REGISTER_READ') and @storeScopeEvaluator.canAccess(#storeId)")
+    @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN')"
+            + " and @storeScopeEvaluator.canAccess(#storeId)")
     public ApiResponse<List<RegisterResponse>> listRegisters(@PathVariable UUID storeId) {
         return ApiResponse.of(registerService.listRegisters(storeId), com.pos.common.config.RequestCorrelation.currentId());
     }
@@ -45,7 +52,8 @@ public class RegisterController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAuthority('REGISTER_READ') and @storeScopeEvaluator.canAccess(#storeId)")
+    @PreAuthorize("hasAnyAuthority('REGISTER_READ', 'REGISTER_OPEN')"
+            + " and @storeScopeEvaluator.canAccess(#storeId)")
     public ApiResponse<RegisterResponse> getRegister(@PathVariable UUID storeId, @PathVariable UUID id) {
         return ApiResponse.of(registerService.getRegister(storeId, id), com.pos.common.config.RequestCorrelation.currentId());
     }

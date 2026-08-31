@@ -33,6 +33,12 @@ services:
       APP_BOOTSTRAP_LAST_NAME: ${APP_BOOTSTRAP_LAST_NAME:-}
       APP_BOOTSTRAP_EMAIL: ${APP_BOOTSTRAP_EMAIL:-}
       APP_BOOTSTRAP_PASSWORD: ${APP_BOOTSTRAP_PASSWORD:-}
+      # Demonstration dataset. Off unless switched on; refused under the prod profile.
+      APP_DEMO_ENABLED: ${APP_DEMO_ENABLED:-false}
+      APP_DEMO_ADMIN_USERNAME: ${APP_DEMO_ADMIN_USERNAME:-demo.admin}
+      APP_DEMO_CASHIER_USERNAME: ${APP_DEMO_CASHIER_USERNAME:-demo.cashier}
+      APP_DEMO_ADMIN_PASSWORD: ${APP_DEMO_ADMIN_PASSWORD:-}
+      APP_DEMO_CASHIER_PASSWORD: ${APP_DEMO_CASHIER_PASSWORD:-}
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:

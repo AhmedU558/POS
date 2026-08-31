@@ -1,7 +1,7 @@
 # Product UX and operational completion pass
 
 **Date:** 2026-08-31
-**Scope:** frontend product/UX completion, plus one contract-consistent backend addition
+**Scope:** frontend product/UX completion, plus two contract-consistent backend changes
 **Not in scope:** new feature phases, schema changes, refactoring completed backend modules
 
 The backend was feature-complete through Phases 0–12. The frontend was a set of thirty screens
@@ -51,6 +51,25 @@ sell from. Covered by `CurrentRegisterSessionApiIntegrationTests`.
 
 Nothing else in the backend was changed: no schema, no existing endpoint, no permission, no
 removed test.
+
+---
+
+## 2b. A second backend change, found by testing as a cashier
+
+Documented as [AMD-044](spec-amendments/AMD-044-rest-api-register-list-for-cashiers.md).
+
+The Cashier role holds `REGISTER_OPEN`, `REGISTER_CASH` and `REGISTER_CLOSE` — the entire till
+workflow — but not `REGISTER_READ`. Listing the registers in a store required `REGISTER_READ`, so
+a cashier got `403` and could never discover which register to open. The workflow the role exists
+for was unreachable.
+
+`GET /stores/{storeId}/registers` and `GET /stores/{storeId}/registers/{id}` now accept
+`REGISTER_READ` **or** `REGISTER_OPEN`, matching how §18's session endpoints already resolve the
+same tension. Store scope and write authority are unchanged, and no role definition was touched.
+Covered by `RegisterAccessApiIntegrationTests`.
+
+This one is worth noting for how it was found: it is invisible when testing as an administrator,
+and only appeared once there was a cashier account to sign in as.
 
 ---
 
@@ -144,7 +163,19 @@ next missing step rather than leaving the user to work out why the till will not
 
 ---
 
-## 5. Verification
+## 5. Demonstration data
+
+A dev-only seeder (`app.demo.enabled`, off by default, refused under the `prod` profile) creates
+a `demo.admin` and a `demo.cashier` account plus a store, terminal, register and five stocked
+products with barcodes, so the loop can be driven immediately. Passwords have no defaults and
+must be supplied. See [demo-walkthrough.md](demo-walkthrough.md).
+
+Stock is part of the seed rather than an extra: `InventoryService.deductForSale` rejects a sale
+against a product with no balance, so a catalogue without stock is a till that cannot sell.
+
+---
+
+## 6. Verification
 
 - `CurrentRegisterSessionApiIntegrationTests` (4 tests) and `RegisterSessionApiIntegrationTests`
   (2 tests) pass.
@@ -152,3 +183,8 @@ next missing step rather than leaving the user to work out why the till will not
   and its promotion-preserving item requests, and the payment dialog's tender rules, including
   that a lone cash payment books at the sale total while the tendered amount only drives change.
 - `next build` passes with TypeScript checking.
+
+The whole cashier loop was then driven against the running system end to end: sign in, list
+registers, open the till, confirm the session survives a reload, scan a barcode, have the server
+price the sale, settle it in cash, read the receipt, check the drawer's expected cash, and close
+with a Z report showing zero variance.
