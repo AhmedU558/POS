@@ -53,18 +53,21 @@ public class SecurityConfig {
     private final RestAccessDeniedHandler accessDeniedHandler;
     private final PasswordRotationFilter passwordRotationFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final RateLimitFilter rateLimitFilter;
 
     public SecurityConfig(
             @Value("${app.security.cors.allowed-origins}") List<String> allowedOrigins,
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler,
             PasswordRotationFilter passwordRotationFilter,
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
+            JwtAuthenticationFilter jwtAuthenticationFilter,
+            RateLimitFilter rateLimitFilter) {
         this.allowedOrigins = allowedOrigins;
         this.authenticationEntryPoint = authenticationEntryPoint;
         this.accessDeniedHandler = accessDeniedHandler;
         this.passwordRotationFilter = passwordRotationFilter;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -105,6 +108,9 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             );
 
+        // The rate limit filter goes before everything else
+        http.addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+
         // The JWT authentication filter is added here in Story 1.4 (Implementation Plan §11).
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -134,6 +140,15 @@ public class SecurityConfig {
     public FilterRegistrationBean<PasswordRotationFilter> passwordRotationFilterRegistration(
             PasswordRotationFilter filter) {
         FilterRegistrationBean<PasswordRotationFilter> registration =
+                new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(
+            RateLimitFilter filter) {
+        FilterRegistrationBean<RateLimitFilter> registration =
                 new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
