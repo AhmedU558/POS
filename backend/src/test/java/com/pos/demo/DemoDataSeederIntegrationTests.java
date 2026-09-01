@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class DemoDataSeederIntegrationTests extends AbstractIntegrationTest {
 
     private static final List<String> DEMO_SKUS =
-            List.of("DEMO-COLA", "DEMO-WATER", "DEMO-COFFEE", "DEMO-CRISPS", "DEMO-CHOC");
+            List.of("GROC-RICE-BAS-5", "GROC-RICE-SUP-5", "GROC-SUGAR-1", "GROC-FLOUR-10", "GROC-OIL-1", "GROC-TEA-950", "GROC-SALT-800", "GROC-LENTIL-1", "BEV-COKE-15", "BEV-PEPSI-15", "BEV-7UP-15", "BEV-WATER-15", "BEV-ROOH-800", "BEV-JUICE-1", "DAIRY-MILK-1", "DAIRY-YOGURT-500", "DAIRY-BUTTER-200", "DAIRY-CHEESE-200", "DAIRY-CREAM-200", "SNACK-LAYS-40", "SNACK-KURKURE-40", "SNACK-BISCUIT-100", "SNACK-CHOC-45", "SNACK-NIMCO-150", "SNACK-POPCORN-50", "SNACK-CANDY-ROLL", "CARE-SHAMPOO-200", "CARE-SOAP-100", "CARE-PASTE-100", "CARE-BRUSH", "CARE-FACEWASH-100", "CARE-HANDWASH-250", "CARE-LOTION-100", "HOUSE-DETERGENT-1", "HOUSE-DISHWASH-500", "HOUSE-CLEANER-1", "HOUSE-TISSUE-150", "HOUSE-TOILET-500");
 
     @Autowired private DemoDataSeeder seeder;
     @Autowired private UserRepository userRepository;

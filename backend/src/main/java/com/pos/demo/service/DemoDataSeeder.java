@@ -139,16 +139,70 @@ public class DemoDataSeeder {
                         store);
 
         Unit each = demoUnit("EA", "Each");
-        Category drinks = demoCategory("Demo — Drinks");
-        Category snacks = demoCategory("Demo — Snacks");
+        Unit kg = demoUnit("KG", "Kilogram");
+        Unit g = demoUnit("G", "Gram");
+        Unit l = demoUnit("L", "Liter");
+        Unit ml = demoUnit("ML", "Milliliter");
+
+        Category grocery = demoCategory("Grocery");
+        Category beverages = demoCategory("Beverages");
+        Category dairy = demoCategory("Dairy");
+        Category snacks = demoCategory("Snacks");
+        Category personal = demoCategory("Personal Care");
+        Category household = demoCategory("Household");
 
         List<Product> products =
                 List.of(
-                        demoProduct("DEMO-COLA", "Cola 330ml", drinks, each, "0.55", "1.20", "5000112637922"),
-                        demoProduct("DEMO-WATER", "Still Water 500ml", drinks, each, "0.25", "0.80", "5000112637939"),
-                        demoProduct("DEMO-COFFEE", "Ground Coffee 250g", drinks, each, "3.10", "5.99", "5000112637946"),
-                        demoProduct("DEMO-CRISPS", "Salted Crisps 40g", snacks, each, "0.35", "0.95", "5000112637953"),
-                        demoProduct("DEMO-CHOC", "Chocolate Bar 45g", snacks, each, "0.40", "1.10", "5000112637960"));
+                        // Grocery
+                        demoProduct("GROC-RICE-BAS-5", "Basmati Rice 5kg", grocery, kg, "1200", "1500", "89640001001", null),
+                        demoProduct("GROC-RICE-SUP-5", "Super Kernel Rice 5kg", grocery, kg, "1400", "1750", "89640001002", null),
+                        demoProduct("GROC-SUGAR-1", "Sugar 1kg", grocery, kg, "120", "145", "89640001003", null),
+                        demoProduct("GROC-FLOUR-10", "Flour 10kg", grocery, kg, "1100", "1350", "89640001004", null),
+                        demoProduct("GROC-OIL-1", "Cooking Oil 1L", grocery, l, "450", "520", "89640001005", null),
+                        demoProduct("GROC-TEA-950", "Tea 950g", grocery, g, "1000", "1250", "89640001006", null),
+                        demoProduct("GROC-SALT-800", "Salt 800g", grocery, g, "40", "60", "89640001007", null),
+                        demoProduct("GROC-LENTIL-1", "Red Lentils 1kg", grocery, kg, "280", "340", "89640001008", null),
+                        
+                        // Beverages
+                        demoProduct("BEV-COKE-15", "Coca-Cola 1.5L", beverages, l, "110", "140", "89640002001", null),
+                        demoProduct("BEV-PEPSI-15", "Pepsi 1.5L", beverages, l, "110", "140", "89640002002", null),
+                        demoProduct("BEV-7UP-15", "7UP 1.5L", beverages, l, "110", "140", "89640002003", null),
+                        demoProduct("BEV-WATER-15", "Mineral Water 1.5L", beverages, l, "50", "70", "89640002004", null),
+                        demoProduct("BEV-ROOH-800", "Rooh Afza 800ml", beverages, ml, "320", "390", "89640002005", null),
+                        demoProduct("BEV-JUICE-1", "Apple Juice 1L", beverages, l, "180", "220", "89640002006", null),
+
+                        // Dairy
+                        demoProduct("DAIRY-MILK-1", "Milk 1L", dairy, l, "150", "180", "89640003001", null),
+                        demoProduct("DAIRY-YOGURT-500", "Yogurt 500g", dairy, g, "100", "130", "89640003002", null),
+                        demoProduct("DAIRY-BUTTER-200", "Butter 200g", dairy, g, "250", "310", "89640003003", null),
+                        demoProduct("DAIRY-CHEESE-200", "Cheese 200g", dairy, g, "400", "500", "89640003004", null),
+                        demoProduct("DAIRY-CREAM-200", "Cream 200ml", dairy, ml, "130", "160", "89640003005", null),
+
+                        // Snacks
+                        demoProduct("SNACK-LAYS-40", "Lays Chips 40g", snacks, each, "40", "50", "89640004001", null),
+                        demoProduct("SNACK-KURKURE-40", "Kurkure 40g", snacks, each, "40", "50", "89640004002", null),
+                        demoProduct("SNACK-BISCUIT-100", "Biscuits 100g", snacks, each, "25", "35", "89640004003", null),
+                        demoProduct("SNACK-CHOC-45", "Chocolate 45g", snacks, each, "80", "100", "89640004004", null),
+                        demoProduct("SNACK-NIMCO-150", "Nimco Mix 150g", snacks, each, "100", "130", "89640004005", null),
+                        demoProduct("SNACK-POPCORN-50", "Popcorn 50g", snacks, each, "30", "40", "89640004006", null),
+                        demoProduct("SNACK-CANDY-ROLL", "Candy Roll", snacks, each, "15", "20", "89640004007", null),
+
+                        // Personal Care
+                        demoProduct("CARE-SHAMPOO-200", "Shampoo 200ml", personal, ml, "350", "420", "89640005001", null),
+                        demoProduct("CARE-SOAP-100", "Soap 100g", personal, each, "65", "85", "89640005002", null),
+                        demoProduct("CARE-PASTE-100", "Toothpaste 100g", personal, each, "120", "150", "89640005003", null),
+                        demoProduct("CARE-BRUSH", "Toothbrush", personal, each, "70", "90", "89640005004", null),
+                        demoProduct("CARE-FACEWASH-100", "Face Wash 100ml", personal, ml, "280", "340", "89640005005", null),
+                        demoProduct("CARE-HANDWASH-250", "Hand Wash 250ml", personal, ml, "190", "230", "89640005006", null),
+                        demoProduct("CARE-LOTION-100", "Body Lotion 100ml", personal, ml, "310", "380", "89640005007", null),
+
+                        // Household
+                        demoProduct("HOUSE-DETERGENT-1", "Laundry Detergent 1kg", household, kg, "350", "430", "89640006001", null),
+                        demoProduct("HOUSE-DISHWASH-500", "Dishwashing Liquid 500ml", household, ml, "160", "210", "89640006002", null),
+                        demoProduct("HOUSE-CLEANER-1", "Floor Cleaner 1L", household, l, "280", "340", "89640006003", null),
+                        demoProduct("HOUSE-TISSUE-150", "Tissue Box 150s", household, each, "130", "170", "89640006004", null),
+                        demoProduct("HOUSE-TOILET-500", "Toilet Cleaner 500ml", household, ml, "180", "220", "89640006005", null)
+                );
 
         int stocked = 0;
         for (Product product : products) {
@@ -175,7 +229,7 @@ public class DemoDataSeeder {
                         () -> {
                             log.info("Demo seed: creating store {}", STORE_CODE);
                             return storeRepository.save(
-                                    new Store(STORE_CODE, "Demo Store", "USD", "UTC"));
+                                    new Store(STORE_CODE, "Demo Store", "PKR", "UTC"));
                         });
     }
 
@@ -290,7 +344,8 @@ public class DemoDataSeeder {
             Unit unit,
             String cost,
             String price,
-            String barcode) {
+            String barcode,
+            String imageUrl) {
         Optional<Product> existing = productRepository.findBySku(sku);
         if (existing.isPresent()) {
             return existing.get();
@@ -308,6 +363,7 @@ public class DemoDataSeeder {
         product.setTrackBatch(false);
         product.setTrackExpiry(false);
         product.setActive(true);
+        product.setImageUrl(imageUrl);
         Product saved = productRepository.save(product);
 
         // A product with no barcode can be searched but not scanned, which is half the till.

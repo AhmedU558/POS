@@ -32,7 +32,7 @@ public class CustomerService {
 
     @Transactional(readOnly = true)
     public Page<CustomerResponse> search(String query, Boolean isActive, Pageable pageable) {
-        String normalized = blankToNull(query);
+        String normalized = query == null ? "" : query.trim();
         return customerRepository.search(normalized, isActive, pageable).map(CustomerResponse::fromEntity);
     }
 

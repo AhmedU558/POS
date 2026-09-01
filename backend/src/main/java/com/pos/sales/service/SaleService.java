@@ -74,6 +74,7 @@ public class SaleService {
     private final UserRepository userRepository;
     private final AuditRecorder auditRecorder;
     private final com.pos.promotions.repository.PromotionRepository promotionRepository;
+    private final FbrIntegrationService fbrIntegrationService;
 
     public SaleService(
             SaleRepository saleRepository,
@@ -88,7 +89,8 @@ public class SaleService {
             StoreScopeEvaluator storeScopeEvaluator,
             UserRepository userRepository,
             AuditRecorder auditRecorder,
-            com.pos.promotions.repository.PromotionRepository promotionRepository) {
+            com.pos.promotions.repository.PromotionRepository promotionRepository,
+            FbrIntegrationService fbrIntegrationService) {
         this.saleRepository = saleRepository;
         this.sessionRepository = sessionRepository;
         this.paymentMethodRepository = paymentMethodRepository;
@@ -102,6 +104,7 @@ public class SaleService {
         this.userRepository = userRepository;
         this.auditRecorder = auditRecorder;
         this.promotionRepository = promotionRepository;
+        this.fbrIntegrationService = fbrIntegrationService;
     }
 
     @Transactional(readOnly = true)
@@ -363,6 +366,16 @@ public class SaleService {
                     saved.getId());
         }
         settleNonInventoryEffects(saved, session, cashier, store);
+        
+        var fbrResult = fbrIntegrationService.submitSale(saved);
+        saved.setFbrProviderCode(fbrResult.providerCode());
+        saved.setFbrEnvironment(fbrResult.environment());
+        saved.setFbrStatus(fbrResult.status());
+        saved.setFbrRequestId(fbrResult.requestId());
+        saved.setFbrInvoiceNumber(fbrResult.invoiceNumber());
+        saved.setFbrQrCode(fbrResult.qrCode());
+        saved.setFbrErrorMessage(fbrResult.errorMessage());
+        saleRepository.save(saved);
     }
 
     private void applyPayments(Sale sale, List<SalePaymentRequest> payments, Customer customer, BigDecimal grandTotal) {
@@ -399,7 +412,7 @@ public class SaleService {
                 customerCreditService.post(
                         saved.getCustomer().getId(),
                         new CustomerCreditTransactionRequest(
-                                CreditTransactionType.REDEEM,
+                                CreditTransactionType.ISSUE,
                                 payment.getAmount(),
                                 store.getCurrencyCode(),
                                 "Sale",

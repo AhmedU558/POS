@@ -16,7 +16,7 @@ public interface CustomerRepository extends JpaRepository<Customer, UUID> {
     boolean existsByCustomerCodeAndIdNot(String customerCode, UUID id);
 
     @Query("SELECT c FROM Customer c WHERE "
-            + "(:query IS NULL OR LOWER(c.customerCode) LIKE LOWER(CONCAT('%', :query, '%')) "
+            + "(:query = '' OR LOWER(c.customerCode) LIKE LOWER(CONCAT('%', :query, '%')) "
             + "OR LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) "
             + "OR LOWER(COALESCE(c.phone, '')) LIKE LOWER(CONCAT('%', :query, '%')) "
             + "OR LOWER(COALESCE(c.email, '')) LIKE LOWER(CONCAT('%', :query, '%'))) "

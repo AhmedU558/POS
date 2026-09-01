@@ -53,7 +53,7 @@ public class ProductService {
 
     @Transactional(readOnly = true)
     public Page<ProductResponse> searchProducts(String query, UUID categoryId, UUID brandId, Boolean isActive, Pageable pageable) {
-        return productRepository.searchProducts(query, categoryId, brandId, isActive, pageable)
+        return productRepository.searchProducts(query == null ? "" : query.trim(), categoryId, brandId, isActive, pageable)
                 .map(ProductResponse::fromEntity);
     }
 
@@ -96,6 +96,7 @@ public class ProductService {
         p.setTrackBatch(request.trackBatch());
         p.setTrackExpiry(request.trackExpiry());
         p.setActive(request.isActive());
+        p.setImageUrl(request.imageUrl());
 
         Product saved = productRepository.save(p);
         
@@ -150,6 +151,7 @@ public class ProductService {
         p.setMaxStock(request.maxStock());
         p.setTrackBatch(request.trackBatch());
         p.setTrackExpiry(request.trackExpiry());
+        p.setImageUrl(request.imageUrl());
 
         Product saved = productRepository.save(p);
         

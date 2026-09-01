@@ -31,8 +31,10 @@ public class InventoryReportController {
     public ApiResponse<Page<InventoryReportRow>> inventory(
             @RequestParam UUID storeId,
             @RequestParam(required = false, defaultValue = "false") boolean lowStockOnly,
+            @RequestParam(required = false) UUID categoryId,
+            @RequestParam(required = false) String query,
             Pageable pageable) {
-        return ApiResponse.of(inventoryService.reportInventory(storeId, lowStockOnly, pageable), RequestCorrelation.currentId());
+        return ApiResponse.of(inventoryService.reportInventory(storeId, lowStockOnly, categoryId, query, pageable), RequestCorrelation.currentId());
     }
 
     @GetMapping("/movements")

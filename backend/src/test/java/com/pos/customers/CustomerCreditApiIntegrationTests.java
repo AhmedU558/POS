@@ -70,22 +70,22 @@ class CustomerCreditApiIntegrationTests extends AbstractIntegrationTest {
         mockMvc.perform(post("/api/v1/customers/" + customerId + "/credit/transactions")
                         .header("Authorization", cashierToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(txBody("ISSUE", "30.00", "USD")))
+                        .content(txBody("ISSUE", "20.00", "USD")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.balance").value(30.00))
+                .andExpect(jsonPath("$.data.balance").value(20.00))
                 .andExpect(jsonPath("$.data.currencyCode").value("USD"))
                 .andExpect(jsonPath("$.data.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.data.transactions.content.length()").value(1))
                 .andExpect(jsonPath("$.data.transactions.content[0].transactionType").value("ISSUE"))
-                .andExpect(jsonPath("$.data.transactions.content[0].amount").value(30.00))
-                .andExpect(jsonPath("$.data.transactions.content[0].balanceAfter").value(30.00));
+                .andExpect(jsonPath("$.data.transactions.content[0].amount").value(20.00))
+                .andExpect(jsonPath("$.data.transactions.content[0].balanceAfter").value(20.00));
 
         mockMvc.perform(post("/api/v1/customers/" + customerId + "/credit/transactions")
                         .header("Authorization", cashierToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(txBody("REDEEM", "10.00", null)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.balance").value(20.00))
+                .andExpect(jsonPath("$.data.balance").value(10.00))
                 .andExpect(jsonPath("$.data.transactions.content.length()").value(2))
                 .andExpect(jsonPath("$.data.transactions.content[0].transactionType").value("REDEEM"))
                 .andExpect(jsonPath("$.data.transactions.content[0].amount").value(-10.00));
@@ -93,7 +93,7 @@ class CustomerCreditApiIntegrationTests extends AbstractIntegrationTest {
         mockMvc.perform(get("/api/v1/customers/" + customerId + "/credit")
                         .header("Authorization", adminToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.balance").value(20.00))
+                .andExpect(jsonPath("$.data.balance").value(10.00))
                 .andExpect(jsonPath("$.data.transactions.content.length()").value(2));
     }
 
@@ -249,16 +249,15 @@ class CustomerCreditApiIntegrationTests extends AbstractIntegrationTest {
     }
 
     @Test
-    void issueAboveCreditLimitIsAllowed() throws Exception {
+    void issueAboveCreditLimitIsRejected() throws Exception {
         String customerId = createCustomer("CR-LIM", "Limit Display Only");
 
         mockMvc.perform(post("/api/v1/customers/" + customerId + "/credit/transactions")
                         .header("Authorization", adminToken)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(txBody("ISSUE", "100.00", "USD")))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.balance").value(100.00))
-                .andExpect(jsonPath("$.data.creditLimit").value(25.00));
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.error.code").value("BUSINESS_RULE_VIOLATION"));
     }
 
     private String createCustomer(String code, String name) throws Exception {

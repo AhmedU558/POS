@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
 import { apiClient, setTokens, clearTokens } from '@/lib/apiClient';
 
 export interface User {
@@ -37,17 +37,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [passwordChangeRequired, setPasswordChangeRequired] = useState<boolean>(false);
 
-  const fetchCurrentUser = async () => {
+  const handleLogoutLocal = useCallback(() => {
+    clearTokens();
+    setUser(null);
+    setIsAuthenticated(false);
+    setPasswordChangeRequired(false);
+  }, []);
+
+  const fetchCurrentUser = useCallback(async () => {
     try {
       const res = await apiClient('/auth/me');
       if (res.ok) {
         const body = await res.json();
         setUser(body.data);
         setIsAuthenticated(true);
-        // The /auth/me doesn't explicitly return passwordChangeRequired in the body by default
-        // But the login/refresh tokens contain the flag. 
-        // Also if we hit a 403 on other endpoints we can set it.
-        // For now, if we successfully fetch /auth/me, we know we are authenticated.
       } else if (res.status === 403) {
         const body = await res.json();
         if (body.error?.code === 'PASSWORD_CHANGE_REQUIRED') {
@@ -59,12 +62,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } else {
         handleLogoutLocal();
       }
-    } catch (error) {
+    } catch {
       handleLogoutLocal();
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [handleLogoutLocal]);
 
   const login = (data: LoginSession) => {
     setTokens(data.accessToken, data.refreshToken);
@@ -77,17 +80,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const handleLogoutLocal = () => {
-    clearTokens();
-    setUser(null);
-    setIsAuthenticated(false);
-    setPasswordChangeRequired(false);
-  };
-
   const logout = async () => {
     try {
       await apiClient('/auth/logout', { method: 'POST' });
-    } catch (e) {
+    } catch {
       // Ignore network errors on logout
     } finally {
       handleLogoutLocal();
@@ -116,7 +112,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         window.removeEventListener('auth:logout', handleForcedLogout);
       }
     };
-  }, []);
+  }, [fetchCurrentUser, handleLogoutLocal]);
 
   return (
     <AuthContext.Provider value={{ user, isAuthenticated, isLoading, passwordChangeRequired, login, logout, refreshAuth: fetchCurrentUser }}>

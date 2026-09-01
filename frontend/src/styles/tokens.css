@@ -117,6 +117,22 @@
   --z-overlay: 300;
   --z-modal: 400;
   --z-toast: 500;
+
+  /* ---- POS-specific tokens ---------------------------------------------- */
+  --control-height-pos-lg: 4rem;    /* 64px — large pay button              */
+  --product-tile-min: 9rem;         /* 144px — minimum product tile width   */
+
+  /* Pay/checkout CTA — visually distinct from primary actions. */
+  --color-pay: #16a34a;
+  --color-pay-hover: #15803d;
+  --color-pay-foreground: #ffffff;
+
+  /* Grand total in the cart footer — must dominate visually. */
+  --font-size-pos-total: 1.625rem;  /* 26px */
+
+  /* Receipt thermal widths */
+  --receipt-width-58mm: 48mm;       /* printable area on 58mm roll */
+  --receipt-width-80mm: 72mm;       /* printable area on 80mm roll */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -149,6 +165,10 @@
     --color-pending-surface: #1c222b;
     --color-disabled-foreground: #6b7686;
     --color-disabled-surface: #1c222b;
+
+    --color-pay: #22c55e;
+    --color-pay-hover: #16a34a;
+    --color-pay-foreground: #0e1116;
   }
 }
 

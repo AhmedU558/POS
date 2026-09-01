@@ -30,7 +30,8 @@ function product(overrides: Partial<Product> = {}): Product {
     trackBatch: false,
     trackExpiry: false,
     isActive: true,
-    createdAt: '',
+    imageUrl: null,
+    createdAt: '2023-01-01T00:00:00Z',
     updatedAt: '',
     ...overrides,
   };

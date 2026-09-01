@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, act, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import { AuthProvider, useAuth } from './AuthContext';
-import { setTokens, clearTokens } from '@/lib/apiClient';
+import { setTokens } from '@/lib/apiClient';
 
 const TestComponent = () => {
   const { isAuthenticated, isLoading, user, passwordChangeRequired, logout } = useAuth();

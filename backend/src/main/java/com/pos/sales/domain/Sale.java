@@ -73,10 +73,37 @@ public class Sale {
     private BigDecimal discountTotal = BigDecimal.ZERO;
 
     @Column(name = "tax_total", nullable = false, precision = 19, scale = 4)
-    private BigDecimal taxTotal;
+    private BigDecimal taxTotal = BigDecimal.ZERO;
 
     @Column(name = "grand_total", nullable = false, precision = 19, scale = 4)
-    private BigDecimal grandTotal;
+    private BigDecimal grandTotal = BigDecimal.ZERO;
+
+    @Column(name = "fbr_provider_code", length = 50)
+    private String fbrProviderCode;
+
+    @Column(name = "fbr_environment", length = 20)
+    private String fbrEnvironment;
+
+    @Column(name = "fbr_status", length = 30)
+    private String fbrStatus = "NOT_CONFIGURED";
+
+    @Column(name = "fbr_request_id", length = 100)
+    private String fbrRequestId;
+
+    @Column(name = "fbr_submitted_at")
+    private OffsetDateTime fbrSubmittedAt;
+
+    @Column(name = "fbr_completed_at")
+    private OffsetDateTime fbrCompletedAt;
+
+    @Column(name = "fbr_error_message")
+    private String fbrErrorMessage;
+
+    @Column(name = "fbr_invoice_number")
+    private String fbrInvoiceNumber;
+
+    @Column(name = "fbr_qr_code")
+    private String fbrQrCode;
 
     @Column(name = "currency_code", nullable = false, columnDefinition = "bpchar(3)")
     private String currencyCode;
@@ -96,6 +123,78 @@ public class Sale {
 
     public UUID getId() {
         return id;
+    }
+
+    public String getFbrProviderCode() {
+        return fbrProviderCode;
+    }
+
+    public void setFbrProviderCode(String fbrProviderCode) {
+        this.fbrProviderCode = fbrProviderCode;
+    }
+
+    public String getFbrEnvironment() {
+        return fbrEnvironment;
+    }
+
+    public void setFbrEnvironment(String fbrEnvironment) {
+        this.fbrEnvironment = fbrEnvironment;
+    }
+
+    public String getFbrStatus() {
+        return fbrStatus;
+    }
+
+    public void setFbrStatus(String fbrStatus) {
+        this.fbrStatus = fbrStatus;
+    }
+
+    public String getFbrRequestId() {
+        return fbrRequestId;
+    }
+
+    public void setFbrRequestId(String fbrRequestId) {
+        this.fbrRequestId = fbrRequestId;
+    }
+
+    public OffsetDateTime getFbrSubmittedAt() {
+        return fbrSubmittedAt;
+    }
+
+    public void setFbrSubmittedAt(OffsetDateTime fbrSubmittedAt) {
+        this.fbrSubmittedAt = fbrSubmittedAt;
+    }
+
+    public OffsetDateTime getFbrCompletedAt() {
+        return fbrCompletedAt;
+    }
+
+    public void setFbrCompletedAt(OffsetDateTime fbrCompletedAt) {
+        this.fbrCompletedAt = fbrCompletedAt;
+    }
+
+    public String getFbrErrorMessage() {
+        return fbrErrorMessage;
+    }
+
+    public void setFbrErrorMessage(String fbrErrorMessage) {
+        this.fbrErrorMessage = fbrErrorMessage;
+    }
+
+    public String getFbrInvoiceNumber() {
+        return fbrInvoiceNumber;
+    }
+
+    public void setFbrInvoiceNumber(String fbrInvoiceNumber) {
+        this.fbrInvoiceNumber = fbrInvoiceNumber;
+    }
+
+    public String getFbrQrCode() {
+        return fbrQrCode;
+    }
+
+    public void setFbrQrCode(String fbrQrCode) {
+        this.fbrQrCode = fbrQrCode;
     }
 
     public String getReceiptNumber() {

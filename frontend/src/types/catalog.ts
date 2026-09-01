@@ -71,6 +71,7 @@ export interface Product {
   trackBatch: boolean;
   trackExpiry: boolean;
   isActive: boolean;
+  imageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,6 +93,7 @@ export interface ProductCreateRequest {
   trackBatch: boolean;
   trackExpiry: boolean;
   isActive: boolean;
+  imageUrl?: string | null;
 }
 
 /**

@@ -51,7 +51,7 @@ public class PurchaseOrderService {
 
     @Transactional(readOnly = true)
     public Page<PurchaseOrderResponse> search(String query, PurchaseOrderStatus status, Pageable pageable) {
-        return purchaseOrderRepository.search(blankToNull(query), status, pageable)
+        return purchaseOrderRepository.search(query == null ? "" : query.trim(), status, pageable)
                 .map(PurchaseOrderResponse::fromEntityWithoutItems);
     }
 

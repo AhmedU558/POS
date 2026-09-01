@@ -54,7 +54,7 @@ public interface SupplierInvoiceRepository extends JpaRepository<SupplierInvoice
 
     @EntityGraph(attributePaths = "supplier")
     @Query("SELECT i FROM SupplierInvoice i WHERE "
-            + "(:query IS NULL OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :query, '%'))) "
+            + "(:query = '' OR LOWER(i.invoiceNumber) LIKE LOWER(CONCAT('%', :query, '%'))) "
             + "AND (:status IS NULL OR i.status = :status)")
     Page<SupplierInvoice> search(
             @Param("query") String query,

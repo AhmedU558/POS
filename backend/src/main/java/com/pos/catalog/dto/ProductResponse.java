@@ -22,6 +22,7 @@ public record ProductResponse(
     boolean trackBatch,
     boolean trackExpiry,
     boolean isActive,
+    String imageUrl,
     OffsetDateTime createdAt,
     OffsetDateTime updatedAt
 ) {
@@ -34,6 +35,7 @@ public record ProductResponse(
             p.getPurchasePrice(), p.getSellingPrice(), p.getWholesalePrice(),
             p.getTaxRate(), p.getMinStock(), p.getMaxStock(),
             p.isTrackBatch(), p.isTrackExpiry(), p.isActive(),
+            p.getImageUrl(),
             p.getCreatedAt(), p.getUpdatedAt()
         );
     }

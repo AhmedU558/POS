@@ -72,6 +72,9 @@ public class CustomerCreditService {
         if (newBalance.compareTo(BigDecimal.ZERO) < 0) {
             throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Store credit balance cannot be negative");
         }
+        if (customer.getCreditLimit() != null && customer.getCreditLimit().compareTo(BigDecimal.ZERO) > 0 && newBalance.compareTo(customer.getCreditLimit()) > 0) {
+            throw new ApiException(ErrorCode.BUSINESS_RULE_VIOLATION, "Transaction exceeds customer credit limit");
+        }
 
         credit.setBalance(newBalance);
         creditRepository.save(credit);

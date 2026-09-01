@@ -62,7 +62,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
       const newRefresh = body.data.refreshToken;
       setTokens(newAccess, newRefresh);
       return newAccess;
-    } catch (error) {
+    } catch {
       clearTokens();
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('auth:logout'));
