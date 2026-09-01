@@ -23,11 +23,11 @@ export default function ReceiptPage() {
         setLoading(true);
         const data = await salesApi.receipt(saleId);
         setReceipt(data);
-      } catch (err: any) {
-        if (err.status === 404) {
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'status' in err && err.status === 404) {
           notFound();
         } else {
-          setError(err.message || 'Failed to load receipt');
+          setError(err instanceof Error ? err.message : 'Failed to load receipt');
         }
       } finally {
         setLoading(false);
@@ -35,6 +35,16 @@ export default function ReceiptPage() {
     }
     loadReceipt();
   }, [saleId]);
+
+  // Handle auto-print safely
+  useEffect(() => {
+    if (receipt && searchParams.get('print') === 'true') {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [receipt, searchParams]);
 
   if (loading) {
     return <div style={{ padding: '2rem', textAlign: 'center' }}>Loading receipt...</div>;
@@ -53,16 +63,6 @@ export default function ReceiptPage() {
   if (!receipt) {
     return null;
   }
-
-  // Handle auto-print safely
-  useEffect(() => {
-    if (receipt && searchParams.get('print') === 'true') {
-      const timer = setTimeout(() => {
-        window.print();
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [receipt, searchParams]);
 
   return (
     <div className="receipt-page">

@@ -147,11 +147,11 @@ class SalePaymentApiIntegrationTests extends AbstractIntegrationTest {
     }
 
     @Test
-    void storeCreditRedeemsCustomerBalance() throws Exception {
+    void storeCreditIncreasesCustomerDebtBalance() throws Exception {
         Customer customer = new Customer();
         customer.setCustomerCode("PAY-C-" + idSuffix());
         customer.setName("Credit Buyer");
-        customer.setCreditLimit(BigDecimal.ZERO);
+        customer.setCreditLimit(new BigDecimal("100.0000"));
         customer.setActive(true);
         customer = customerRepository.save(customer);
         entityManager.flush();
@@ -176,7 +176,7 @@ class SalePaymentApiIntegrationTests extends AbstractIntegrationTest {
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT balance FROM customer_credits WHERE customer_id = ?",
                 BigDecimal.class,
-                customer.getId())).isEqualByComparingTo("6.0000");
+                customer.getId())).isEqualByComparingTo("94.0000");
         assertThat(jdbcTemplate.queryForObject(
                 "SELECT count(*) FROM cash_transactions WHERE reference_id = CAST(? AS uuid)",
                 Long.class,

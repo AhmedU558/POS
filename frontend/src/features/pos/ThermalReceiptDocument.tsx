@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import { SaleReceipt } from '@/lib/api/sales';
 import { formatDateTime, formatMoney, formatQuantity } from '@/lib/format';
 
@@ -106,9 +107,12 @@ function FbrSection({ receipt }: { receipt: SaleReceipt }) {
         )}
         {receipt.fbrQrCode && (
           <div className="thermal-receipt__fbr-qr">
-            <img
+            <Image
+              unoptimized
               src={receipt.fbrQrCode}
               alt="FBR verification QR code"
+              width={150}
+              height={150}
               style={{ imageRendering: 'pixelated' }}
             />
           </div>

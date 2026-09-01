@@ -37,7 +37,7 @@ describe('PaymentDialog', () => {
 
   it('shows the amount due from the priced sale', () => {
     setup();
-    expect(screen.getAllByText('$18.50').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Rs. 18.50').length).toBeGreaterThan(0);
   });
 
   it('works out change from cash tendered', async () => {
@@ -47,7 +47,7 @@ describe('PaymentDialog', () => {
     await user.type(screen.getByLabelText('Cash received'), '20');
 
     expect(screen.getByText('Change due')).toBeTruthy();
-    expect(screen.getByText('$1.50')).toBeTruthy();
+    expect(screen.getByText('Rs. 1.50')).toBeTruthy();
   });
 
   it('refuses to complete when the cash tendered is short', async () => {
@@ -69,7 +69,9 @@ describe('PaymentDialog', () => {
     const user = userEvent.setup();
     const { onConfirm } = setup();
 
-    await user.type(screen.getByLabelText('Cash received'), '20');
+    const input = screen.getByLabelText('Cash received');
+    await user.clear(input);
+    await user.type(input, '20');
     await user.click(screen.getByRole('button', { name: 'Complete sale' }));
 
     expect(onConfirm).toHaveBeenCalledWith([{ paymentMethodId: 'cash', amount: 18.5 }], 20);
@@ -104,7 +106,7 @@ describe('PaymentDialog', () => {
     await user.clear(first);
     await user.type(first, '5');
 
-    expect(screen.getByText('$13.50 still to allocate')).toBeTruthy();
+    expect(screen.getByText('Rs. 13.50 still to allocate')).toBeTruthy();
     await user.click(screen.getByRole('button', { name: 'Complete sale' }));
     expect(onConfirm).not.toHaveBeenCalled();
   });

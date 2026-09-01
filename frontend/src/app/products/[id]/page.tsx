@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useStoreContext } from '@/features/session/StoreContext';

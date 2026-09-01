@@ -14,6 +14,15 @@ import { Icon } from '@/components/ui/Icon';
 import { PermissionRequired } from '@/components/ui/States';
 import { useToast } from '@/components/ui/Toast';
 
+interface FbrConfigResponse {
+  enabled: boolean;
+  environment: string;
+  ntn: string;
+  strn: string;
+  posId: string;
+  hasSecret: boolean;
+}
+
 export default function FbrSettingsPage() {
   const { user } = useAuth();
   const { activeStore } = useStoreContext();
@@ -35,14 +44,14 @@ export default function FbrSettingsPage() {
       if (!activeStore) return;
       try {
         setLoading(true);
-        const data = await get<any>(`/stores/${activeStore.id}/fbr-config`);
+        const data = await get<FbrConfigResponse>(`/stores/${activeStore.id}/fbr-config`);
         setEnabled(data.enabled);
         setEnvironment(data.environment || 'sandbox');
         setNtn(data.ntn || '');
         setStrn(data.strn || '');
         setPosId(data.posId || '');
         setHasSecret(data.hasSecret);
-      } catch (err: any) {
+      } catch {
         toast.error('Failed to load FBR configuration');
       } finally {
         setLoading(false);
@@ -57,7 +66,7 @@ export default function FbrSettingsPage() {
     if (!activeStore) return;
     try {
       setSaving(true);
-      const data = await put<any>(`/stores/${activeStore.id}/fbr-config`, {
+      const data = await put<{hasSecret: boolean}>(`/stores/${activeStore.id}/fbr-config`, {
         enabled,
         environment,
         ntn,
@@ -68,8 +77,12 @@ export default function FbrSettingsPage() {
       setHasSecret(data.hasSecret);
       setSecret(''); // Clear secret input after save
       toast.success('FBR configuration saved');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to save configuration');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast.error(err.message || 'Failed to save configuration');
+      } else {
+        toast.error('Failed to save configuration');
+      }
     } finally {
       setSaving(false);
     }

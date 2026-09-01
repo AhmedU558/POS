@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useStoreContext } from '@/features/session/StoreContext';
 import { getCategories, searchProducts } from '@/lib/api/catalog';
@@ -576,7 +577,7 @@ function ProductTile({ product, onAdd }: { product: Product; onAdd: () => void }
     >
       <div className="product-tile__icon">
         {product.imageUrl ? (
-          <img src={product.imageUrl} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <Image unoptimized src={product.imageUrl} alt={product.name} width={100} height={100} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         ) : (
           <Icon name="products" size={20} />
         )}
